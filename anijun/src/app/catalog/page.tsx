@@ -1,7 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import AnimeCard from "@/components/AnimeCard";
 
 interface Anime {
@@ -18,9 +18,7 @@ const CARDS_PER_PAGE = 8;
 
 export default function CatalogPage() {
   const [allAnime, setAllAnime] = useState<Anime[]>([]);
-  const [filtered, setFiltered] = useState<Anime[]>([]);
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("all");
   const [page, setPage] = useState(1);
   const supabase = createClient();
 
@@ -34,7 +32,6 @@ export default function CatalogPage() {
       if (!animeList) return;
 
       const { data: ratings } = await supabase.from("ratings").select("anime_id, rating");
-      const { data: userList } = await supabase.from("user_anime_list").select("anime_id, status");
 
       const totalUsers = 1;
       const enriched = animeList.map((a) => {
@@ -51,33 +48,32 @@ export default function CatalogPage() {
       });
 
       setAllAnime(enriched);
-      setFiltered(enriched);
     }
     load();
   }, [supabase]);
 
-  useEffect(() => {
-    let result = allAnime;
-
-    if (search) {
-      const q = search.toLowerCase();
-      result = result.filter(
-        (a) =>
-          a.title.toLowerCase().includes(q) ||
-          a.genres.some((g) => g.toLowerCase().includes(q)) ||
-          a.season_info.toLowerCase().includes(q)
-      );
-    }
-
-    setFiltered(result);
-    setPage(1);
+  const filtered = useMemo(() => {
+    if (!search) return allAnime;
+    const q = search.toLowerCase();
+    return allAnime.filter(
+      (a) =>
+        a.title.toLowerCase().includes(q) ||
+        a.genres.some((g: string) => g.toLowerCase().includes(q)) ||
+        a.season_info.toLowerCase().includes(q)
+    );
   }, [search, allAnime]);
 
   const totalPages = Math.ceil(filtered.length / CARDS_PER_PAGE);
+  const safePage = Math.min(page, totalPages || 1);
   const paginated = filtered.slice(
-    (page - 1) * CARDS_PER_PAGE,
-    page * CARDS_PER_PAGE
+    (safePage - 1) * CARDS_PER_PAGE,
+    safePage * CARDS_PER_PAGE
   );
+
+  function handleSearch(e: React.ChangeEvent<HTMLInputElement>) {
+    setSearch(e.target.value);
+    setPage(1);
+  }
 
   return (
     <div>
@@ -86,7 +82,7 @@ export default function CatalogPage() {
         <input
           type="text"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={handleSearch}
           placeholder="Поиск по названию, жанру, сезону..."
           className="w-full bg-[#1a1a1e] border border-[#222226] rounded-lg pl-10 pr-4 py-2.5 text-xs focus:outline-none focus:border-sky-400 transition-colors text-white"
         />
@@ -107,8 +103,8 @@ export default function CatalogPage() {
           {totalPages > 1 && (
             <div className="flex justify-center items-center gap-2 mt-8">
               <button
-                onClick={() => setPage(Math.max(1, page - 1))}
-                disabled={page === 1}
+                onClick={() => setPage(Math.max(1, safePage - 1))}
+                disabled={safePage === 1}
                 className="w-8 h-8 rounded border border-[#222226] bg-[#1a1a1e] hover:bg-[#222226] disabled:opacity-30 disabled:cursor-not-allowed text-gray-400 flex items-center justify-center text-xs transition-all"
               >
                 <i className="fa-solid fa-chevron-left"></i>
@@ -118,7 +114,7 @@ export default function CatalogPage() {
                   key={p}
                   onClick={() => setPage(p)}
                   className={`w-8 h-8 rounded text-xs font-bold transition-all ${
-                    p === page
+                    p === safePage
                       ? "bg-sky-500 text-white"
                       : "border border-[#222226] text-gray-400 hover:bg-[#222226]"
                   }`}
@@ -127,8 +123,8 @@ export default function CatalogPage() {
                 </button>
               ))}
               <button
-                onClick={() => setPage(Math.min(totalPages, page + 1))}
-                disabled={page === totalPages}
+                onClick={() => setPage(Math.min(totalPages, safePage + 1))}
+                disabled={safePage === totalPages}
                 className="w-8 h-8 rounded border border-[#222226] bg-[#1a1a1e] hover:bg-[#222226] disabled:opacity-30 disabled:cursor-not-allowed text-gray-400 flex items-center justify-center text-xs transition-all"
               >
                 <i className="fa-solid fa-chevron-right"></i>

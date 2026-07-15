@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 
 interface AnimeCardProps {
   id: number;
@@ -38,11 +39,12 @@ export default function AnimeCard({
         <div className="absolute top-2 right-2 bg-black/80 border border-[#222226] text-[10px] font-bold text-gray-300 px-1.5 py-0.5 rounded z-10">
           {age_rating}
         </div>
-        <img
+        <Image
           src={image_url}
           alt={title}
-          className="w-full h-full object-cover group-hover:scale-[1.02] transition-all duration-300"
-          loading="lazy"
+          fill
+          className="object-cover group-hover:scale-[1.02] transition-all duration-300"
+          sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 20vw"
         />
         {total_episodes > 0 && (
           <div className="absolute bottom-2 right-2 bg-black/80 text-[9px] font-bold text-gray-300 px-1.5 py-0.5 rounded border border-[#222226] z-10">

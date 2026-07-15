@@ -73,8 +73,10 @@ export default function HomePage() {
       userList?.forEach((l) => listMap.set(l.anime_id, l.status));
 
       const progressByAnime = new Map<number, { watched: number; total: number }>();
-      userProgress?.forEach((p) => {
-        const aid = (p.anime_seasons as { anime_id: number }).anime_id;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      userProgress?.forEach((p: any) => {
+        const aid = p.anime_seasons?.anime_id as number;
+        if (!aid) return;
         const existing = progressByAnime.get(aid) || { watched: 0, total: 0 };
         if (p.watched) existing.watched++;
         existing.total++;
@@ -104,14 +106,14 @@ export default function HomePage() {
         const status = listMap.get(a.id);
         const rating = ratingsMap.get(a.id);
         if (status === "completed" || (rating && rating >= 7)) {
-          a.genres?.forEach((g) => completedGenres.add(g));
+          (a.genres as string[])?.forEach((g: string) => completedGenres.add(g));
         }
       });
 
       const recs =
         completedGenres.size > 0
           ? ratedAnime
-              .filter((a) => a.genres?.some((g) => completedGenres.has(g)))
+              .filter((a) => (a.genres as string[])?.some((g: string) => completedGenres.has(g)))
               .slice(0, 5)
           : ratedAnime.slice(0, 5);
 
