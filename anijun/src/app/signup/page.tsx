@@ -22,6 +22,10 @@ export default function SignupPage() {
       setError("Имя должно быть не менее 2 символов");
       return;
     }
+    if (!/^[a-zA-Z0-9_]+$/.test(username.trim())) {
+      setError("Имя может содержать только латинские буквы, цифры и _");
+      return;
+    }
 
     setLoading(true);
 
@@ -70,7 +74,7 @@ export default function SignupPage() {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Кира"
+              placeholder="имя пользователя"
               required
               className="w-full bg-[#121214] border border-[#222226] rounded-lg px-4 py-2.5 text-xs text-white focus:outline-none focus:border-sky-400 transition-colors"
             />
