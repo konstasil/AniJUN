@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+:root {
+  --background: #141416;
+  --foreground: #f4f4f5;
+  --surface: #1a1a1e;
+  --surface-border: #222226;
+  --accent: #38bdf8;
+  --accent-hover: #0ea5e9;
+  --text-primary: #f4f4f5;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-border: var(--surface-border);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+}
+
+/* Custom scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #1a1a1e;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #2e2e33;
+  border-radius: 3px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #3e3e44;
+}
+
+/* Nav tab indicator */
+.nav-tab {
+  position: relative;
+  transition: color 0.2s ease;
+}
+.nav-tab.active {
+  color: #38bdf8;
+}
+.nav-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -17px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 6px solid #38bdf8;
+}
+
+/* Smooth transitions */
+.transition-gpu {
+  will-change: transform;
+  transform: translateZ(0);
+}
