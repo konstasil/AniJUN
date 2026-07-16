@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import AnimeCard from "@/components/AnimeCard";
 import Image from "next/image";
+import ImageUpload from "@/components/ImageUpload";
 
 interface RareAnime {
   id: number;
@@ -22,6 +23,7 @@ interface FavoriteAnime {
 
 interface ProfileData {
   username: string;
+  avatar_url: string;
   total: number;
   completed: number;
   watching: number;
@@ -33,6 +35,7 @@ interface ProfileData {
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const router = useRouter();
   const supabase = createClient();
 
@@ -43,10 +46,11 @@ export default function ProfilePage() {
         router.push("/login");
         return;
       }
+      setUserId(user.id);
 
       const { data: profileData } = await supabase
         .from("profiles")
-        .select("username")
+        .select("username, avatar_url")
         .eq("id", user.id)
         .single();
 
@@ -81,7 +85,6 @@ export default function ProfilePage() {
       const watching = userList?.filter((l) => l.status === "watching").length || 0;
       const planned = userList?.filter((l) => l.status === "planned").length || 0;
 
-      // Top genres
       const genreCounts: Record<string, number> = {};
       userList?.forEach((l) => {
         const anime = animeList?.find((a) => a.id === l.anime_id);
@@ -97,7 +100,6 @@ export default function ProfilePage() {
         .slice(0, 5)
         .map(([genre, count]) => ({ genre, count }));
 
-      // Favorites (rating 9-10)
       const favorites = (userRatings || [])
         .filter((r) => r.rating >= 9)
         .map((r) => {
@@ -110,15 +112,12 @@ export default function ProfilePage() {
           };
         });
 
-      // Rare anime: user interacted + fewest total ratings
       const ratingCounts = new Map<number, number>();
       allRatings?.forEach((r) => {
         ratingCounts.set(r.anime_id, (ratingCounts.get(r.anime_id) || 0) + 1);
       });
 
-      const userAnimeIds = new Set(
-        userList?.map((l) => l.anime_id) || []
-      );
+      const userAnimeIds = new Set(userList?.map((l) => l.anime_id) || []);
 
       const rareAnime: RareAnime[] = [];
       userAnimeIds.forEach((aid) => {
@@ -137,6 +136,7 @@ export default function ProfilePage() {
 
       setProfile({
         username: profileData.username,
+        avatar_url: profileData.avatar_url || "",
         total,
         completed,
         watching,
@@ -150,6 +150,12 @@ export default function ProfilePage() {
     load();
   }, [supabase, router]);
 
+  async function handleAvatarUploaded(url: string) {
+    if (!userId) return;
+    await supabase.from("profiles").update({ avatar_url: url }).eq("id", userId);
+    setProfile((p) => (p ? { ...p, avatar_url: url } : p));
+  }
+
   if (!profile) {
     return (
       <div className="text-center py-20 text-gray-500 text-xs">Загрузка...</div>
@@ -162,9 +168,13 @@ export default function ProfilePage() {
     <div className="flex flex-col gap-8">
       {/* User block */}
       <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-6 flex flex-col sm:flex-row items-center gap-6">
-        <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-sky-400 to-blue-600 flex items-center justify-center text-white text-2xl font-black shadow-lg shadow-sky-500/10">
-          {profile.username.substring(0, 2).toUpperCase()}
-        </div>
+        <ImageUpload
+          bucket="users"
+          currentUrl={profile.avatar_url || undefined}
+          onUploaded={handleAvatarUploaded}
+          size={64}
+          label="Аватар"
+        />
         <div className="text-center sm:text-left flex-1">
           <h2 className="text-xl font-bold text-white flex items-center justify-center sm:justify-start gap-2.5">
             {profile.username}

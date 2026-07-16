@@ -5,6 +5,7 @@ import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import ImageUpload from "@/components/ImageUpload";
 
 interface Season {
   id: number;
@@ -43,12 +44,15 @@ export default function AnimeDetailPage({
   const [userId, setUserId] = useState<string | null>(null);
   const [showStats, setShowStats] = useState(false);
   const [allRatings, setAllRatings] = useState<number[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [editingPoster, setEditingPoster] = useState(false);
 
   useEffect(() => {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       setUserId(user.id);
+      setIsAdmin(["8fa96992-b063-4019-83a6-3acac8cc712f", "cc91e0bb-a24b-41ab-ba41-3bd352ed9add"].includes(user.id));
 
       const { data: animeData } = await supabase
         .from("anime")
@@ -304,6 +308,12 @@ export default function AnimeDetailPage({
     router.push("/");
   }
 
+  async function handlePosterUploaded(url: string) {
+    await supabase.from("anime").update({ image_url: url }).eq("id", id);
+    setAnime((a) => (a ? { ...a, image_url: url } : a));
+    setEditingPoster(false);
+  }
+
   if (!anime) {
     return (
       <div className="text-center py-20 text-gray-500 text-xs">Загрузка...</div>
@@ -331,13 +341,37 @@ export default function AnimeDetailPage({
 
       <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl overflow-hidden flex flex-col md:flex-row">
         <div className="w-full md:w-72 bg-[#121214] flex-shrink-0 relative">
-          <Image
-            src={anime.image_url}
-            alt={anime.title}
-            fill
-            className="object-cover"
-            sizes="(max-width: 768px) 100vw, 288px"
-          />
+          {editingPoster ? (
+            <div className="absolute inset-0 flex items-center justify-center bg-[#121214] p-4 z-10">
+              <ImageUpload
+                bucket="Anime"
+                currentUrl={anime.image_url}
+                onUploaded={handlePosterUploaded}
+                size={200}
+                label="Загрузить постер"
+              />
+              <button onClick={() => setEditingPoster(false)}
+                className="absolute top-2 right-2 text-gray-500 hover:text-white text-xs">
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+          ) : (
+            <>
+              <Image
+                src={anime.image_url}
+                alt={anime.title}
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 100vw, 288px"
+              />
+              {isAdmin && (
+                <button onClick={() => setEditingPoster(true)}
+                  className="absolute bottom-3 right-3 bg-black/80 hover:bg-black text-white text-[10px] font-bold px-2 py-1 rounded border border-[#222226] transition-all z-10">
+                  <i className="fa-solid fa-pen mr-1"></i> Постер
+                </button>
+              )}
+            </>
+          )}
           <div className="absolute top-3 left-3 bg-black/80 border border-[#222226] text-xs font-bold text-sky-400 px-2 py-1 rounded">
             ★ {typeof weightedRating === "number" ? weightedRating.toFixed(2) : weightedRating}
           </div>

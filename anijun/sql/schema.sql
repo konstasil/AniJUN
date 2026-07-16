@@ -6,6 +6,7 @@
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   username TEXT UNIQUE NOT NULL,
+  avatar_url TEXT DEFAULT '',
   created_at TIMESTAMPTZ DEFAULT now() NOT NULL
 );
 
@@ -157,3 +158,68 @@ SELECT
   COALESCE((SELECT COUNT(*) FROM public.ratings r WHERE r.anime_id = a.id), 0) AS votes_count,
   (SELECT COUNT(*) FROM public.profiles) AS total_users
 FROM public.anime a;
+
+-- 8. Admins table
+CREATE TABLE IF NOT EXISTS public.admins (
+  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE
+);
+
+INSERT INTO public.admins (user_id) VALUES
+  ('8fa96992-b063-4019-83a6-3acac8cc712f'),
+  ('cc91e0bb-a24b-41ab-ba41-3bd352ed9add')
+ON CONFLICT DO NOTHING;
+
+ALTER TABLE public.admins ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view admins"
+  ON public.admins FOR SELECT USING (true);
+
+CREATE POLICY "Admins can manage admins"
+  ON public.admins FOR ALL
+  USING (EXISTS (SELECT 1 FROM public.admins WHERE user_id = auth.uid()));
+
+-- 9. Admin-only anime insert policy (replace the permissive one)
+DROP POLICY IF EXISTS "Authenticated users can insert anime" ON public.anime;
+CREATE POLICY "Admins can insert anime"
+  ON public.anime FOR INSERT TO authenticated
+  WITH CHECK (EXISTS (SELECT 1 FROM public.admins WHERE user_id = auth.uid()));
+
+CREATE POLICY "Admins can update anime"
+  ON public.anime FOR UPDATE TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.admins WHERE user_id = auth.uid()));
+
+CREATE POLICY "Admins can delete anime"
+  ON public.anime FOR DELETE TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.admins WHERE user_id = auth.uid()));
+
+DROP POLICY IF EXISTS "Authenticated users can insert seasons" ON public.anime_seasons;
+CREATE POLICY "Admins can manage seasons"
+  ON public.anime_seasons FOR ALL TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.admins WHERE user_id = auth.uid()));
+
+-- 10. Storage buckets (run in Supabase Dashboard > Storage)
+-- CREATE BUCKET "users" (public) for user avatars
+-- CREATE BUCKET "Anime" (public) for anime posters
+
+-- Storage RLS policies
+CREATE POLICY "Avatar upload for own profile"
+  ON storage.objects FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'users' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+CREATE POLICY "Avatar publicly accessible"
+  ON storage.objects FOR SELECT USING (bucket_id = 'users');
+
+CREATE POLICY "Anyone can view anime posters"
+  ON storage.objects FOR SELECT USING (bucket_id = 'Anime');
+
+CREATE POLICY "Admins can upload anime posters"
+  ON storage.objects FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'Anime' AND EXISTS (SELECT 1 FROM public.admins WHERE user_id = auth.uid()));
+
+CREATE POLICY "Admins can update anime posters"
+  ON storage.objects FOR UPDATE TO authenticated
+  USING (bucket_id = 'Anime' AND EXISTS (SELECT 1 FROM public.admins WHERE user_id = auth.uid()));
+
+CREATE POLICY "Admins can delete anime posters"
+  ON storage.objects FOR DELETE TO authenticated
+  USING (bucket_id = 'Anime' AND EXISTS (SELECT 1 FROM public.admins WHERE user_id = auth.uid()));

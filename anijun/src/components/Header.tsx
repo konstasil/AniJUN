@@ -11,6 +11,7 @@ export default function Header() {
   const [username, setUsername] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [animeDropdown, setAnimeDropdown] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
@@ -20,6 +21,7 @@ export default function Header() {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
       if (user) {
+        setIsAdmin(["8fa96992-b063-4019-83a6-3acac8cc712f", "cc91e0bb-a24b-41ab-ba41-3bd352ed9add"].includes(user.id));
         const { data } = await supabase
           .from("profiles")
           .select("username")
@@ -33,6 +35,7 @@ export default function Header() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setUser(session?.user ?? null);
+        setIsAdmin(session?.user ? ["8fa96992-b063-4019-83a6-3acac8cc712f", "cc91e0bb-a24b-41ab-ba41-3bd352ed9add"].includes(session.user.id) : false);
         if (session?.user) {
           const { data } = await supabase
             .from("profiles")
@@ -203,6 +206,15 @@ export default function Header() {
                   >
                     <i className="fa-solid fa-user text-[10px]"></i> Профиль
                   </Link>
+                  {isAdmin && (
+                    <Link
+                      href="/admin"
+                      onClick={() => setMenuOpen(false)}
+                      className="w-full text-left px-4 py-2 hover:bg-[#222226] hover:text-amber-400 transition-colors text-xs text-gray-400 font-semibold flex items-center gap-2"
+                    >
+                      <i className="fa-solid fa-shield text-[10px]"></i> Админ
+                    </Link>
+                  )}
                   <button
                     onClick={handleSignOut}
                     className="w-full text-left px-4 py-2 hover:bg-[#222226] hover:text-red-400 transition-colors text-xs text-gray-400 font-semibold flex items-center gap-2"
