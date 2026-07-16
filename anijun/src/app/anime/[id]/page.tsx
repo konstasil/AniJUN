@@ -378,9 +378,19 @@ export default function AnimeDetailPage({
         </div>
 
         <div className="p-6 md:p-8 flex-1 flex flex-col">
-          <h2 className="text-xl font-bold text-white mb-4 pr-8">
-            {anime.title}
-          </h2>
+          <div className="flex items-center gap-3 mb-4 pr-8">
+            <h2 className="text-xl font-bold text-white flex-1">
+              {anime.title}
+            </h2>
+            {isAdmin && (
+              <button
+                onClick={() => router.push("/admin")}
+                className="text-[10px] font-bold text-gray-400 hover:text-sky-400 px-2.5 py-1 rounded bg-[#121214] border border-[#222226] transition-all flex items-center gap-1.5 shrink-0"
+              >
+                <i className="fa-solid fa-pen"></i> Редактировать
+              </button>
+            )}
+          </div>
 
           <div className="flex flex-wrap gap-y-1.5 gap-x-4 text-xs text-gray-400 mb-5 pb-3 border-b border-[#222226]">
             <div>
