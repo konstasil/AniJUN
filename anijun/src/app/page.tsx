@@ -46,7 +46,10 @@ export default function HomePage() {
         .from("ratings")
         .select("anime_id, rating");
 
-      const totalUsers = 1;
+      const { count: totalUsers } = await supabase
+        .from("profiles")
+        .select("*", { count: "exact", head: true });
+
       const ratedAnime = allAnime.map((a) => {
         const animeRatings = ratings?.filter((r) => r.anime_id === a.id) || [];
         const count = animeRatings.length;

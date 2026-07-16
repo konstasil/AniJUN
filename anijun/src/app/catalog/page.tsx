@@ -98,7 +98,10 @@ function CatalogContent() {
         progressByAnime.set(aid, existing);
       });
 
-      const totalUsers = 1;
+      const { count: totalUsers } = await supabase
+        .from("profiles")
+        .select("*", { count: "exact", head: true });
+
       const enriched = animeList.map((a) => {
         const animeRatings = ratings?.filter((r) => r.anime_id === a.id) || [];
         const count = animeRatings.length;
