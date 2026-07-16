@@ -274,9 +274,32 @@ export default function AnimeDetailPage({
     if (!userId) return;
     if (!confirm(`Удалить "${anime?.title}"?`)) return;
 
-    await supabase.from("episode_progress").delete().eq("user_id", userId);
-    await supabase.from("ratings").delete().eq("user_id", userId);
-    await supabase.from("user_anime_list").delete().eq("user_id", userId);
+    const { data: seasons } = await supabase
+      .from("anime_seasons")
+      .select("id")
+      .eq("anime_id", id);
+
+    if (seasons && seasons.length > 0) {
+      const seasonIds = seasons.map((s) => s.id);
+      await supabase
+        .from("episode_progress")
+        .delete()
+        .eq("user_id", userId)
+        .in("season_id", seasonIds);
+    }
+
+    await supabase
+      .from("ratings")
+      .delete()
+      .eq("user_id", userId)
+      .eq("anime_id", id);
+
+    await supabase
+      .from("user_anime_list")
+      .delete()
+      .eq("user_id", userId)
+      .eq("anime_id", id);
+
     router.push("/");
   }
 
