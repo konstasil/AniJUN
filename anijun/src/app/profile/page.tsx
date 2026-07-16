@@ -6,6 +6,20 @@ import { useRouter } from "next/navigation";
 import AnimeCard from "@/components/AnimeCard";
 import Image from "next/image";
 
+interface RareAnime {
+  id: number;
+  title: string;
+  image_url: string;
+  votesCount: number;
+}
+
+interface FavoriteAnime {
+  id: number;
+  title: string;
+  image_url: string;
+  rating: number;
+}
+
 interface ProfileData {
   username: string;
   total: number;
@@ -13,12 +27,8 @@ interface ProfileData {
   watching: number;
   planned: number;
   topGenres: { genre: string; count: number }[];
-  favorites: {
-    id: number;
-    title: string;
-    image_url: string;
-    rating: number;
-  }[];
+  favorites: FavoriteAnime[];
+  rareAnime: RareAnime[];
 }
 
 export default function ProfilePage() {
@@ -55,6 +65,10 @@ export default function ProfilePage() {
         .from("ratings")
         .select("anime_id, rating")
         .eq("user_id", user.id);
+
+      const { data: allRatings } = await supabase
+        .from("ratings")
+        .select("anime_id, user_id");
 
       const statusMap = new Map<number, string>();
       userList?.forEach((l) => statusMap.set(l.anime_id, l.status));
@@ -96,6 +110,31 @@ export default function ProfilePage() {
           };
         });
 
+      // Rare anime: user interacted + fewest total ratings
+      const ratingCounts = new Map<number, number>();
+      allRatings?.forEach((r) => {
+        ratingCounts.set(r.anime_id, (ratingCounts.get(r.anime_id) || 0) + 1);
+      });
+
+      const userAnimeIds = new Set(
+        userList?.map((l) => l.anime_id) || []
+      );
+
+      const rareAnime: RareAnime[] = [];
+      userAnimeIds.forEach((aid) => {
+        const anime = animeList?.find((a) => a.id === aid);
+        if (anime) {
+          rareAnime.push({
+            id: anime.id,
+            title: anime.title,
+            image_url: anime.image_url,
+            votesCount: ratingCounts.get(aid) || 0,
+          });
+        }
+      });
+
+      rareAnime.sort((a, b) => a.votesCount - b.votesCount);
+
       setProfile({
         username: profileData.username,
         total,
@@ -104,6 +143,7 @@ export default function ProfilePage() {
         planned,
         topGenres,
         favorites,
+        rareAnime: rareAnime.slice(0, 6),
       });
     }
 
@@ -198,34 +238,34 @@ export default function ProfilePage() {
 
         <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-5 flex flex-col min-h-[160px]">
           <span className="text-gray-500 text-[10px] font-bold uppercase tracking-wider block mb-3">
-            Избранное <i className="fa-solid fa-gem text-amber-400 ml-1"></i>
+            Редкие находки <i className="fa-solid fa-gem text-amber-400 ml-1"></i>
           </span>
           <div className="flex flex-col gap-2 flex-1 justify-center">
-            {profile.favorites.length === 0 ? (
+            {profile.rareAnime.length === 0 ? (
               <div className="text-xs text-gray-500 text-center py-4">
-                Оцени аниме на 9 или 10
+                Пока нет просмотренных аниме
               </div>
             ) : (
-              profile.favorites.slice(0, 3).map((f) => (
+              profile.rareAnime.map((r) => (
                 <div
-                  key={f.id}
-                  onClick={() => router.push(`/anime/${f.id}`)}
+                  key={r.id}
+                  onClick={() => router.push(`/anime/${r.id}`)}
                   className="flex items-center justify-between p-2 bg-[#121214] hover:bg-[#222226] rounded border border-[#222226] cursor-pointer transition-colors"
                 >
                   <div className="flex items-center gap-2 overflow-hidden mr-2">
                     <Image
-                      src={f.image_url}
-                      alt={f.title}
+                      src={r.image_url}
+                      alt={r.title}
                       width={24}
                       height={32}
                       className="object-cover rounded"
                     />
                     <span className="font-semibold text-gray-300 text-xs truncate">
-                      {f.title}
+                      {r.title}
                     </span>
                   </div>
-                  <span className="bg-sky-400/10 text-sky-400 text-[9px] font-bold px-2 py-0.5 rounded border border-sky-400/20 whitespace-nowrap">
-                    ★ {f.rating}
+                  <span className="bg-amber-400/10 text-amber-400 text-[9px] font-bold px-2 py-0.5 rounded border border-amber-400/20 whitespace-nowrap">
+                    {r.votesCount === 1 ? "Только вы" : `${r.votesCount} оценок`}
                   </span>
                 </div>
               ))

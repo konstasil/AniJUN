@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 
 interface Season {
   id: number;
@@ -363,12 +364,13 @@ export default function AnimeDetailPage({
             <div className="w-full flex flex-wrap gap-1 items-center mt-1">
               <span>Жанры:</span>
               {anime.genres?.map((g) => (
-                <span
+                <Link
                   key={g}
+                  href={`/catalog?genre=${encodeURIComponent(g)}`}
                   className="bg-[#222226] hover:bg-[#32323a] border border-[#2d2d35] px-1.5 py-0.5 rounded text-[10px] text-gray-300 cursor-pointer transition-all"
                 >
                   {g}
-                </span>
+                </Link>
               ))}
             </div>
           </div>
