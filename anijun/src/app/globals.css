@@ -98,3 +98,6 @@ body {
 .holo-container:hover .holo-layer {
   opacity: 0.5;
 }
+.holo-container .holo-layer.visible {
+  opacity: 0.6;
+}

@@ -1,7 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import AnimeCard from "@/components/AnimeCard";
 import Link from "next/link";
 
@@ -29,7 +29,7 @@ export default function HomePage() {
   const [unrated, setUnrated] = useState<Anime[]>([]);
   const [news, setNews] = useState<Anime[]>([]);
   const [user, setUser] = useState<string | null>(null);
-  const supabase = createClient();
+  const supabase = useRef(createClient()).current;
 
   useEffect(() => {
     async function load() {
@@ -149,7 +149,7 @@ export default function HomePage() {
     }
 
     load();
-  }, [supabase]);
+  }, []);
 
   return (
     <div className="flex flex-col gap-10">

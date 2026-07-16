@@ -1,7 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
-import { useEffect, useState, useMemo, Suspense } from "react";
+import { useEffect, useState, useMemo, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import AnimeCard from "@/components/AnimeCard";
 
@@ -56,7 +56,7 @@ function CatalogContent() {
   const [ageFilter, setAgeFilter] = useState("");
   const [episodeFilter, setEpisodeFilter] = useState("");
 
-  const supabase = createClient();
+  const supabase = useRef(createClient()).current;
 
   useEffect(() => {
     async function load() {
@@ -132,7 +132,7 @@ function CatalogContent() {
       setAllAnime(enriched);
     }
     load();
-  }, [supabase]);
+  }, []);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();

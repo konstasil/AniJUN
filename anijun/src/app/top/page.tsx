@@ -1,7 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 
 interface AnimeTop {
@@ -14,7 +14,7 @@ interface AnimeTop {
 
 export default function TopPage() {
   const [anime, setAnime] = useState<AnimeTop[]>([]);
-  const supabase = createClient();
+  const supabase = useRef(createClient()).current;
 
   useEffect(() => {
     async function load() {
@@ -52,7 +52,7 @@ export default function TopPage() {
       setAnime(enriched);
     }
     load();
-  }, [supabase]);
+  }, []);
 
   return (
     <div>

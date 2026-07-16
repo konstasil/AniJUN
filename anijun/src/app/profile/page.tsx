@@ -1,7 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import AnimeCard from "@/components/AnimeCard";
 import Image from "next/image";
@@ -37,7 +37,7 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useRef(createClient()).current;
 
   useEffect(() => {
     async function load() {
@@ -148,7 +148,7 @@ export default function ProfilePage() {
     }
 
     load();
-  }, [supabase, router]);
+  }, [router]);
 
   async function handleAvatarUploaded(url: string) {
     if (!userId) return;

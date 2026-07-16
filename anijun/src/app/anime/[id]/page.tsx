@@ -1,7 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
-import { useEffect, useState, use } from "react";
+import { useEffect, useState, use, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -46,6 +46,8 @@ export default function AnimeDetailPage({
   const [allRatings, setAllRatings] = useState<number[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [editingPoster, setEditingPoster] = useState(false);
+  const supabaseRef = useRef(supabase);
+  supabaseRef.current;
 
   useEffect(() => {
     async function load() {
@@ -143,7 +145,7 @@ export default function AnimeDetailPage({
     }
 
     load();
-  }, [id, supabase]);
+  }, [id]);
 
   async function handleRate(rating: number | "-") {
     if (!userId) return;
