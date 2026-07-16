@@ -58,7 +58,7 @@ export default function HomePage() {
           const avg =
             animeRatings.reduce((s, r) => s + r.rating, 0) / count;
           weightedRating = parseFloat(
-            (avg * Math.pow(count / Math.max(totalUsers, 1), 0.5)).toFixed(2)
+            (avg * Math.pow(count / Math.max(totalUsers || 1, 1), 0.5)).toFixed(2)
           );
         }
         return { ...a, weighted_rating: weightedRating };
