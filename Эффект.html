@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { background: #121214; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; gap: 20px; }
+        
+        .controls { display: flex; gap: 10px; }
+        input { background: #1a1a1e; border: 1px solid #333; color: white; padding: 10px; border-radius: 8px; width: 300px; outline: none; }
+        button { background: #38bdf8; color: black; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+
+        /* Контейнер для 3D */
+        .card-container { perspective: 1000px; width: 300px; height: 420px; }
+
+        .holo-card {
+            width: 100%; height: 100%;
+            position: relative; transform-style: preserve-3d;
+            transition: transform 0.1s ease-out;
+            border-radius: 20px; overflow: hidden;
+            border: 2px solid #333;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .holo-card img { width: 100%; height: 100%; object-fit: cover; }
+        
+        /* Слой эффекта "холо" */
+        .holo-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(
+                135deg,
+                rgba(255, 0, 0, 0.4),
+                rgba(255, 255, 0, 0.4),
+                rgba(0, 255, 0, 0.4),
+                rgba(0, 255, 255, 0.4),
+                rgba(0, 0, 255, 0.4),
+                rgba(255, 0, 255, 0.4),
+                rgba(255, 0, 0, 0.4)
+            );
+            background-size: 300% 300%;
+            mix-blend-mode: color-dodge;
+            opacity: 0.4;
+            pointer-events: none;
+            transition: background-position 0.1s ease-out;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="controls">
+        <input type="text" id="imgUrl" placeholder="Вставь ссылку на картинку">
+        <button onclick="createCard()">Создать карту</button>
+    </div>
+
+    <div class="card-container" id="container">
+        <div class="holo-card" id="card">
+            <!-- Добавили id="card-img", теперь JS его видит -->
+            <img id="card-img" src="https://via.placeholder.com/300x420?text=Вставь+ссылку" alt="Аниме">
+            <div class="holo-layer" id="shine"></div>
+        </div>
+    </div>
+
+    <script>
+        const card = document.getElementById('card');
+        const shine = document.getElementById('shine');
+        const container = document.getElementById('container');
+        const imgElement = document.getElementById('card-img');
+
+        function createCard() {
+            const url = document.getElementById('imgUrl').value;
+            if(url) imgElement.src = url;
+        }
+
+        container.addEventListener('mousemove', (e) => {
+            const rect = container.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            const rotateY = (x / rect.width - 0.5) * 45;
+            const rotateX = (0.5 - y / rect.height) * 45;
+            
+            card.style.transform = `rotateY(${rotateY}deg) rotateX(${rotateX}deg) scale(1.05)`;
+            
+            // Двигаем градиент радуги
+            const bgX = (x / rect.width) * 100;
+            const bgY = (y / rect.height) * 100;
+            shine.style.backgroundPosition = `${bgX}% ${bgY}%`;
+        });
+
+        // Сброс при уходе мышки
+        container.addEventListener('mouseleave', () => {
+            card.style.transform = `rotateY(0deg) rotateX(0deg) scale(1)`;
+            shine.style.backgroundPosition = `50% 50%`;
+        });
+    </script>
+</body>
+</html>
