@@ -1,0 +1,1401 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head> 
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AniJUN</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #141416; color: #f4f4f5; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #1a1a1e; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #2e2e33; border-radius: 3px; }
+        
+        .nav-tab {
+            position: relative;
+            transition: color 0.2s ease;
+        }
+        .nav-tab.active {
+            color: #38bdf8;
+        }
+        .nav-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -17px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-bottom: 6px solid #38bdf8;
+        }
+        .card-wrapper {
+            perspective: 1000px;
+        }
+        .holo-container {
+            transform-style: preserve-3d;
+            transition: transform 0.1s ease-out;
+        }
+        /* Слой для "холо" эффекта */
+        .holo-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, rgba(255,0,0,0.3), rgba(255,255,0,0.3), rgba(0,255,0,0.3), rgba(0,255,255,0.3), rgba(0,0,255,0.3), rgba(255,0,255,0.3));
+            background-size: 300% 300%;
+            mix-blend-mode: color-dodge;
+            opacity: 0; /* Скрыт по умолчанию */
+            pointer-events: none;
+            transition: opacity 0.2s, background-position 0.1s;
+            z-index: 10;
+        }
+        /* Показываем слой при наведении */
+        .holo-container:hover .holo-layer {
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased custom-scrollbar">
+
+    <!-- Шапка сайта -->
+    <header class="border-b border-[#222226] bg-[#1a1a1e] px-8 py-4 flex flex-col md:flex-row gap-6 justify-between items-center sticky top-0 z-40">
+        <div class="flex items-center gap-2 cursor-pointer" onclick="switchTab('main')">
+            <i class="fa-solid fa-play text-sky-400 text-lg"></i>
+            <span class="text-lg font-bold tracking-wider text-white">AniJUN</span>
+        </div>
+        
+        <!-- Вкладки навигации -->
+        <nav class="flex items-center gap-8 text-xs font-bold uppercase tracking-widest text-gray-400">
+            <button onclick="switchTab('main')" id="tab-main" class="nav-tab active flex items-center gap-1.5"><i class="fa-solid fa-home"></i> Главная</button>
+            
+            <!-- Выпадающее меню Аниме -->
+            <div class="relative group flex items-center h-full">
+                <button onclick="switchTab('anime')" id="tab-anime" class="nav-tab flex items-center gap-1.5 py-1">
+                    <i class="fa-solid fa-list"></i> Аниме 
+                    <i class="fa-solid fa-chevron-down text-[9px] transition-transform group-hover:rotate-180"></i>
+                </button>
+                <div class="absolute top-[100%] left-1/2 -translate-x-1/2 pt-2 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                    <div class="bg-[#1a1a1e] border border-[#222226] rounded-lg shadow-2xl py-1.5 w-36 overflow-hidden">
+                        <button onclick="switchTab('anime', 'catalog')" class="w-full text-left px-4 py-2 hover:bg-[#222226] hover:text-white transition-colors text-xs text-gray-400 font-semibold flex items-center gap-2">
+                            <i class="fa-solid fa-folder-open text-[10px]"></i> Каталог
+                        </button>
+                        <button onclick="switchTab('anime', 'ongoing')" class="w-full text-left px-4 py-2 hover:bg-[#222226] hover:text-white transition-colors text-xs text-gray-400 font-semibold flex items-center gap-2">
+                            <i class="fa-solid fa-clock text-[10px]"></i> Онгоинги
+                        </button>
+                        <button onclick="switchTab('anime', 'announcements')" class="w-full text-left px-4 py-2 hover:bg-[#222226] hover:text-white transition-colors text-xs text-gray-400 font-semibold flex items-center gap-2">
+                            <i class="fa-solid fa-bullhorn text-[10px]"></i> Анонсы
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="switchTab('top')" id="tab-top" class="nav-tab flex items-center gap-1.5"><i class="fa-solid fa-chart-simple"></i> Топ-100</button>
+            <button onclick="getRandomAnime()" class="nav-tab flex items-center gap-1.5"><i class="fa-solid fa-shuffle"></i> Случайное</button>
+            
+            <!-- Вкладка Администрирования (Доступна уполномоченным лицам) -->
+            <button onclick="switchTab('admin')" id="tab-admin" class="nav-tab flex items-center gap-1.5 text-amber-500 hover:text-amber-400"><i class="fa-solid fa-screwdriver-wrench"></i> Панель управления</button>
+        </nav>
+        
+        <!-- Блок профиля и регистрации -->
+        <div class="flex items-center gap-3">
+            <button onclick="switchTab('profile')" id="btn-profile" class="flex items-center gap-2 bg-[#121214] hover:bg-[#222226] px-3 py-2 rounded-lg border border-[#222226] transition-all group">
+                <i class="fa-solid fa-circle-user text-sky-400 text-sm group-hover:scale-110 transition-transform"></i>
+                <span id="header-username" class="text-xs font-bold text-gray-200">Кира</span>
+            </button>
+            
+            <button onclick="registerUser()" class="bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs px-4 py-2 rounded-lg transition-all flex items-center gap-1.5 shadow-lg shadow-sky-500/10">
+                <i class="fa-solid fa-user-plus text-[10px]"></i> Зарегистрироваться
+            </button>
+        </div>
+    </header>
+
+    <main class="max-w-[1600px] mx-auto p-6">
+        
+        <!-- ================= СЕКЦИЯ: ГЛАВНАЯ ================= -->
+        <div id="section-main" class="tab-section flex flex-col gap-10">
+            <!-- Рекомендации -->
+            <div>
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-sm font-bold uppercase tracking-wider text-gray-400">Рекомендации для тебя</h3>
+                    <button onclick="expandSection('recommendations')" class="text-xs text-sky-400 hover:underline flex items-center gap-1">Смотреть все <i class="fa-solid fa-arrow-right-long text-[10px]"></i></button>
+                </div>
+                <div id="grid-recommendations" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-5"></div>
+            </div>
+
+            <!-- Непросмотренные -->
+            <div>
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-sm font-bold uppercase tracking-wider text-gray-400">Продолжить просмотр</h3>
+                    <button onclick="expandSection('unwatched')" class="text-xs text-sky-400 hover:underline flex items-center gap-1">Смотреть все <i class="fa-solid fa-arrow-right-long text-[10px]"></i></button>
+                </div>
+                <div id="grid-unwatched" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-5"></div>
+            </div>
+
+            <!-- Неоцененные -->
+            <div>
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-sm font-bold uppercase tracking-wider text-gray-400">Ждут оценки</h3>
+                    <button onclick="expandSection('unrated')" class="text-xs text-sky-400 hover:underline flex items-center gap-1">Смотреть все <i class="fa-solid fa-arrow-right-long text-[10px]"></i></button>
+                </div>
+                <div id="grid-unrated" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-5"></div>
+            </div>
+        </div>
+
+        <!-- ================= СЕКЦИЯ: АНИМЕ ================= -->
+        <div id="section-anime" class="tab-section hidden grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <aside class="lg:col-span-3">
+                <div class="bg-[#1a1a1e] p-5 rounded-xl border border-[#222226] flex flex-col gap-4">
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest border-b border-[#222226] pb-2">Разделы</h3>
+                    <div class="flex flex-col gap-1" id="sub-tabs">
+                        <button onclick="switchSubTab('catalog')" id="subtab-catalog" class="sub-tab text-left px-3 py-2 rounded text-xs font-semibold bg-[#222226] text-white">Каталог аниме</button>
+                        <button onclick="switchSubTab('ongoing')" id="subtab-ongoing" class="sub-tab text-left px-3 py-2 rounded text-xs text-gray-400 hover:bg-[#222226]/50">Онгоинги</button>
+                        <button onclick="switchSubTab('announcements')" id="subtab-announcements" class="sub-tab text-left px-3 py-2 rounded text-xs text-gray-400 hover:bg-[#222226]/50">Анонсы</button>
+                    </div>
+
+                    <!-- НОВЫЙ БЛОК: РАСШИРЕННЫЕ ПОИСКОВЫЕ ФИЛЬТРЫ -->
+                    <div id="catalog-filters-block" class="flex flex-col gap-4 mt-2">
+                        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest border-b border-[#222226] pb-2">Статус</h3>
+                        <div class="flex flex-col gap-1" id="status-filters">
+                            <button onclick="filterList('all')" class="filter-btn active w-full text-left px-3 py-1.5 rounded bg-sky-400/10 text-sky-400 font-semibold text-xs">Все тайтлы</button>
+                            <button onclick="filterList('watching')" class="filter-btn w-full text-left px-3 py-1.5 rounded hover:bg-[#222226] text-gray-400 text-xs font-medium">Смотрю</button>
+                            <button onclick="filterList('planned')" class="filter-btn w-full text-left px-3 py-1.5 rounded hover:bg-[#222226] text-gray-400 text-xs font-medium">Запланировано</button>
+                            <button onclick="filterList('completed')" class="filter-btn w-full text-left px-3 py-1.5 rounded hover:bg-[#222226] text-gray-400 text-xs font-medium">Просмотрено</button>
+                        </div>
+
+                        <!-- Фильтр по жанрам -->
+                        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest border-b border-[#222226] pb-1">Жанры</h3>
+                        <div id="genres-filter-list" class="flex flex-wrap gap-1 max-h-32 overflow-y-auto pr-1 custom-scrollbar">
+                            <!-- Заполняется динамически из существующих жанров -->
+                        </div>
+
+                        <!-- Фильтр по возрасту -->
+                        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest border-b border-[#222226] pb-1">Возраст</h3>
+                        <select id="filter-age" onchange="searchAnime()" class="w-full bg-[#121214] border border-[#222226] rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-sky-400">
+                            <option value="">Любой возраст</option>
+                            <option value="0+">0+</option>
+                            <option value="6+">6+</option>
+                            <option value="12+">12+</option>
+                            <option value="16+">16+</option>
+                            <option value="18+">18+</option>
+                            <option value="21+">21+</option>
+                        </select>
+
+                        <!-- Фильтр по количеству серий -->
+                        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest border-b border-[#222226] pb-1">Серии</h3>
+                        <select id="filter-episodes" onchange="searchAnime()" class="w-full bg-[#121214] border border-[#222226] rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-sky-400">
+                            <option value="">Любое количество</option>
+                            <option value="short">Короткие (до 12 сер.)</option>
+                            <option value="medium">Средние (13 - 24 сер.)</option>
+                            <option value="long">Длинные (25+ сер.)</option>
+                        </select>
+
+                        <!-- Кнопка сброса фильтров -->
+                        <button onclick="resetAllFilters()" class="w-full bg-zinc-800 hover:bg-zinc-700 text-gray-300 py-1.5 rounded text-xs font-bold transition-all">
+                            Сбросить фильтры
+                        </button>
+                    </div>
+                </div>
+            </aside>
+
+            <section class="lg:col-span-9 flex flex-col justify-between min-h-[60vh]">
+                <div id="subtab-content-catalog">
+                    <div class="relative mb-6">
+                        <i class="fa-solid fa-magnifying-glass absolute left-4 top-3 text-gray-500 text-xs"></i>
+                        <input id="search-bar" oninput="searchAnime()" type="text" placeholder="Поиск в коллекции..." class="w-full bg-[#1a1a1e] border border-[#222226] rounded-lg pl-10 pr-4 py-2.5 text-xs focus:outline-none focus:border-sky-400">
+                    </div>
+                    <div id="anime-grid" class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-5"></div>
+                    <div id="empty-state" class="hidden text-center py-20 text-gray-500 text-xs">Ничего не найдено с такими фильтрами.</div>
+                    
+                    <!-- Пагинация -->
+                    <div class="flex justify-center items-center gap-2 mt-8">
+                        <button onclick="changePage(-1)" class="w-8 h-8 rounded border border-[#222226] bg-[#1a1a1e] hover:bg-[#222226] text-gray-400 flex items-center justify-center text-xs">
+                            <i class="fa-solid fa-chevron-left"></i>
+                        </button>
+                        <div id="pagination-pages" class="flex gap-1"></div>
+                        <button onclick="changePage(1)" class="w-8 h-8 rounded border border-[#222226] bg-[#1a1a1e] hover:bg-[#222226] text-gray-400 flex items-center justify-center text-xs">
+                            <i class="fa-solid fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="subtab-content-ongoing" class="hidden flex flex-col gap-4"></div>
+                <div id="subtab-content-announcements" class="hidden flex flex-col gap-4"></div>
+            </section>
+        </div>
+
+        <!-- ================= СЕКЦИЯ: ТОП-100 ================= -->
+        <div id="section-top" class="tab-section hidden">
+            <h3 class="text-sm font-bold uppercase tracking-wider text-gray-400 mb-6">Самые популярные аниме по мнению AniJUN</h3>
+            <div class="bg-[#1a1a1e] border border-[#222226] rounded-xl overflow-hidden">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead>
+                        <tr class="border-b border-[#222226] bg-[#121214] text-gray-500">
+                            <th class="py-3 px-4 font-bold text-center w-12">№</th>
+                            <th class="py-3 px-4 font-bold">Название</th>
+                            <th class="py-3 px-4 font-bold">Жанры</th>
+                            <th class="py-3 px-4 font-bold text-center">Сезон</th>
+                            <th class="py-3 px-4 font-bold text-center">Оценка</th>
+                        </tr>
+                    </thead>
+                    <tbody id="top-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ================= СЕКЦИЯ: ПАНЕЛЬ УПРАВЛЕНИЯ (ДОБАВЛЕНИЕ И РЕДАКТИРОВАНИЕ) ================= -->
+        <div id="section-admin" class="tab-section hidden max-w-2xl mx-auto">
+            <div class="bg-[#1a1a1e] border border-[#222226] rounded-xl p-6 shadow-xl">
+                <div class="flex justify-between items-center border-b border-[#222226] pb-4 mb-6">
+                    <h2 id="admin-form-title" class="text-base font-bold text-amber-500 uppercase tracking-wider">Создать карточку аниме</h2>
+                    <span class="text-[10px] bg-amber-500/10 text-amber-500 px-2.5 py-1 rounded-full border border-amber-500/20 font-bold uppercase tracking-wide">Доступ: Уполномоченное лицо</span>
+                </div>
+                
+                <form id="admin-anime-form" onsubmit="handleAdminFormSubmit(event)" class="space-y-4 text-xs">
+                    <input type="hidden" id="admin-edit-id" value="">
+                    
+                    <div>
+                        <label class="block text-gray-400 font-bold mb-1 uppercase tracking-wider">1. Название аниме</label>
+                        <input id="admin-title" required type="text" placeholder="Введите название..." class="w-full bg-[#121214] border border-[#222226] rounded-lg px-4 py-2.5 focus:outline-none focus:border-sky-400">
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-gray-400 font-bold mb-1 uppercase tracking-wider">2. Год / Сезон выхода</label>
+                            <input id="admin-season" required type="text" placeholder="Например: Зима 2025" class="w-full bg-[#121214] border border-[#222226] rounded-lg px-4 py-2.5 focus:outline-none focus:border-sky-400">
+                        </div>
+                        <div>
+                            <label class="block text-gray-400 font-bold mb-1 uppercase tracking-wider">3. Возрастное ограничение</label>
+                            <select id="admin-age" class="w-full bg-[#121214] border border-[#222226] rounded-lg px-4 py-2.5 focus:outline-none text-gray-300">
+                                <option value="0+">0+</option>
+                                <option value="6+">6+</option>
+                                <option value="12+">12+</option>
+                                <option value="16+">16+</option>
+                                <option value="18+">18+</option>
+                                <option value="21+">21+</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-gray-400 font-bold mb-1 uppercase tracking-wider">Постер (URL картинки)</label>
+                        <input id="admin-image" type="text" placeholder="Вставьте ссылку на постер..." class="w-full bg-[#121214] border border-[#222226] rounded-lg px-4 py-2.5 focus:outline-none focus:border-sky-400">
+                    </div>
+
+                    <div>
+                        <label class="block text-gray-400 font-bold mb-1.5 uppercase tracking-wider">4. Жанры (выберите кликом)</label>
+                        <div id="admin-genres-picker" class="flex flex-wrap gap-1.5 p-3 bg-[#121214] border border-[#222226] rounded-lg max-h-36 overflow-y-auto custom-scrollbar">
+                            <!-- Рендеринг доступных жанров для выбора -->
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between items-center mb-1.5">
+                            <label class="block text-gray-400 font-bold uppercase tracking-wider">5. Конструктор сезонов</label>
+                            <button type="button" onclick="addSeasonField()" class="text-sky-400 hover:text-sky-300 font-bold flex items-center gap-1.5">
+                                <i class="fa-solid fa-plus-circle text-sm"></i> Добавить сезон
+                            </button>
+                        </div>
+                        <div id="admin-seasons-list" class="space-y-2">
+                            <!-- Конструктор сезонов динамический -->
+                        </div>
+                    </div>
+
+                    <div class="flex gap-3 pt-4 border-t border-[#222226]">
+                        <button type="submit" class="flex-1 bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 rounded-lg transition-all text-xs tracking-wider uppercase">
+                            Сохранить карточку
+                        </button>
+                        <button type="button" onclick="cancelAdminForm()" class="bg-zinc-800 hover:bg-zinc-700 text-gray-300 font-bold px-6 rounded-lg transition-all text-xs tracking-wider uppercase">
+                            Отмена
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ================= СЕКЦИЯ: ПРОСМОТР ВСЕХ ИЗ СТРЕЛОЧЕК ГЛАВНОЙ ================= -->
+        <div id="section-expanded" class="tab-section hidden">
+            <div class="flex items-center gap-3 mb-6">
+                <button onclick="switchTab('main')" class="w-8 h-8 rounded bg-[#1a1a1e] hover:bg-[#222226] border border-[#222226] flex items-center justify-center text-xs text-gray-400">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </button>
+                <h3 id="expanded-title" class="text-sm font-bold uppercase tracking-wider text-gray-300">Полный список</h3>
+            </div>
+            <div id="expanded-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-5"></div>
+        </div>
+
+        <!-- ================= СЕКЦИЯ: ПРОФИЛЬ ПОЛЬЗОВАТЕЛЯ ================= -->
+        <div id="section-profile" class="tab-section hidden flex flex-col gap-8">
+            <!-- Юзер-блок -->
+            <div class="bg-[#1a1a1e] border border-[#222226] rounded-xl p-6 flex flex-col sm:flex-row items-center gap-6">
+                <div class="w-16 h-16 rounded-full bg-gradient-to-tr from-sky-400 to-blue-600 flex items-center justify-center text-white text-2xl font-black shadow-lg shadow-sky-500/10" id="profile-avatar-letters">
+                    К
+                </div>
+                <div class="text-center sm:text-left flex-1">
+                    <h2 class="text-xl font-bold text-white flex items-center justify-center sm:justify-start gap-2.5">
+                        <span id="profile-username">Кира</span>
+                        <span class="bg-sky-500/10 text-sky-400 text-[10px] font-bold uppercase px-2.5 py-0.5 rounded tracking-wider border border-sky-500/20">Профиль</span>
+                    </h2>
+                    <p class="text-xs text-gray-500 mt-1">Твой личный уголок статистики в AniJUN</p>
+                </div>
+            </div>
+
+            <!-- Сетка статистики -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Статистика просмотров -->
+                <div class="bg-[#1a1a1e] border border-[#222226] rounded-xl p-5 flex flex-col justify-between min-h-[160px]">
+                    <div>
+                        <span class="text-gray-500 text-[10px] font-bold uppercase tracking-wider block mb-2">Просмотры</span>
+                        <div class="flex items-baseline gap-2">
+                            <span class="text-4xl font-black text-white" id="profile-stat-completed">0</span>
+                            <span class="text-gray-500 text-xs">/ <span id="profile-stat-total">0</span> всего в базе</span>
+                        </div>
+                    </div>
+                    <div class="space-y-1.5 mt-4 pt-3 border-t border-[#222226]/50">
+                        <div class="flex justify-between text-[11px] text-gray-400">
+                            <span>Смотрю сейчас:</span>
+                            <span class="font-bold text-sky-400" id="profile-stat-watching">0</span>
+                        </div>
+                        <div class="flex justify-between text-[11px] text-gray-400">
+                            <span>Запланировано:</span>
+                            <span class="font-bold text-gray-500" id="profile-stat-planned">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Любимые жанры -->
+                <div class="bg-[#1a1a1e] border border-[#222226] rounded-xl p-5 flex flex-col min-h-[160px]">
+                    <span class="text-gray-500 text-[10px] font-bold uppercase tracking-wider block mb-4">Любимые жанры</span>
+                    <div id="profile-genres-list" class="flex flex-col gap-3 flex-1 justify-center"></div>
+                </div>
+
+                <!-- Редкие аниме -->
+                <div class="bg-[#1a1a1e] border border-[#222226] rounded-xl p-5 flex flex-col min-h-[160px]">
+                    <span class="text-gray-500 text-[10px] font-bold uppercase tracking-wider block mb-3">Редкие находки <i class="fa-solid fa-gem text-amber-400 ml-1"></i></span>
+                    <div id="profile-rare-list" class="flex flex-col gap-2 flex-1 justify-center"></div>
+                </div>
+            </div>
+
+            <!-- Любимые тайтлы -->
+            <div>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-4">Любимые тайтлы (оценки 9 и 10)</h3>
+                <div id="profile-favorites-grid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-4"></div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Детальное модальное окно -->
+    <div id="details-modal" class="fixed inset-0 bg-black/85 backdrop-blur z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-[#1a1a1e] border border-[#222226] w-full max-w-4xl rounded-xl overflow-hidden shadow-2xl relative flex flex-col md:flex-row max-h-[90vh]">
+                <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white transition-all text-xl z-10 bg-[#121214]/80 w-8 h-8 rounded-full flex items-center justify-center"><i class="fa-solid fa-times text-sm"></i></button>
+
+                <div class="w-full md:w-72 bg-[#121214] flex-shrink-0 relative">
+                    <img id="modal-img" src="" class="w-full h-full object-cover">
+                    <!-- Контейнеры для рейтингов -->
+                    <div class="absolute top-3 left-3 flex flex-col gap-2">
+                        <div id="modal-rating-badge" class="bg-black/80 border border-[#222226] text-xs font-bold text-sky-400 px-2 py-1 rounded">★ -</div>
+                        <div id="modal-popular-badge" class="bg-black/80 border border-[#222226] text-xs font-bold text-amber-400 px-2 py-1 rounded">★ -</div>
+                    </div>
+                </div>
+
+                <div class="p-6 md:p-8 flex-1 overflow-y-auto custom-scrollbar flex flex-col justify-between">
+                    <div>
+                        <h3 id="modal-title" class="text-xl font-bold text-white mb-2 pr-8"></h3>
+                        <div class="flex flex-wrap gap-y-1.5 gap-x-4 text-xs text-gray-400 mb-5 pb-3 border-b border-[#222226]">
+                            <div>Год выхода: <span id="modal-meta-season" class="text-sky-400 hover:underline cursor-pointer font-semibold ml-1"></span></div>
+                            <div>Рейтинг: <span id="modal-meta-age" class="border border-[#3a3a42] px-1.5 py-0.5 rounded text-[10px] text-gray-300 hover:border-sky-400 cursor-pointer font-bold ml-1"></span></div>
+                            <div class="w-full flex flex-wrap gap-1 items-center mt-1"><span>Жанры:</span><span id="modal-meta-genres" class="flex flex-wrap gap-1"></span></div>
+                        </div>
+
+                        <!-- Блок рейтингов -->
+                        <div class="bg-[#121214] p-4 rounded-lg border border-[#222226] mb-6">
+                            <div class="flex flex-wrap items-center justify-between gap-4 text-xs mb-4 border-b border-[#222226] pb-3">
+                                <div>
+                                    <span class="text-gray-500 block text-[10px] uppercase">Взвешенный рейтинг</span>
+                                    <strong id="modal-calc-rating" class="text-sky-400 text-base">0.00</strong>
+                                </div>
+                                <div>
+                                    <span class="text-gray-500 block text-[10px] uppercase">Значимая оценка (мода)</span>
+                                    <strong id="modal-popular-rating" class="text-amber-400 text-base">0</strong>
+                                </div>
+                                <button onclick="toggleStats()" class="bg-[#1a1a1e] hover:bg-[#222226] text-gray-300 px-2.5 py-1 rounded border border-[#222226] text-[10px] font-bold flex items-center gap-1.5">
+                                    <i class="fa-solid fa-chart-bar"></i> <span id="modal-votes-count-badge">0 голосов</span>
+                                </button>
+                            </div>
+                            <div id="stats-dropdown-block" class="hidden mb-4 p-3 bg-[#1a1a1e] border border-[#222226] rounded flex flex-col gap-1.5">
+                                <div id="stats-bars-container" class="flex flex-col gap-1"></div>
+                            </div>
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                                <span class="font-bold text-gray-400">Твоя оценка (<span id="modal-active-user-name" class="text-sky-400">?</span>):</span>
+                                <div id="modal-active-user-rating-row" class="flex flex-wrap gap-1"></div>
+                            </div>
+                        </div>
+
+                        <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Сезоны и серии</h4>
+                        <div id="modal-seasons-container" class="flex flex-col gap-3"></div>
+                        <div class="flex gap-2 mt-6 pt-4 border-t border-[#222226]">
+                        <button id="edit-btn-modal" class="flex-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 py-2 rounded text-xs font-bold transition-all">
+                            Редактировать
+                        </button>
+                        <button id="delete-btn-modal" class="flex-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 py-2 rounded text-xs font-bold transition-all">
+                            Удалить
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+        let clubUsers = JSON.parse(localStorage.getItem('clubUsersList')) || ["Кира", "Мая", "К2"];
+        let currentUser = localStorage.getItem('activeClubUser') || "Кира";
+
+        // Глобальный список существующих жанров
+        const existingGenres = ["Экшен", "Сёнен", "Фэнтези", "Игры", "Романтика", "Меха", "Фантастика", "Драма", "Комедия", "Повседневность", "Детектив", "Психология"];
+
+        const defaultAnime = [
+            { 
+                id: 1, 
+                title: "Блич", 
+                status: "watching", 
+                ratings: { "Кира": 9, "Мая": 8, "К2": "-" }, 
+                image: "https://images.unsplash.com/photo-1578632767115-351597cf2477?w=400&q=80",
+                genres: ["Экшен", "Сёнен", "Фэнтези"],
+                seasonInfo: "Осень 2004",
+                ageRating: "16+",
+                seasons: [{ num: 1, episodesCount: 25, watched: Array(25).fill(false) }]
+            },
+            { 
+                id: 2, 
+                title: "Мастера меча онлайн", 
+                status: "completed", 
+                ratings: { "Кира": 10, "Мая": 10, "К2": 9 }, 
+                image: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=400&q=80",
+                genres: ["Экшен", "Игры", "Фэнтези", "Романтика"],
+                seasonInfo: "Лето 2012",
+                ageRating: "12+",
+                seasons: [{ num: 1, episodesCount: 25, watched: Array(25).fill(true) }]
+            },
+            { 
+                id: 3, 
+                title: "Милый во франксе", 
+                status: "watching", 
+                ratings: { "Кира": 7, "Мая": 7, "К2": "-" }, 
+                image: "https://images.unsplash.com/photo-1560169897-fc0cdbdfa4d5?w=400&q=80",
+                genres: ["Экшен", "Меха", "Романтика", "Фантастика"],
+                seasonInfo: "Зима 2018",
+                ageRating: "16+",
+                seasons: [{ num: 1, episodesCount: 24, watched: [...Array(12).fill(true), ...Array(12).fill(false)] }]
+            }
+        ];
+
+        let myAnimeList = JSON.parse(localStorage.getItem('cardsJournalList')) || defaultAnime;
+        
+        // Глобальные переменные поисковых фильтров
+        let currentFilter = 'all'; 
+        let selectedGenresToFilter = []; 
+        let currentPage = 1;
+        const cardsPerPage = 8;
+        let activeOpenedAnimeId = null;
+
+        // Переменные для конструктора форм (Добавление/Редактирование)
+        let selectedAdminGenres = [];
+        let currentAdminSeasons = [];
+
+        function normalizeData() {
+            myAnimeList.forEach(anime => {
+                if (!anime.ratings || typeof anime.ratings !== 'object') anime.ratings = {};
+                clubUsers.forEach(u => { if (anime.ratings[u] === undefined) anime.ratings[u] = "-"; });
+                if (!anime.genres) anime.genres = ["Аниме"];
+                if (!anime.seasonInfo) anime.seasonInfo = "Зима 2025";
+                if (!anime.ageRating) anime.ageRating = "16+";
+                if (!anime.seasons || !Array.isArray(anime.seasons)) {
+                    anime.seasons = [{ num: 1, episodesCount: 12, watched: Array(12).fill(false) }];
+                }
+            });
+            localStorage.setItem('cardsJournalList', JSON.stringify(myAnimeList));
+        }
+        normalizeData();
+
+        function switchTab(tabId, subTabId) {
+            document.querySelectorAll('.tab-section').forEach(sec => sec.classList.add('hidden'));
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            
+            const btn = document.getElementById(`tab-${tabId}`);
+            if (btn) btn.classList.add('active');
+
+            const profileBtn = document.getElementById('btn-profile');
+            if (tabId === 'profile') {
+                profileBtn.classList.add('border-sky-500', 'bg-sky-500/10');
+            } else {
+                profileBtn.classList.remove('border-sky-500', 'bg-sky-500/10');
+            }
+
+            if (tabId === 'main') {
+                document.getElementById('section-main').classList.remove('hidden');
+                renderMainTab();
+            } else if (tabId === 'anime') {
+                document.getElementById('section-anime').classList.remove('hidden');
+                initFiltersUI();
+                if (subTabId) {
+                    switchSubTab(subTabId);
+                } else {
+                    switchSubTab('catalog');
+                }
+            } else if (tabId === 'top') {
+                document.getElementById('section-top').classList.remove('hidden');
+                renderTopTab();
+            } else if (tabId === 'profile') {
+                document.getElementById('section-profile').classList.remove('hidden');
+                renderProfileTab();
+            } else if (tabId === 'admin') {
+                document.getElementById('section-admin').classList.remove('hidden');
+                initAdminForm();
+            }
+        }
+
+        function switchSubTab(subTabId) {
+            document.querySelectorAll('.sub-tab').forEach(b => {
+                b.className = "sub-tab text-left px-3 py-2 rounded text-xs text-gray-400 hover:bg-[#222226]/50";
+            });
+            document.getElementById(`subtab-${subTabId}`).className = "sub-tab text-left px-3 py-2 rounded text-xs font-semibold bg-[#222226] text-white";
+
+            document.getElementById('subtab-content-catalog').classList.add('hidden');
+            document.getElementById('subtab-content-ongoing').classList.add('hidden');
+            document.getElementById('subtab-content-announcements').classList.add('hidden');
+            document.getElementById('catalog-filters-block').classList.add('hidden');
+
+            if (subTabId === 'catalog') {
+                document.getElementById('subtab-content-catalog').classList.remove('hidden');
+                document.getElementById('catalog-filters-block').classList.remove('hidden');
+                renderList();
+            } else if (subTabId === 'ongoing') {
+                document.getElementById('subtab-content-ongoing').classList.remove('hidden');
+                renderOngoingFeed();
+            } else if (subTabId === 'announcements') {
+                document.getElementById('subtab-content-announcements').classList.remove('hidden');
+                renderAnnouncementsFeed();
+            }
+        }
+
+        /* ================= ДИНАМИЧЕСКИЕ ПОИСКОВЫЕ ФИЛЬТРЫ ================= */
+        function initFiltersUI() {
+            const container = document.getElementById('genres-filter-list');
+            container.innerHTML = '';
+            
+            existingGenres.forEach(genre => {
+                const isSelected = selectedGenresToFilter.includes(genre);
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = `px-2 py-1 rounded text-[10px] font-semibold transition-all border ${
+                    isSelected 
+                    ? 'bg-sky-400/10 text-sky-400 border-sky-400/30' 
+                    : 'bg-[#121214] text-gray-400 border-zinc-800 hover:border-zinc-700'
+                }`;
+                btn.innerText = genre;
+                btn.onclick = () => toggleGenreFilter(genre);
+                container.appendChild(btn);
+            });
+        }
+
+        function toggleGenreFilter(genre) {
+            if (selectedGenresToFilter.includes(genre)) {
+                selectedGenresToFilter = selectedGenresToFilter.filter(g => g !== genre);
+            } else {
+                selectedGenresToFilter.push(genre);
+            }
+            initFiltersUI();
+            searchAnime();
+        }
+
+        function resetAllFilters() {
+            currentFilter = 'all';
+            selectedGenresToFilter = [];
+            document.getElementById('filter-age').value = "";
+            document.getElementById('filter-episodes').value = "";
+            document.getElementById('search-bar').value = "";
+            
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.className = "filter-btn w-full text-left px-3 py-1.5 rounded hover:bg-[#222226] text-gray-400 text-xs font-medium";
+            });
+            document.querySelector('#status-filters button').className = "filter-btn active w-full text-left px-3 py-1.5 rounded bg-sky-400/10 text-sky-400 font-semibold text-xs";
+
+            initFiltersUI();
+            renderList();
+        }
+
+        function renderList(searchQuery = '') {
+            const grid = document.getElementById('anime-grid');
+            const emptyState = document.getElementById('empty-state');
+            grid.innerHTML = '';
+
+            const inputSearch = searchQuery || document.getElementById('search-bar').value.trim();
+            const selectedAge = document.getElementById('filter-age').value;
+            const selectedEpisodeRange = document.getElementById('filter-episodes').value;
+
+            let filtered = myAnimeList.filter(item => {
+                // Фильтр Статуса
+                const matchesStatus = currentFilter === 'all' || item.status === currentFilter;
+                
+                // Фильтр Текстового поиска
+                const matchesSearch = item.title.toLowerCase().includes(inputSearch.toLowerCase()) || 
+                                      item.genres.some(g => g.toLowerCase().includes(inputSearch.toLowerCase()));
+
+                // Фильтр Возраста
+                const matchesAge = !selectedAge || item.ageRating === selectedAge;
+
+                // Фильтр Жанров
+                const matchesGenres = selectedGenresToFilter.length === 0 || 
+                                      selectedGenresToFilter.every(g => item.genres.includes(g));
+
+                // Фильтр Количества серий
+                let totalEpisodes = 0;
+                item.seasons.forEach(s => totalEpisodes += s.episodesCount);
+
+                let matchesEpisodes = true;
+                if (selectedEpisodeRange === 'short') {
+                    matchesEpisodes = totalEpisodes <= 12;
+                } else if (selectedEpisodeRange === 'medium') {
+                    matchesEpisodes = totalEpisodes > 12 && totalEpisodes <= 24;
+                } else if (selectedEpisodeRange === 'long') {
+                    matchesEpisodes = totalEpisodes > 24;
+                }
+
+                return matchesStatus && matchesSearch && matchesAge && matchesGenres && matchesEpisodes;
+            });
+
+            if (filtered.length === 0) {
+                emptyState.classList.remove('hidden');
+                document.getElementById('pagination-pages').innerHTML = '';
+                return;
+            }
+            emptyState.classList.add('hidden');
+
+            const totalPages = Math.ceil(filtered.length / cardsPerPage);
+            if (currentPage > totalPages) currentPage = totalPages || 1;
+
+            const paginated = filtered.slice((currentPage - 1) * cardsPerPage, currentPage * cardsPerPage);
+            paginated.forEach(anime => grid.appendChild(createBaseCard(anime)));
+
+            renderPagination(totalPages);
+        }
+
+        function filterList(status) {
+            currentFilter = status;
+            currentPage = 1;
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.className = "filter-btn w-full text-left px-3 py-1.5 rounded hover:bg-[#222226] text-gray-400 text-xs font-medium";
+            });
+            event.target.className = "filter-btn active w-full text-left px-3 py-1.5 rounded bg-sky-400/10 text-sky-400 font-semibold text-xs";
+            renderList();
+        }
+
+        function searchAnime() {
+            currentPage = 1;
+            renderList();
+        }
+
+        /* ================= КОНСТРУКТОР АДМИН-ПАНЕЛИ (СОЗДАНИЕ И РЕДАКТИРОВАНИЕ) ================= */
+        function initAdminForm(editAnimeId = null) {
+            const formTitle = document.getElementById('admin-form-title');
+            const editIdInput = document.getElementById('admin-edit-id');
+            const titleInput = document.getElementById('admin-title');
+            const seasonInput = document.getElementById('admin-season');
+            const ageInput = document.getElementById('admin-age');
+            const imageInput = document.getElementById('admin-image');
+
+            if (editAnimeId) {
+                // Включаем режим редактирования
+                const anime = myAnimeList.find(a => a.id === editAnimeId);
+                if (!anime) return;
+
+                formTitle.innerText = "Редактировать аниме: " + anime.title;
+                editIdInput.value = anime.id;
+                titleInput.value = anime.title;
+                seasonInput.value = anime.seasonInfo;
+                ageInput.value = anime.ageRating;
+                imageInput.value = anime.image;
+                
+                selectedAdminGenres = [...anime.genres];
+                currentAdminSeasons = anime.seasons.map(s => ({
+                    episodesCount: s.episodesCount,
+                    watched: [...s.watched] // копируем историю просмотров
+                }));
+            } else {
+                // Включаем режим создания
+                formTitle.innerText = "Создать карточку аниме";
+                editIdInput.value = "";
+                titleInput.value = "";
+                seasonInput.value = "Зима 2025";
+                ageInput.value = "16+";
+                imageInput.value = "";
+                
+                selectedAdminGenres = [];
+                currentAdminSeasons = [{ episodesCount: 12, watched: Array(12).fill(false) }];
+            }
+
+            renderAdminGenresPicker();
+            renderAdminSeasonsList();
+        }
+
+        function renderAdminGenresPicker() {
+            const container = document.getElementById('admin-genres-picker');
+            container.innerHTML = '';
+
+            existingGenres.forEach(genre => {
+                const isSelected = selectedAdminGenres.includes(genre);
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = `px-2.5 py-1.5 rounded text-[11px] font-semibold border transition-all ${
+                    isSelected 
+                    ? 'bg-sky-500/15 text-sky-400 border-sky-400/40' 
+                    : 'bg-[#1a1a1e] text-gray-400 border-zinc-800 hover:border-zinc-700'
+                }`;
+                btn.innerText = genre;
+                btn.onclick = () => {
+                    if (selectedAdminGenres.includes(genre)) {
+                        selectedAdminGenres = selectedAdminGenres.filter(g => g !== genre);
+                    } else {
+                        selectedAdminGenres.push(genre);
+                    }
+                    renderAdminGenresPicker();
+                };
+                container.appendChild(btn);
+            });
+        }
+
+        function renderAdminSeasonsList() {
+            const container = document.getElementById('admin-seasons-list');
+            container.innerHTML = '';
+
+            currentAdminSeasons.forEach((season, idx) => {
+                const div = document.createElement('div');
+                div.className = "flex items-center gap-3 bg-[#121214] p-3 rounded-lg border border-[#222226]";
+                div.innerHTML = `
+                    <span class="font-bold text-gray-400 w-20">Сезон ${idx + 1}:</span>
+                    <input type="number" min="1" value="${season.episodesCount}" onchange="updateAdminSeasonEpisodes(${idx}, this.value)" placeholder="Кол-во серий" class="w-full bg-[#1a1a1e] border border-[#222226] rounded px-3 py-1.5 focus:outline-none focus:border-sky-400 text-center font-bold">
+                    ${currentAdminSeasons.length > 1 ? `
+                        <button type="button" onclick="removeAdminSeason(${idx})" class="text-rose-500 hover:text-rose-400 px-2 text-sm">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    ` : ''}
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function addSeasonField() {
+            currentAdminSeasons.push({ episodesCount: 12, watched: Array(12).fill(false) });
+            renderAdminSeasonsList();
+        }
+
+        function removeAdminSeason(idx) {
+            currentAdminSeasons.splice(idx, 1);
+            renderAdminSeasonsList();
+        }
+
+        function updateAdminSeasonEpisodes(idx, val) {
+            const count = parseInt(val) || 12;
+            const prevWatched = currentAdminSeasons[idx].watched || [];
+            
+            // Сохраняем прогресс или урезаем его до новой длины серий
+            const newWatched = Array(count).fill(false);
+            for (let i = 0; i < Math.min(count, prevWatched.length); i++) {
+                newWatched[i] = prevWatched[i];
+            }
+            
+            currentAdminSeasons[idx].episodesCount = count;
+            currentAdminSeasons[idx].watched = newWatched;
+        }
+
+        function handleAdminFormSubmit(event) {
+            event.preventDefault();
+            
+            const editId = document.getElementById('admin-edit-id').value;
+            const title = document.getElementById('admin-title').value.trim();
+            const seasonInfo = document.getElementById('admin-season').value.trim();
+            const ageRating = document.getElementById('admin-age').value;
+            const image = document.getElementById('admin-image').value.trim() || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=400&q=80';
+            const genres = selectedAdminGenres.length > 0 ? selectedAdminGenres : ["Аниме"];
+
+            // Собираем сезоны
+            const finalSeasons = currentAdminSeasons.map((s, idx) => ({
+                num: idx + 1,
+                episodesCount: s.episodesCount,
+                watched: s.watched.length === s.episodesCount ? s.watched : Array(s.episodesCount).fill(false)
+            }));
+
+            if (editId) {
+                // Обновляем существующую
+                const anime = myAnimeList.find(a => a.id == editId);
+                if (anime) {
+                    anime.title = title;
+                    anime.seasonInfo = seasonInfo;
+                    anime.ageRating = ageRating;
+                    anime.image = image;
+                    anime.genres = genres;
+                    anime.seasons = finalSeasons;
+                    recalculateStatus(anime);
+                }
+            } else {
+                // Создаем новую
+                const ratings = {};
+                clubUsers.forEach(u => ratings[u] = "-");
+
+                const newAnime = {
+                    id: Date.now(),
+                    title,
+                    status: 'planned',
+                    ratings,
+                    image,
+                    genres,
+                    seasonInfo,
+                    ageRating,
+                    seasons: finalSeasons
+                };
+                myAnimeList.unshift(newAnime);
+            }
+
+            localStorage.setItem('cardsJournalList', JSON.stringify(myAnimeList));
+            cancelAdminForm();
+            switchTab('main');
+        }
+
+        function cancelAdminForm() {
+            document.getElementById('admin-anime-form').reset();
+            selectedAdminGenres = [];
+            currentAdminSeasons = [];
+            switchTab('main');
+        }
+
+        /* ================= ОСТАЛЬНАЯ БАЗОВАЯ ЛОГИКА СИСТЕМЫ ================= */
+        function getRecommendations() {
+            const watchedGenres = new Set();
+            myAnimeList.forEach(anime => {
+                const userScore = anime.ratings[currentUser];
+                const hasCompleted = anime.status === 'completed';
+                const hasHighRating = userScore !== "-" && Number(userScore) >= 7;
+                if ((hasCompleted || hasHighRating) && anime.genres) {
+                    anime.genres.forEach(g => watchedGenres.add(g));
+                }
+            });
+            if (watchedGenres.size === 0) return myAnimeList.slice(0, 5);
+            return myAnimeList.filter(anime => anime.genres && anime.genres.some(g => watchedGenres.has(g))).slice(0, 5);
+        }
+
+        function getUnwatched() {
+            return myAnimeList.filter(anime => {
+                let total = 0, watched = 0;
+                anime.seasons.forEach(s => {
+                    total += s.episodesCount;
+                    watched += s.watched.filter(Boolean).length;
+                });
+                return watched < total && watched > 0;
+            }).slice(0, 5);
+        }
+
+        function getUnrated() {
+            return myAnimeList.filter(anime => anime.ratings[currentUser] === "-").slice(0, 5);
+        }
+
+        function renderMainTab() {
+            renderSectionGrid('grid-recommendations', getRecommendations());
+            renderSectionGrid('grid-unwatched', getUnwatched());
+            renderSectionGrid('grid-unrated', getUnrated());
+        }
+
+        function renderSectionGrid(gridId, items) {
+            const container = document.getElementById(gridId);
+            container.innerHTML = '';
+            if (items.length === 0) {
+                container.innerHTML = `<div class="text-xs text-gray-600 py-4">Нет подходящих аниме</div>`;
+                return;
+            }
+            items.forEach(anime => container.appendChild(createBaseCard(anime)));
+        }
+
+        function expandSection(sectionName) {
+            document.querySelectorAll('.tab-section').forEach(sec => sec.classList.add('hidden'));
+            document.getElementById('section-expanded').classList.remove('hidden');
+
+            let items = [];
+            let title = "";
+            if (sectionName === 'recommendations') {
+                items = myAnimeList;
+                title = "Рекомендации (все)";
+            } else if (sectionName === 'unwatched') {
+                items = myAnimeList.filter(anime => {
+                    let total = 0, watched = 0;
+                    anime.seasons.forEach(s => { total += s.episodesCount; watched += s.watched.filter(Boolean).length; });
+                    return watched < total && watched > 0;
+                });
+                title = "Продолжить просмотр (все)";
+            } else if (sectionName === 'unrated') {
+                items = myAnimeList.filter(anime => anime.ratings[currentUser] === "-");
+                title = "Ждут оценки (все)";
+            }
+
+            document.getElementById('expanded-title').innerText = title;
+            const grid = document.getElementById('expanded-grid');
+            grid.innerHTML = '';
+            items.forEach(anime => grid.appendChild(createBaseCard(anime)));
+        }
+
+        function getRandomAnime() {
+            if (myAnimeList.length === 0) return alert("Список пуст!");
+            const rnd = myAnimeList[Math.floor(Math.random() * myAnimeList.length)];
+            openModal(rnd.id);
+        }
+
+        function renderOngoingFeed() {
+            const container = document.getElementById('subtab-content-ongoing');
+            container.innerHTML = `
+                <div class="p-4 bg-[#1a1a1e] border border-[#222226] rounded-xl flex items-center gap-4">
+                    <div class="w-16 h-16 bg-[#121214] rounded flex items-center justify-center font-bold text-sky-400">ПН</div>
+                    <div>
+                        <h4 class="font-bold text-white text-xs">Поднятие уровня в одиночку: Сезон 2</h4>
+                        <p class="text-gray-500 text-[11px] mt-1">Новая 3 серия выйдет в эфир сегодня вечером в 19:00.</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderAnnouncementsFeed() {
+            const container = document.getElementById('subtab-content-announcements');
+            container.innerHTML = `
+                <div class="p-4 bg-[#1a1a1e] border border-[#222226] rounded-xl">
+                    <span class="text-[9px] text-sky-400 font-bold uppercase">Официально анонсировано</span>
+                    <h4 class="font-bold text-white text-xs mt-1">Кагурабати / Kagurabachi</h4>
+                    <p class="text-gray-500 text-[11px] mt-1">Анонсирована долгожданная аниме-адаптация экшен-манги. Релиз запланирован на Зиму 2026 года.</p>
+                </div>
+            `;
+        }
+
+        function renderTopTab() {
+            const tbody = document.getElementById('top-table-body');
+            tbody.innerHTML = '';
+            const sorted = [...myAnimeList].sort((a, b) => {
+                const rA = calculateWeightedRating(a);
+                const rB = calculateWeightedRating(b);
+                const valA = rA === "-" ? -1 : Number(rA);
+                const valB = rB === "-" ? -1 : Number(rB);
+                return valB - valA;
+            });
+            sorted.forEach((anime, idx) => {
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-[#222226] hover:bg-[#1f1f23] transition-colors cursor-pointer";
+                tr.onclick = () => openModal(anime.id);
+                const score = calculateWeightedRating(anime);
+                tr.innerHTML = `
+                    <td class="py-3 px-4 text-center font-bold text-gray-500">${idx + 1}</td>
+                    <td class="py-3 px-4 font-bold text-gray-200">${anime.title}</td>
+                    <td class="py-3 px-4 text-gray-400 text-[11px]">${anime.genres.join(', ')}</td>
+                    <td class="py-3 px-4 text-center text-gray-500">${anime.seasonInfo}</td>
+                    <td class="py-3 px-4 text-center font-bold text-sky-400">${score}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function createBaseCard(anime) {
+            const cardWrapper = document.createElement('div');
+            cardWrapper.className = 'card-wrapper flex flex-col gap-1.5 cursor-pointer';
+            
+            // Внутренняя часть с 3D эффектами
+            const card = document.createElement('div');
+            card.className = 'holo-container relative aspect-[3/4] rounded-lg overflow-hidden bg-[#1a1a1e] border border-[#222226] group-hover:border-sky-400/30 transition-all';
+            
+            const rating = calculateWeightedRating(anime);
+            let total = 0, watched = 0;
+            anime.seasons.forEach(s => { total += s.episodesCount; watched += s.watched.filter(Boolean).length; });
+
+            card.innerHTML = `
+                <div class="absolute top-2 left-2 bg-black/80 border border-[#222226] text-[10px] font-bold text-sky-400 px-1.5 py-0.5 rounded z-20">★ ${rating}</div>
+                <div class="absolute top-2 right-2 bg-black/80 border border-[#222226] text-[10px] font-bold text-gray-300 px-1.5 py-0.5 rounded z-20">${anime.ageRating || '16+'}</div>
+                <img src="${anime.image}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                <div class="holo-layer" id="holo-${anime.id}"></div>
+                <div class="absolute bottom-2 right-2 bg-black/80 text-[9px] font-bold text-gray-300 px-1.5 py-0.5 rounded border border-[#222226] z-20">${watched}/${total} сер</div>
+            `;
+
+            // Логика поворота и перелива
+            card.addEventListener('mousemove', (e) => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                const rotateY = (x / rect.width - 0.5) * 30;
+                const rotateX = (0.5 - y / rect.height) * 30;
+                
+                card.style.transform = `rotateY(${rotateY}deg) rotateX(${rotateX}deg) scale(1.02)`;
+                
+                const holo = card.querySelector('.holo-layer');
+                holo.style.backgroundPosition = `${(x / rect.width) * 100}% ${(y / rect.height) * 100}%`;
+            });
+
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = `rotateY(0deg) rotateX(0deg) scale(1)`;
+            });
+
+            card.onclick = () => openModal(anime.id);
+
+            // Добавляем заголовок под карточкой
+            const info = document.createElement('div');
+            info.className = 'px-0.5';
+            info.innerHTML = `
+                <h4 class="font-bold text-gray-200 text-xs truncate group-hover:text-sky-400 transition-colors">${anime.title}</h4>
+                <span class="text-[9px] text-gray-500 block">${anime.seasonInfo}</span>
+            `;
+
+            cardWrapper.appendChild(card);
+            cardWrapper.appendChild(info);
+            
+            return cardWrapper;
+        }
+
+        function renderProfileTab() {
+            document.getElementById('profile-username').innerText = currentUser;
+            document.getElementById('profile-avatar-letters').innerText = currentUser.substring(0, 2).toUpperCase();
+            
+            const total = myAnimeList.length;
+            const completed = myAnimeList.filter(a => a.status === 'completed').length;
+            const watching = myAnimeList.filter(a => a.status === 'watching').length;
+            const planned = myAnimeList.filter(a => a.status === 'planned').length;
+            
+            document.getElementById('profile-stat-total').innerText = total;
+            document.getElementById('profile-stat-completed').innerText = completed;
+            document.getElementById('profile-stat-watching').innerText = watching;
+            document.getElementById('profile-stat-planned').innerText = planned;
+            
+            const genreCounts = {};
+            myAnimeList.forEach(anime => {
+                const score = anime.ratings[currentUser];
+                if (anime.status === 'completed' || (score !== "-" && Number(score) >= 7)) {
+                    anime.genres.forEach(g => genreCounts[g] = (genreCounts[g] || 0) + 1);
+                }
+            });
+            const sortedGenres = Object.entries(genreCounts).sort((a, b) => b[1] - a[1]).slice(0, 3);
+            const genresContainer = document.getElementById('profile-genres-list');
+            genresContainer.innerHTML = '';
+            if (sortedGenres.length === 0) {
+                genresContainer.innerHTML = `<div class="text-xs text-gray-500 text-center py-4">Нет статистики жанров</div>`;
+            } else {
+                const maxVal = sortedGenres[0][1];
+                sortedGenres.forEach(([genre, count]) => {
+                    const pct = Math.round((count / maxVal) * 100);
+                    const row = document.createElement('div');
+                    row.className = "text-xs";
+                    row.innerHTML = `
+                        <div class="flex justify-between mb-1">
+                            <span class="font-bold text-gray-300">${genre}</span>
+                            <span class="text-gray-500 text-[10px]">${count} тайтл.</span>
+                        </div>
+                        <div class="w-full bg-[#121214] h-1.5 rounded-full overflow-hidden">
+                            <div class="bg-sky-400 h-full rounded" style="width: ${pct}%"></div>
+                        </div>
+                    `;
+                    genresContainer.appendChild(row);
+                });
+            }
+
+            const userInteracted = myAnimeList.filter(anime => anime.status === 'completed' || anime.status === 'watching' || anime.ratings[currentUser] !== "-");
+            const rareList = userInteracted.map(anime => {
+                let votesCount = 0;
+                clubUsers.forEach(u => { if (anime.ratings[u] && anime.ratings[u] !== "-") votesCount++; });
+                return { anime, votesCount };
+            }).sort((a, b) => a.votesCount - b.votesCount).slice(0, 3);
+
+            const rareContainer = document.getElementById('profile-rare-list');
+            rareContainer.innerHTML = '';
+            if (rareList.length === 0) {
+                rareContainer.innerHTML = `<div class="text-xs text-gray-500 text-center py-4">Пока нет просмотренных аниме</div>`;
+            } else {
+                rareList.forEach(({ anime, votesCount }) => {
+                    const row = document.createElement('div');
+                    row.className = "flex items-center justify-between p-2 bg-[#121214] hover:bg-[#222226] rounded border border-[#222226] cursor-pointer transition-colors";
+                    row.onclick = () => openModal(anime.id);
+                    let rarityText = votesCount === 1 ? "Только вы" : `Оценили: ${votesCount} чел.`;
+                    row.innerHTML = `
+                        <div class="flex items-center gap-2 overflow-hidden mr-2">
+                            <img src="${anime.image}" class="w-6 h-8 object-cover rounded">
+                            <span class="font-semibold text-gray-300 text-xs truncate">${anime.title}</span>
+                        </div>
+                        <span class="bg-amber-400/10 text-amber-400 text-[9px] font-bold px-2 py-0.5 rounded border border-amber-400/20 whitespace-nowrap">${rarityText}</span>
+                    `;
+                    rareContainer.appendChild(row);
+                });
+            }
+
+            const favorites = myAnimeList.filter(anime => { const score = anime.ratings[currentUser]; return score !== "-" && Number(score) >= 9; });
+            const favGrid = document.getElementById('profile-favorites-grid');
+            favGrid.innerHTML = '';
+            if (favorites.length === 0) {
+                favGrid.innerHTML = `<div class="text-xs text-gray-500 py-2">Тайтлы с оценкой 9 или 10 отсутствуют</div>`;
+            } else {
+                favorites.forEach(anime => {
+                    const card = document.createElement('div');
+                    card.className = "group cursor-pointer transition-all flex flex-col gap-1";
+                    card.onclick = () => openModal(anime.id);
+                    card.innerHTML = `
+                        <div class="relative aspect-[3/4] rounded-lg overflow-hidden bg-[#1a1a1e] border border-[#222226] group-hover:border-sky-400/30 transition-all">
+                            <img src="${anime.image}" class="w-full h-full object-cover">
+                            <div class="absolute top-2 right-2 bg-sky-500 text-[10px] font-bold text-white px-1.5 py-0.5 rounded">★ ${anime.ratings[currentUser]}</div>
+                        </div>
+                        <h4 class="font-bold text-gray-300 text-[11px] truncate mt-1">${anime.title}</h4>
+                    `;
+                    favGrid.appendChild(card);
+                });
+            }
+        }
+
+        function registerUser() {
+            const name = prompt("Введите имя нового пользователя:");
+            if (!name) return;
+            const trimmed = name.trim();
+            if (!trimmed || clubUsers.includes(trimmed)) return;
+            clubUsers.push(trimmed);
+            localStorage.setItem('clubUsersList', JSON.stringify(clubUsers));
+            myAnimeList.forEach(anime => { if (!anime.ratings) anime.ratings = {}; anime.ratings[trimmed] = "-"; });
+            localStorage.setItem('cardsJournalList', JSON.stringify(myAnimeList));
+            currentUser = trimmed;
+            localStorage.setItem('activeClubUser', currentUser);
+            document.getElementById('header-username').innerText = currentUser;
+            switchTab('profile');
+        }
+
+        function calculateWeightedRating(anime) {
+            const activeRatings = [];
+            clubUsers.forEach(u => {
+                const val = anime.ratings[u];
+                if (val !== undefined && val !== "-" && val !== null) activeRatings.push(Number(val));
+            });
+            if (activeRatings.length === 0) return "-";
+            const avg = activeRatings.reduce((s, r) => s + r, 0) / activeRatings.length;
+            const fillRatio = activeRatings.length / clubUsers.length;
+            return parseFloat((avg * Math.pow(fillRatio, 0.5)).toFixed(2));
+        }
+        function calculateMostPopularRating(anime) {
+            const ratings = Object.values(anime.ratings).filter(v => typeof v === 'number');
+            if (ratings.length === 0) return "-";
+            const counts = {};
+            ratings.forEach(r => counts[r] = (counts[r] || 0) + 1);
+            let maxCount = 0;
+            let mode = ratings[0];
+            for (const r in counts) {
+                if (counts[r] > maxCount) {
+                    maxCount = counts[r];
+                    mode = r;
+                }
+            }
+            return mode;
+        }
+        function renderPagination(totalPages) {
+            const container = document.getElementById('pagination-pages');
+            container.innerHTML = '';
+            for (let i = 1; i <= totalPages; i++) {
+                const btn = document.createElement('button');
+                btn.className = `w-8 h-8 rounded text-xs font-bold transition-all ${i === currentPage ? 'bg-sky-500 text-white' : 'border border-[#222226] text-gray-400 hover:bg-[#222226]'}`;
+                btn.innerText = i;
+                btn.onclick = () => { currentPage = i; renderList(); };
+                container.appendChild(btn);
+            }
+        }
+
+        function changePage(dir) {
+            currentPage += dir;
+            renderList();
+        }
+
+        function toggleStats() {
+            document.getElementById('stats-dropdown-block').classList.toggle('hidden');
+        }
+
+        function openModal(id) {
+            activeOpenedAnimeId = id;
+            document.getElementById('stats-dropdown-block').classList.add('hidden');
+            updateModalContent(id);
+            document.getElementById('details-modal').classList.remove('hidden');
+        }
+
+        function updateModalContent(id) {
+            const anime = myAnimeList.find(a => a.id === id);
+            if (!anime) return;
+
+            document.getElementById('modal-img').src = anime.image;
+            document.getElementById('modal-title').innerText = anime.title;
+            
+            const wRating = calculateWeightedRating(anime);
+            const pRating = calculateMostPopularRating(anime);
+
+            document.getElementById('modal-rating-badge').innerText = `★ ${wRating}`;
+            document.getElementById('modal-popular-badge').innerText = `★ ${pRating}`;
+            
+            document.getElementById('modal-calc-rating').innerText = wRating;
+            document.getElementById('modal-popular-rating').innerText = pRating;
+
+            const seasonSpan = document.getElementById('modal-meta-season');
+            seasonSpan.innerText = anime.seasonInfo;
+            seasonSpan.onclick = () => { closeModal(); switchTab('anime'); document.getElementById('search-bar').value = anime.seasonInfo; renderList(anime.seasonInfo); };
+
+            const ageSpan = document.getElementById('modal-meta-age');
+            ageSpan.innerText = anime.ageRating;
+            ageSpan.onclick = () => { closeModal(); switchTab('anime'); document.getElementById('filter-age').value = anime.ageRating; renderList(); };
+
+            const genresDiv = document.getElementById('modal-meta-genres');
+            genresDiv.innerHTML = '';
+            anime.genres.forEach(g => {
+                const badge = document.createElement('span');
+                badge.className = "bg-[#222226] hover:bg-[#32323a] border border-[#2d2d35] px-1.5 py-0.5 rounded text-[10px] text-gray-300 cursor-pointer transition-all";
+                badge.innerText = g;
+                badge.onclick = (e) => {
+                    e.stopPropagation();
+                    closeModal();
+                    switchTab('anime');
+                    if (!selectedGenresToFilter.includes(g)) selectedGenresToFilter.push(g);
+                    initFiltersUI();
+                    renderList();
+                };
+                genresDiv.appendChild(badge);
+            });
+
+            const activeRatings = [];
+            const ratingsMap = {};
+            for (let i = 1; i <= 10; i++) ratingsMap[i] = [];
+            clubUsers.forEach(u => {
+                const val = anime.ratings[u];
+                if (val !== undefined && val !== "-") {
+                    activeRatings.push(Number(val));
+                    ratingsMap[Number(val)].push(u);
+                }
+            });
+
+            const count = activeRatings.length;
+            const percent = clubUsers.length > 0 ? Math.round((count / clubUsers.length) * 100) : 0;
+            document.getElementById('modal-voted-percent').innerText = `${percent}%`;
+            document.getElementById('modal-votes-ratio').innerText = `${count}/${clubUsers.length}`;
+            document.getElementById('modal-votes-count-badge').innerText = `${count} чел.`;
+
+            const statsContainer = document.getElementById('stats-bars-container');
+            statsContainer.innerHTML = '';
+            for (let score = 10; score >= 1; score--) {
+                const voters = ratingsMap[score] || [];
+                const scoreCount = voters.length;
+                const pct = count > 0 ? (scoreCount / count) * 100 : 0;
+                const row = document.createElement('div');
+                row.className = "flex items-center gap-2 text-[11px]";
+                row.innerHTML = `
+                    <div class="w-5 text-right font-bold text-gray-500">${score}★</div>
+                    <div class="flex-1 bg-[#121214] h-2.5 rounded overflow-hidden relative">
+                        <div class="bg-sky-400 h-full" style="width: ${pct}%"></div>
+                        <div class="absolute inset-0 cursor-help" title="Проголосовали: ${voters.join(', ') || 'нет'}"></div>
+                    </div>
+                    <div class="w-4 text-right text-[10px] text-gray-400">${scoreCount}</div>
+                `;
+                statsContainer.appendChild(row);
+            }
+
+            document.getElementById('modal-active-user-name').innerText = currentUser;
+            const activeUserRow = document.getElementById('modal-active-user-rating-row');
+            activeUserRow.innerHTML = '';
+
+            ["-", 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].forEach(opt => {
+                const isSelected = String(anime.ratings[currentUser]) === String(opt);
+                const btn = document.createElement('button');
+                btn.innerText = opt;
+                btn.className = `w-6 h-6 text-[10px] font-bold rounded transition-all ${isSelected ? 'bg-sky-500 text-white' : 'bg-zinc-900 border border-zinc-800 text-gray-500 hover:text-gray-300'}`;
+                btn.onclick = () => {
+                    anime.ratings[currentUser] = opt === "-" ? "-" : Number(opt);
+                    localStorage.setItem('cardsJournalList', JSON.stringify(myAnimeList));
+                    renderMainTab();
+                    renderList();
+                    updateModalContent(id);
+                };
+                activeUserRow.appendChild(btn);
+            });
+
+            const seasonsDiv = document.getElementById('modal-seasons-container');
+            seasonsDiv.innerHTML = '';
+            anime.seasons.forEach((season, sIdx) => {
+                const allWatched = season.watched.every(Boolean);
+                const block = document.createElement('div');
+                block.className = 'p-3 bg-[#121214] rounded-lg border border-[#222226] flex flex-col gap-2';
+                block.innerHTML = `
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="font-bold text-gray-300">${season.num} Сезон (${season.episodesCount} сер.)</span>
+                        <button onclick="toggleWholeSeason(${anime.id}, ${sIdx})" class="text-[10px] text-sky-400 hover:underline">
+                            ${allWatched ? 'Сбросить сезон' : 'Посмотрел весь'}
+                        </button>
+                    </div>
+                    <div class="flex flex-wrap gap-1">
+                        ${season.watched.map((w, epIdx) => {
+                            const epClass = w ? 'bg-sky-500/20 text-sky-400 border border-sky-400/30' : 'bg-[#1a1a1e] text-gray-500 border border-[#222226]';
+                            return `<button onclick="toggleSingleEpisode(${anime.id}, ${sIdx}, ${epIdx})" class="w-6 h-6 text-[9px] font-bold rounded ${epClass}">${epIdx + 1}</button>`;
+                        }).join('')}
+                    </div>
+                `;
+                seasonsDiv.appendChild(block);
+            });
+
+            // Настройка кнопок управления карточкой
+            document.getElementById('edit-btn-modal').onclick = () => {
+                closeModal();
+                switchTab('admin');
+                initAdminForm(anime.id);
+            };
+
+            document.getElementById('delete-btn-modal').onclick = () => {
+                if (confirm(`Удалить "${anime.title}"?`)) {
+                    myAnimeList = myAnimeList.filter(a => a.id !== id);
+                    localStorage.setItem('cardsJournalList', JSON.stringify(myAnimeList));
+                    closeModal();
+                    switchTab('main');
+                }
+            };
+        }
+
+        function toggleSingleEpisode(animeId, sIdx, epIdx) {
+            const anime = myAnimeList.find(a => a.id === animeId);
+            if (!anime) return;
+            anime.seasons[sIdx].watched[epIdx] = !anime.seasons[sIdx].watched[epIdx];
+            recalculateStatus(anime);
+            localStorage.setItem('cardsJournalList', JSON.stringify(myAnimeList));
+            updateModalContent(animeId);
+            renderMainTab();
+        }
+
+        function toggleWholeSeason(animeId, sIdx) {
+            const anime = myAnimeList.find(a => a.id === animeId);
+            if (!anime) return;
+            const s = anime.seasons[sIdx];
+            const all = s.watched.every(Boolean);
+            s.watched = Array(s.episodesCount).fill(!all);
+            recalculateStatus(anime);
+            localStorage.setItem('cardsJournalList', JSON.stringify(myAnimeList));
+            updateModalContent(animeId);
+            renderMainTab();
+        }
+
+        function recalculateStatus(anime) {
+            let total = 0, watched = 0;
+            anime.seasons.forEach(s => {
+                total += s.episodesCount;
+                watched += s.watched.filter(Boolean).length;
+            });
+            if (watched === 0) anime.status = 'planned';
+            else if (watched === total) anime.status = 'completed';
+            else anime.status = 'watching';
+        }
+
+        function closeModal() {
+            document.getElementById('details-modal').classList.add('hidden');
+            activeOpenedAnimeId = null;
+        }
+
+        document.getElementById('details-modal').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+
+        document.getElementById('header-username').innerText = currentUser;
+        switchTab('main');
+    </script>
+</body>
+</html>
