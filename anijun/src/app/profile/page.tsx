@@ -781,7 +781,7 @@ export default function ProfilePage() {
                   className="flex items-center justify-between p-2 bg-[#121214] rounded-lg border border-[#222226]"
                 >
                   <div className="flex items-center gap-2 overflow-hidden">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-white text-[10px] font-bold shrink-0 overflow-hidden">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-white text-[10px] font-bold shrink-0 overflow-hidden relative">
                       {f.avatar_url ? (
                         <Image src={f.avatar_url} alt={f.username} fill unoptimized sizes="32px" className="object-cover" />
                       ) : (
@@ -898,7 +898,7 @@ export default function ProfilePage() {
             {friendRequests.map((req) => (
               <div key={req.request_id} className="flex items-center justify-between p-3 bg-[#121214] rounded-lg border border-[#222226]">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-white text-sm font-bold overflow-hidden">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-white text-sm font-bold overflow-hidden relative">
                     {req.avatar_url ? (
                       <Image src={req.avatar_url} alt={req.username} fill unoptimized sizes="40px" className="object-cover" />
                     ) : (
@@ -938,7 +938,7 @@ export default function ProfilePage() {
             {recommendations.map((rec) => (
               <div key={rec.id} className="flex items-center justify-between p-4 bg-[#1a1a1e] border border-[#222226] rounded-xl">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-white text-lg font-bold shrink-0 overflow-hidden">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-white text-lg font-bold shrink-0 overflow-hidden relative">
                     {rec.avatar_url ? (
                       <Image src={rec.avatar_url} alt={rec.username} fill unoptimized sizes="48px" className="object-cover" />
                     ) : (

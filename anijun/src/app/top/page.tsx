@@ -65,7 +65,7 @@ export default function TopPage() {
         <h3 className="text-sm font-bold uppercase tracking-wider text-gray-400">
           Топ-{TOP_LIMIT} аниме по мнению пользователей AniJUN
         </h3>
-        <span className="text-[10px] text-gray-600">Взвешенный рейтинг</span>
+        <span className="text-[10px] text-gray-600">Рейтинг</span>
       </div>
       <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl overflow-hidden">
         <table className="w-full text-left text-xs border-collapse">

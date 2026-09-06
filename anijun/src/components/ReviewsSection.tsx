@@ -178,7 +178,7 @@ export default function ReviewsSection({ animeId, isAuthed, userId }: ReviewsSec
         {reviews.map((r) => (
           <div key={r.id} className="p-3 bg-[#121214] border border-[#222226] rounded-lg">
             <div className="flex items-center gap-2 mb-1.5">
-              <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-sky-400 to-blue-600 flex items-center justify-center text-white text-[10px] font-black overflow-hidden shrink-0">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-sky-400 to-blue-600 flex items-center justify-center text-white text-[10px] font-black overflow-hidden shrink-0 relative">
                 {r.profiles?.[0]?.avatar_url ? (
                   <Image src={r.profiles[0].avatar_url} alt={r.profiles[0].username} fill unoptimized sizes="28px" className="object-cover" />
                 ) : (

@@ -117,7 +117,7 @@ export default function FriendsPage() {
               ) : (
                 friends.map(f => (
                   <div key={f.id} className="flex items-center gap-3 p-3 bg-[#121214] rounded-lg border border-[#222226]">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-white text-[10px] font-bold shrink-0 overflow-hidden">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-white text-[10px] font-bold shrink-0 overflow-hidden relative">
                       {f.avatar_url ? <Image src={f.avatar_url} alt={f.username} fill unoptimized sizes="32px" className="object-cover" /> : (f.username || "?").charAt(0).toUpperCase()}
                     </div>
                     <span className="text-xs font-bold text-gray-200 truncate">{f.username}</span>
@@ -136,7 +136,7 @@ export default function FriendsPage() {
                 requests.map(r => (
                   <div key={r.request_id} className="flex items-center justify-between p-3 bg-[#121214] rounded-lg border border-[#222226]">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-white text-[10px] font-bold overflow-hidden">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-white text-[10px] font-bold overflow-hidden relative">
                         {r.avatar_url ? <Image src={r.avatar_url} alt={r.username} fill unoptimized sizes="32px" className="object-cover" /> : (r.username || "?").charAt(0).toUpperCase()}
                       </div>
                       <span className="text-xs font-bold text-white">{r.username}</span>

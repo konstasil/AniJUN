@@ -64,7 +64,7 @@ export default function UserSearch({ currentUserId, onAddFriend }: UserSearchPro
               className="flex items-center justify-between p-3 bg-[#121214] rounded-lg border border-[#222226]"
             >
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-white text-xs font-bold shrink-0 relative overflow-hidden">
                   {user.avatar_url ? (
                     <Image src={user.avatar_url} alt={user.username} fill unoptimized sizes="32px" className="object-cover rounded-full" />
                   ) : (
