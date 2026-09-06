@@ -1,0 +1,3 @@
+-- DEPRECATED -- Use migration_add_user_id.sql instead
+-- This file is kept for reference only.
+-- All changes are now consolidated in: sql/migration_add_user_id.sql
