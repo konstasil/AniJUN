@@ -41,10 +41,22 @@ export default function ReviewsSection({ animeId, isAuthed, userId, defaultRatin
   const loadReviews = useCallback(async () => {
     const { data } = await supabase
       .from("reviews")
-      .select("*, profiles:user_id(username, avatar_url)")
+      .select("id, user_id, text, rating, created_at")
       .eq("anime_id", animeId)
       .order("created_at", { ascending: false });
-    if (data) setReviews(data as unknown as Review[]);
+    if (!data || data.length === 0) { setReviews([]); return; }
+    const ids = [...new Set(data.map((r) => r.user_id))];
+    const { data: profs } = await supabase
+      .from("profiles")
+      .select("id, username, avatar_url")
+      .in("id", ids);
+    const map = new Map<string, { username: string; avatar_url: string }>();
+    profs?.forEach((p) => map.set(p.id, { username: p.username, avatar_url: p.avatar_url || "" }));
+    const enriched = data.map((r) => ({
+      ...r,
+      profiles: map.has(r.user_id) ? [map.get(r.user_id)!] : [],
+    }));
+    setReviews(enriched as unknown as Review[]);
   }, [animeId, supabase]);
 
   useEffect(() => {
