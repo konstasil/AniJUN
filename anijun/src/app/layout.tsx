@@ -5,6 +5,7 @@ import "@fortawesome/fontawesome-free/css/all.min.css";
 import Header from "@/components/Header";
 import ErudaConsole from "@/components/ErudaConsole";
 import { SimulationProvider } from "@/lib/simulation-context";
+import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({
   variable: "--font-geist-sans",
@@ -31,6 +32,7 @@ export default function RootLayout({
             {children}
           </main>
         </SimulationProvider>
+        <Analytics />
       </body>
     </html>
   );
