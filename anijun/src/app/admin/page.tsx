@@ -342,7 +342,8 @@ export default function AdminPage() {
 
   async function handleDeleteSuggestion(id: number) {
     if (!confirm("Удалить заявку безвозвратно?")) return;
-    await supabase.from("anime_suggestions").delete().eq("id", id);
+    const { error } = await supabase.from("anime_suggestions").delete().eq("id", id);
+    if (error) { alert("Не удалось удалить: " + error.message); return; }
     await loadAll();
   }
 
