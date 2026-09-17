@@ -98,6 +98,8 @@ export default function AdminPage() {
   const [editSuggSeasons, setEditSuggSeasons] = useState<SeasonDraft[]>([]);
 
   const [users, setUsers] = useState<ProfileRow[]>([]);
+  const [admins, setAdmins] = useState<string[]>([]);
+  const [newAdminId, setNewAdminId] = useState("");
 
   const [ratings, setRatings] = useState<RatingRow[]>([]);
   const [ratingAnimeId, setRatingAnimeId] = useState("");
@@ -131,15 +133,20 @@ export default function AdminPage() {
     async function init() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) { router.push("/login"); return; }
-      if (ADMIN_IDS.includes(session.user.id)) {
+      const hardcoded = ADMIN_IDS.includes(session.user.id);
+      let dbAdmin = false;
+      try {
+        const { data } = await supabase.rpc("is_admin");
+        dbAdmin = !!data;
+      } catch {}
+      if (hardcoded || dbAdmin) {
         setIsAdmin(true);
         await loadAll();
       }
       setLoading(false);
     }
     init();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [supabase, router]);
 
   async function loadAll() {
     const { data: anime } = await supabase.from("anime").select("*, anime_seasons(*)").order("id", { ascending: false });
@@ -147,6 +154,9 @@ export default function AdminPage() {
 
     const { data: profiles } = await supabase.from("profiles").select("id, username, created_at").order("created_at", { ascending: false });
     if (profiles) setUsers(profiles);
+
+    const { data: adminsData } = await supabase.from("admins").select("user_id");
+    if (adminsData) setAdmins(adminsData.map((a) => a.user_id));
 
     const { data: r } = await supabase
       .from("ratings")
@@ -333,6 +343,21 @@ export default function AdminPage() {
   async function handleDeleteSuggestion(id: number) {
     if (!confirm("Удалить заявку безвозвратно?")) return;
     await supabase.from("anime_suggestions").delete().eq("id", id);
+    await loadAll();
+  }
+
+  async function handleGrantAdmin() {
+    const id = newAdminId.trim();
+    if (!id) return;
+    const { error } = await supabase.from("admins").insert({ user_id: id });
+    if (error) { alert("Ошибка: " + error.message); return; }
+    setNewAdminId("");
+    await loadAll();
+  }
+
+  async function handleRevokeAdmin(adminId: string) {
+    if (!confirm("Снять админку?")) return;
+    await supabase.from("admins").delete().eq("user_id", adminId);
     await loadAll();
   }
 
@@ -677,22 +702,58 @@ export default function AdminPage() {
 
       {/* USERS */}
       {tab === "users" && (
-        <div className="space-y-2">
-          {users.length === 0 && <p className="text-gray-500 text-xs text-center py-8">Нет пользователей</p>}
-          {users.map((u) => (
-            <div key={u.id} className="bg-[#1a1a1e] border border-[#222226] rounded-lg p-3 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-sky-400 to-blue-600 flex items-center justify-center text-white text-xs font-black flex-shrink-0">
-                {u.username.substring(0, 2).toUpperCase()}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-white truncate">{u.username}</p>
-                <p className="text-[10px] text-gray-500">{u.id}</p>
-              </div>
-              {ADMIN_IDS.includes(u.id) && (
-                <span className="text-[9px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/20">Админ</span>
-              )}
+        <div className="space-y-4">
+          <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-4">
+            <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Выдать админку</h4>
+            <div className="flex gap-2">
+              <select value={newAdminId} onChange={(e) => setNewAdminId(e.target.value)}
+                className="flex-1 bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-sky-500/50">
+                <option value="">Выберите пользователя</option>
+                {users.map((u) => <option key={u.id} value={u.id}>{u.username} {admins.includes(u.id) || ADMIN_IDS.includes(u.id) ? "(Админ)" : ""}</option>)}
+              </select>
+              <button onClick={handleGrantAdmin} disabled={!newAdminId}
+                className="bg-amber-500 hover:bg-amber-600 disabled:opacity-30 text-white text-xs font-bold px-4 py-1.5 rounded transition-all">Выдать</button>
             </div>
-          ))}
+            <div className="flex gap-2 mt-2">
+              <input value={newAdminId} onChange={(e) => setNewAdminId(e.target.value)} placeholder="или вставьте UUID"
+                className="flex-1 bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-sky-500/50" />
+            </div>
+            {admins.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {admins.map((aid) => {
+                  const u = users.find((x) => x.id === aid);
+                  return (
+                    <span key={aid} className="inline-flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-bold px-2 py-1 rounded">
+                      {u?.username || aid.slice(0, 8)}
+                      <button onClick={() => handleRevokeAdmin(aid)} className="hover:text-red-400"><i className="fa-solid fa-xmark text-[9px]"></i></button>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          <div className="space-y-2">
+            {users.length === 0 && <p className="text-gray-500 text-xs text-center py-8">Нет пользователей</p>}
+            {users.map((u) => {
+              const isAdmin = admins.includes(u.id) || ADMIN_IDS.includes(u.id);
+              return (
+                <div key={u.id} className="bg-[#1a1a1e] border border-[#222226] rounded-lg p-3 flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-sky-400 to-blue-600 flex items-center justify-center text-white text-xs font-black flex-shrink-0">
+                    {u.username.substring(0, 2).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-white truncate">{u.username}</p>
+                    <p className="text-[10px] text-gray-500">{u.id}</p>
+                  </div>
+                  {isAdmin ? (
+                    <span className="text-[9px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/20">Админ</span>
+                  ) : (
+                    <button onClick={() => { setNewAdminId(u.id); }} className="text-[10px] text-sky-400 hover:text-sky-300 border border-sky-500/20 px-2 py-0.5 rounded">Выдать</button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 

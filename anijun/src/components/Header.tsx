@@ -21,13 +21,21 @@ export default function Header() {
   const supabase = useMemo(() => createClient(), []);
   const { simulatedProfile, isSimulating } = useSimulatedUser();
 
+  async function checkAdmin(userId: string): Promise<boolean> {
+    if (isAdminId(userId)) return true;
+    try {
+      const { data } = await supabase.rpc("is_admin");
+      return !!data;
+    } catch { return false; }
+  }
+
   useEffect(() => {
     async function load() {
       const { data: { session } } = await supabase.auth.getSession();
       const authUser = session?.user ?? null;
       setUser(authUser);
       if (authUser) {
-        setIsAdmin(isAdminId(authUser.id));
+        setIsAdmin(await checkAdmin(authUser.id));
         const { data } = await supabase
           .from("profiles")
           .select("username, avatar_url")
@@ -45,7 +53,7 @@ export default function Header() {
       async (_event, session) => {
         const authUser = session?.user ?? null;
         setUser(authUser);
-        setIsAdmin(authUser ? isAdminId(authUser.id) : false);
+        setIsAdmin(authUser ? await checkAdmin(authUser.id) : false);
         if (session?.user) {
           const { data } = await supabase
             .from("profiles")
