@@ -172,7 +172,7 @@ function CatalogContent() {
         return {
           ...a,
           anime_status: a.status,
-          status: listMap.get(a.id) || "planned",
+          status: listMap.get(a.id) || "",
           watched_episodes: prog?.watched || 0,
           total_episodes: totalEps,
         };
@@ -267,6 +267,7 @@ function CatalogContent() {
               <div className="flex flex-col gap-1">
                 {[
                   ["all", "Все тайтлы"],
+                  ["", "Без статуса"],
                   ["watching", "Смотрю"],
                   ["planned", "Запланировано"],
                   ["completed", "Просмотрено"],

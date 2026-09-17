@@ -1,8 +1,9 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { useSimulatedUser } from "@/lib/simulation-context";
@@ -11,12 +12,13 @@ import { isAdminId } from "@/lib/admin";
 export default function Header() {
   const [user, setUser] = useState<User | null>(null);
   const [username, setUsername] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [animeDropdown, setAnimeDropdown] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const { simulatedProfile, isSimulating } = useSimulatedUser();
 
   useEffect(() => {
@@ -28,10 +30,13 @@ export default function Header() {
         setIsAdmin(isAdminId(authUser.id));
         const { data } = await supabase
           .from("profiles")
-          .select("username")
+          .select("username, avatar_url")
           .eq("id", authUser.id)
           .single();
-        if (data) setUsername(data.username);
+        if (data) {
+          setUsername(data.username);
+          setAvatarUrl(data.avatar_url || "");
+        }
       }
     }
     load();
@@ -44,12 +49,16 @@ export default function Header() {
         if (session?.user) {
           const { data } = await supabase
             .from("profiles")
-            .select("username")
+            .select("username, avatar_url")
             .eq("id", session.user.id)
             .single();
-          if (data) setUsername(data.username);
+          if (data) {
+            setUsername(data.username);
+            setAvatarUrl(data.avatar_url || "");
+          }
         } else {
           setUsername("");
+          setAvatarUrl("");
         }
       }
     );
@@ -79,11 +88,14 @@ export default function Header() {
 
   return (
     <header className="border-b border-[#222226] bg-[#1a1a1e] px-8 py-4 flex flex-col md:flex-row gap-6 justify-between items-center sticky top-0 z-40">
-      <Link href="/" className="flex items-center gap-2 cursor-pointer group">
-        <i className="fa-solid fa-play text-sky-400 text-lg group-hover:scale-110 transition-transform"></i>
-        <span className="text-lg font-bold tracking-wider text-white">
-          AniJUN
-        </span>
+      <Link href="/" className="flex items-center gap-2 cursor-pointer group" title="AniJUN — на главную">
+        <Image
+          src="/favicon.ico"
+          alt="AniJUN"
+          width={36}
+          height={36}
+          className="w-9 h-9 rounded-lg group-hover:scale-110 transition-transform"
+        />
       </Link>
 
       <nav className="flex items-center gap-8 text-xs font-bold uppercase tracking-widest text-gray-400">
@@ -167,7 +179,18 @@ export default function Header() {
               onClick={() => setMenuOpen(!menuOpen)}
               className="flex items-center gap-2 bg-[#121214] hover:bg-[#222226] px-3 py-2 rounded-lg border border-[#222226] transition-all group"
             >
-              <i className="fa-solid fa-circle-user text-sky-400 text-sm group-hover:scale-110 transition-transform"></i>
+              {avatarUrl ? (
+                <Image
+                  src={avatarUrl}
+                  alt={username || "Аватар"}
+                  width={24}
+                  height={24}
+                  unoptimized
+                  className="w-6 h-6 rounded-full object-cover shrink-0 group-hover:scale-110 transition-transform"
+                />
+              ) : (
+                <i className="fa-solid fa-circle-user text-sky-400 text-sm group-hover:scale-110 transition-transform"></i>
+              )}
               <span className="text-xs font-bold text-gray-200">
                 {username || "Профиль"}
               </span>

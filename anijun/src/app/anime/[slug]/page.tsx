@@ -51,7 +51,7 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
   const [votesCount, setVotesCount] = useState(0);
   const [viewersCount, setViewersCount] = useState(0);
   const [topPosition, setTopPosition] = useState<number | null>(null);
-  const [userStatus, setUserStatus] = useState<string>("planned");
+  const [userStatus, setUserStatus] = useState<string>("");
   const [episodeProgress, setEpisodeProgress] = useState<Map<number, Set<number>>>(new Map());
   const [userId, setUserId] = useState<string | null>(null);
   const [isAuthed, setIsAuthed] = useState(false);
@@ -187,9 +187,7 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
       const { data: listEntry } = await supabase
         .from("user_anime_list").select("status").eq("user_id", effectiveId).eq("anime_id", animeId).single();
       if (listEntry && !cancelled) setUserStatus(listEntry.status);
-      else if (!cancelled) {
-        await supabase.from("user_anime_list").insert({ user_id: effectiveId, anime_id: animeId, status: "planned" });
-      }
+      else if (!cancelled) setUserStatus("");
 
       const { data: seasons } = await supabase.from("anime_seasons").select("id").eq("anime_id", animeId);
       if (seasons && seasons.length > 0 && !cancelled) {
@@ -242,7 +240,14 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
   async function handleStatus(status: string) {
     if (!userId || animeId === null) return;
     setUserStatus(status);
-    await supabase.from("user_anime_list").update({ status }).eq("user_id", userId).eq("anime_id", animeId);
+    if (status === "") {
+      await supabase.from("user_anime_list").delete().eq("user_id", userId).eq("anime_id", animeId);
+    } else {
+      await supabase.from("user_anime_list").upsert(
+        { user_id: userId, anime_id: animeId, status },
+        { onConflict: "user_id,anime_id" }
+      );
+    }
   }
 
   async function toggleEpisode(seasonId: number, epNumber: number) {
@@ -267,9 +272,9 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
         watchedEps += prog?.size || 0;
       }
       if (userStatus === "dropped" || userStatus === "on_hold") return;
-      if (watchedEps === 0) handleStatus("planned");
+      if (watchedEps > 0 && userStatus === "") handleStatus("watching");
       else if (watchedEps >= totalEps) handleStatus("completed");
-      else handleStatus("watching");
+      else if (watchedEps > 0) handleStatus("watching");
     }
   }
 
@@ -536,12 +541,12 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
 
           {userDataLoaded && (
             <>
-              <div className="flex items-center gap-2 mb-6">
+              <div className="flex items-center gap-2 mb-6 flex-wrap">
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Статус:</span>
-                {["planned", "watching", "completed", "on_hold", "dropped"].map((s) => {
-                  const labels: Record<string, string> = { planned: "Запланировано", watching: "Смотрю", completed: "Просмотрено", on_hold: "Отложено", dropped: "Брошено" };
+                {["", "planned", "watching", "completed", "on_hold", "dropped"].map((s) => {
+                  const labels: Record<string, string> = { "": "Без статуса", planned: "Запланировано", watching: "Смотрю", completed: "Просмотрено", on_hold: "Отложено", dropped: "Брошено" };
                   return (
-                    <button key={s} onClick={() => handleStatus(s)}
+                    <button key={s || "none"} onClick={() => handleStatus(s)}
                       className={`text-[10px] font-bold px-3 py-1 rounded transition-all ${userStatus === s ? "bg-sky-500/20 text-sky-400 border border-sky-500/30" : "bg-[#121214] text-gray-500 border border-[#222226] hover:text-gray-300"}`}>
                       {labels[s]}
                     </button>
@@ -645,7 +650,7 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
       </div>
 
       <div className="flex flex-col gap-8 mt-8">
-        <ReviewsSection animeId={anime.id} isAuthed={isAuthed} userId={userId} />
+        <ReviewsSection animeId={anime.id} isAuthed={isAuthed} userId={userId} defaultRating={userRating} />
         <CollectionsSection animeId={anime.id} animeTitle={anime.title} userId={userId} />
       </div>
 

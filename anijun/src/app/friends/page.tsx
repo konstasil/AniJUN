@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 
 interface Friend {
   id: string;
@@ -116,12 +117,12 @@ export default function FriendsPage() {
                 <div className="text-xs text-gray-500 text-center py-4">Друзей пока нет</div>
               ) : (
                 friends.map(f => (
-                  <div key={f.id} className="flex items-center gap-3 p-3 bg-[#121214] rounded-lg border border-[#222226]">
+                  <Link key={f.id} href={`/profile/${f.id}`} className="flex items-center gap-3 p-3 bg-[#121214] rounded-lg border border-[#222226] group hover:border-sky-400/30 transition-all">
                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-white text-[10px] font-bold shrink-0 overflow-hidden relative">
                       {f.avatar_url ? <Image src={f.avatar_url} alt={f.username} fill unoptimized sizes="32px" className="object-cover" /> : (f.username || "?").charAt(0).toUpperCase()}
                     </div>
-                    <span className="text-xs font-bold text-gray-200 truncate">{f.username}</span>
-                  </div>
+                    <span className="text-xs font-bold text-gray-200 truncate group-hover:text-sky-400 transition-colors">{f.username}</span>
+                  </Link>
                 ))
               )}
             </div>
@@ -135,12 +136,12 @@ export default function FriendsPage() {
               ) : (
                 requests.map(r => (
                   <div key={r.request_id} className="flex items-center justify-between p-3 bg-[#121214] rounded-lg border border-[#222226]">
-                    <div className="flex items-center gap-3">
+                    <Link href={`/profile/${r.user_id}`} className="flex items-center gap-3 flex-1 min-w-0 group">
                       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-white text-[10px] font-bold overflow-hidden relative">
                         {r.avatar_url ? <Image src={r.avatar_url} alt={r.username} fill unoptimized sizes="32px" className="object-cover" /> : (r.username || "?").charAt(0).toUpperCase()}
                       </div>
-                      <span className="text-xs font-bold text-white">{r.username}</span>
-                    </div>
+                      <span className="text-xs font-bold text-white truncate group-hover:text-sky-400 transition-colors">{r.username}</span>
+                    </Link>
                     <div className="flex gap-2">
                       <button onClick={() => handleAccept(r.request_id, r.user_id)} className="px-3 py-1.5 rounded-lg bg-green-500/10 text-green-400 border border-green-500/20 text-[11px] font-bold">Принять</button>
                       <button onClick={() => handleReject(r.request_id)} className="px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 text-[11px] font-bold">Отклонить</button>

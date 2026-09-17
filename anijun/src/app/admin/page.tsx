@@ -68,7 +68,7 @@ export default function AdminPage() {
   const [newAgeRating, setNewAgeRating] = useState("16+");
   const [newStatus, setNewStatus] = useState("announced");
   const [newPosterUrl, setNewPosterUrl] = useState("");
-  const [seasons, setSeasons] = useState<{ number: number; episodes: number }[]>([{ number: 1, episodes: 12 }]);
+  const [seasons, setSeasons] = useState<{ number: number; episodes: number; note?: string }[]>([{ number: 1, episodes: 12, note: "" }]);
   const [addingAnime, setAddingAnime] = useState(false);
 
   const [animeList, setAnimeList] = useState<AnimeRow[]>([]);
@@ -192,10 +192,11 @@ export default function AdminPage() {
           anime_id: anime.id,
           season_number: s.number,
           episodes_count: s.episodes,
+          note: s.note || "",
         });
       }
     }
-    setNewTitle(""); setNewSlug(""); setNewGenres([]); setNewPosterUrl(""); setNewStatus("announced"); setSeasons([{ number: 1, episodes: 12 }]);
+    setNewTitle(""); setNewSlug(""); setNewGenres([]); setNewPosterUrl(""); setNewStatus("announced"); setSeasons([{ number: 1, episodes: 12, note: "" }]);
     setAddingAnime(false);
     await loadAll();
     setTab("anime-list");
@@ -451,7 +452,7 @@ export default function AdminPage() {
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Сезоны</label>
-              <button onClick={() => setSeasons([...seasons, { number: seasons.length + 1, episodes: 12 }])}
+              <button onClick={() => setSeasons([...seasons, { number: seasons.length + 1, episodes: 12, note: "" }])}
                 className="text-[10px] font-bold text-sky-400 hover:text-sky-300 transition-colors">+ Добавить сезон</button>
             </div>
             <div className="space-y-2">
@@ -462,11 +463,13 @@ export default function AdminPage() {
                     onChange={(e) => { const c = [...seasons]; c[i] = { ...c[i], episodes: Number(e.target.value) }; setSeasons(c); }}
                     className="w-20 bg-[#121214] border border-[#222226] rounded px-2 py-1 text-xs text-white outline-none focus:border-sky-500/50" />
                   <span className="text-[10px] text-gray-500">серий</span>
-                  {seasons.length > 1 && (
-                    <button onClick={() => setSeasons(seasons.filter((_, j) => j !== i))} className="text-[10px] text-red-400 hover:text-red-300">
-                      <i className="fa-solid fa-xmark"></i>
-                    </button>
-                  )}
+                  <input value={s.note || ""} placeholder="Название (опционально)"
+                    onChange={(e) => { const c = [...seasons]; c[i] = { ...c[i], note: e.target.value }; setSeasons(c); }}
+                    className="flex-1 min-w-[140px] bg-[#121214] border border-[#222226] rounded px-2 py-1 text-xs text-white outline-none focus:border-sky-500/50" />
+                  <button onClick={() => setSeasons(seasons.filter((_, j) => j !== i))} title="Удалить сезон"
+                    className="text-[10px] text-red-400 hover:text-red-300 transition-all px-1.5 py-1">
+                    <i className="fa-solid fa-trash-can"></i>
+                  </button>
                 </div>
               ))}
             </div>

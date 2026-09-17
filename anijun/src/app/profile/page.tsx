@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import AnimeCard from "@/components/AnimeCard";
 import ImageUpload from "@/components/ImageUpload";
 import UserSearch from "@/components/UserSearch";
@@ -780,7 +781,7 @@ export default function ProfilePage() {
                   key={f.id}
                   className="flex items-center justify-between p-2 bg-[#121214] rounded-lg border border-[#222226]"
                 >
-                  <div className="flex items-center gap-2 overflow-hidden">
+                  <Link href={`/profile/${f.id}`} className="flex items-center gap-2 overflow-hidden flex-1 min-w-0 group">
                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-white text-[10px] font-bold shrink-0 overflow-hidden relative">
                       {f.avatar_url ? (
                         <Image src={f.avatar_url} alt={f.username} fill unoptimized sizes="32px" className="object-cover" />
@@ -788,10 +789,10 @@ export default function ProfilePage() {
                         f.username.charAt(0).toUpperCase()
                       )}
                     </div>
-                    <span className="font-semibold text-gray-300 text-xs truncate">
+                    <span className="font-semibold text-gray-300 text-xs truncate group-hover:text-sky-400 transition-colors">
                       {f.username}
                     </span>
-                  </div>
+                  </Link>
                   <button
                     onClick={() => handleRemoveFriend(f.id)}
                     className="text-[10px] text-red-400 hover:text-red-300 transition-colors px-2 py-1"
@@ -897,7 +898,7 @@ export default function ProfilePage() {
           <div className="flex flex-col gap-3">
             {friendRequests.map((req) => (
               <div key={req.request_id} className="flex items-center justify-between p-3 bg-[#121214] rounded-lg border border-[#222226]">
-                <div className="flex items-center gap-3">
+                <Link href={`/profile/${req.user_id}`} className="flex items-center gap-3 flex-1 min-w-0 group">
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-white text-sm font-bold overflow-hidden relative">
                     {req.avatar_url ? (
                       <Image src={req.avatar_url} alt={req.username} fill unoptimized sizes="40px" className="object-cover" />
@@ -905,8 +906,8 @@ export default function ProfilePage() {
                       req.username.charAt(0).toUpperCase()
                     )}
                   </div>
-                  <span className="font-bold text-white text-sm">{req.username}</span>
-                </div>
+                  <span className="font-bold text-white text-sm group-hover:text-sky-400 transition-colors">{req.username}</span>
+                </Link>
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleAcceptRequest(req.request_id, req.user_id)}
@@ -937,7 +938,7 @@ export default function ProfilePage() {
           <div className="flex flex-col gap-3">
             {recommendations.map((rec) => (
               <div key={rec.id} className="flex items-center justify-between p-4 bg-[#1a1a1e] border border-[#222226] rounded-xl">
-                <div className="flex items-center gap-3">
+                <Link href={`/profile/${rec.id}`} className="flex items-center gap-3 flex-1 min-w-0 group">
                   <div className="w-12 h-12 rounded-full bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-white text-lg font-bold shrink-0 overflow-hidden relative">
                     {rec.avatar_url ? (
                       <Image src={rec.avatar_url} alt={rec.username} fill unoptimized sizes="48px" className="object-cover" />
@@ -946,12 +947,12 @@ export default function ProfilePage() {
                     )}
                   </div>
                   <div>
-                    <span className="font-bold text-white text-sm block">{rec.username}</span>
+                    <span className="font-bold text-white text-sm block group-hover:text-sky-400 transition-colors">{rec.username}</span>
                     <span className="text-[10px] text-gray-500">
                       {rec.shared_anime} общих аниме • {rec.shared_genres} общих жанров
                     </span>
                   </div>
-                </div>
+                </Link>
                 <button
                   onClick={() => handleAddFriend(rec.id)}
                   className="shrink-0 px-4 py-2 rounded-lg bg-sky-500/10 text-sky-400 border border-sky-500/20 hover:bg-sky-500/20 transition-all text-xs font-bold flex items-center gap-2"

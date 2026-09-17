@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import "@fortawesome/fontawesome-free/css/all.min.css";
 import Header from "@/components/Header";
 import ErudaConsole from "@/components/ErudaConsole";
 import { SimulationProvider } from "@/lib/simulation-context";

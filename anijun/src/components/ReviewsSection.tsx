@@ -18,9 +18,10 @@ interface ReviewsSectionProps {
   animeId: number;
   isAuthed: boolean;
   userId: string | null;
+  defaultRating: number | "-";
 }
 
-export default function ReviewsSection({ animeId, isAuthed, userId }: ReviewsSectionProps) {
+export default function ReviewsSection({ animeId, isAuthed, userId, defaultRating }: ReviewsSectionProps) {
   const supabase = useMemo(() => createClient(), []);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [myText, setMyText] = useState("");
@@ -29,6 +30,14 @@ export default function ReviewsSection({ animeId, isAuthed, userId }: ReviewsSec
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [following, setFollowing] = useState<Set<string>>(new Set());
+  const [lastDefaultRating, setLastDefaultRating] = useState<number | "-">("-");
+
+  // Оценка в отзыве связывается с выбранной пользователем оценкой тайтла.
+  // Корректируем state во время рендера, когда проп изменился (React-паттерн).
+  if (defaultRating !== lastDefaultRating) {
+    setLastDefaultRating(defaultRating);
+    if (typeof defaultRating === "number") setMyRating(defaultRating);
+  }
 
   const loadReviews = useCallback(async () => {
     const { data } = await supabase
@@ -178,13 +187,13 @@ export default function ReviewsSection({ animeId, isAuthed, userId }: ReviewsSec
         {reviews.map((r) => (
           <div key={r.id} className="p-3 bg-[#121214] border border-[#222226] rounded-lg">
             <div className="flex items-center gap-2 mb-1.5">
-              <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-sky-400 to-blue-600 flex items-center justify-center text-white text-[10px] font-black overflow-hidden shrink-0 relative">
+              <Link href={`/profile/${r.user_id}`} className="w-7 h-7 rounded-full bg-gradient-to-tr from-sky-400 to-blue-600 flex items-center justify-center text-white text-[10px] font-black overflow-hidden shrink-0 relative hover:ring-2 hover:ring-sky-400/40 transition-all">
                 {r.profiles?.[0]?.avatar_url ? (
                   <Image src={r.profiles[0].avatar_url} alt={r.profiles[0].username} fill unoptimized sizes="28px" className="object-cover" />
                 ) : (
                   (r.profiles?.[0]?.username || "А").substring(0, 2).toUpperCase()
                 )}
-              </div>
+              </Link>
               <div className="flex-1 min-w-0">
                 <Link href={`/profile/${r.user_id}`} className="text-xs font-bold text-white hover:text-sky-400 transition-colors truncate block">
                   {r.profiles?.[0]?.username || "Пользователь"}
