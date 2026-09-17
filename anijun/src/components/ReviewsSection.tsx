@@ -29,11 +29,10 @@ export default function ReviewsSection({ animeId, isAuthed, userId, defaultRatin
   const [editingOwn, setEditingOwn] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [following, setFollowing] = useState<Set<string>>(new Set());
+  const [friendIds, setFriendIds] = useState<Set<string>>(new Set());
+  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
   const [lastDefaultRating, setLastDefaultRating] = useState<number | "-">("-");
 
-  // Оценка в отзыве связывается с выбранной пользователем оценкой тайтла.
-  // Корректируем state во время рендера, когда проп изменился (React-паттерн).
   if (defaultRating !== lastDefaultRating) {
     setLastDefaultRating(defaultRating);
     if (typeof defaultRating === "number") setMyRating(defaultRating);
@@ -58,14 +57,25 @@ export default function ReviewsSection({ animeId, isAuthed, userId, defaultRatin
     if (!userId) return;
     let cancelled = false;
     (async () => {
-      const { data } = await supabase
-        .from("user_follows")
-        .select("following_id")
-        .eq("follower_id", userId);
+      const { data: accepted } = await supabase
+        .from("friends")
+        .select("user_id, friend_id")
+        .eq("status", "accepted")
+        .or(`user_id.eq.${userId},friend_id.eq.${userId}`);
       if (cancelled) return;
-      const s = new Set<string>();
-      data?.forEach((f) => s.add(f.following_id));
-      setFollowing(s);
+      const f = new Set<string>();
+      accepted?.forEach((row) => f.add(row.user_id === userId ? row.friend_id : row.user_id));
+      setFriendIds(f);
+
+      const { data: pending } = await supabase
+        .from("friends")
+        .select("friend_id")
+        .eq("status", "pending")
+        .eq("user_id", userId);
+      if (cancelled) return;
+      const p = new Set<string>();
+      pending?.forEach((row) => p.add(row.friend_id));
+      setPendingIds(p);
     })();
     return () => { cancelled = true; };
   }, [userId, supabase]);
@@ -104,18 +114,14 @@ export default function ReviewsSection({ animeId, isAuthed, userId, defaultRatin
     await loadReviews();
   }
 
-  async function toggleFollow(authorId: string) {
-    if (!userId) return;
-    const isFollowing = following.has(authorId);
-    if (isFollowing) {
-      await supabase.from("user_follows").delete().eq("follower_id", userId).eq("following_id", authorId);
-      const next = new Set(following);
-      next.delete(authorId);
-      setFollowing(next);
-    } else {
-      await supabase.from("user_follows").insert({ follower_id: userId, following_id: authorId });
-      setFollowing(new Set(following).add(authorId));
-    }
+  async function handleAddFriend(authorId: string) {
+    if (!userId || authorId === userId) return;
+    const { error: err } = await supabase.from("friends").insert({
+      user_id: userId,
+      friend_id: authorId,
+      status: "pending",
+    });
+    if (!err) setPendingIds(new Set(pendingIds).add(authorId));
   }
 
   function startEditOwn() {
@@ -202,14 +208,20 @@ export default function ReviewsSection({ animeId, isAuthed, userId, defaultRatin
               </div>
               <span className="text-[10px] font-bold text-amber-400 border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 rounded">{r.rating}/10</span>
               {isAuthed && userId && r.user_id !== userId && (
-                <button onClick={() => toggleFollow(r.user_id)}
-                  className={`text-[9px] font-bold px-2 py-1 rounded border transition-all ${
-                    following.has(r.user_id)
-                      ? "text-gray-400 border-[#222226] bg-[#1a1a1e] hover:text-red-400"
-                      : "text-sky-400 border-sky-400/30 hover:bg-sky-400/10"
-                  }`}>
-                  {following.has(r.user_id) ? <><i className="fa-solid fa-bell-slash mr-0.5"></i>Отписаться</> : <><i className="fa-solid fa-bell mr-0.5"></i>Подписаться</>}
-                </button>
+                friendIds.has(r.user_id) ? (
+                  <span className="text-[9px] font-bold px-2 py-1 rounded border text-green-400 border-green-500/20 bg-green-500/10">
+                    <i className="fa-solid fa-user-check mr-0.5"></i>В друзьях
+                  </span>
+                ) : pendingIds.has(r.user_id) ? (
+                  <span className="text-[9px] font-bold px-2 py-1 rounded border text-gray-400 border-[#222226] bg-[#1a1a1e]">
+                    <i className="fa-solid fa-clock mr-0.5"></i>Заявка
+                  </span>
+                ) : (
+                  <button onClick={() => handleAddFriend(r.user_id)}
+                    className="text-[9px] font-bold px-2 py-1 rounded border text-sky-400 border-sky-400/30 hover:bg-sky-400/10 transition-all">
+                    <i className="fa-solid fa-user-plus mr-0.5"></i>В друзья
+                  </button>
+                )
               )}
             </div>
             <p className="text-xs text-gray-300 whitespace-pre-wrap break-words">{r.text}</p>

@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { ALL_GENRES, AGE_RATINGS } from "@/lib/genres";
+import SeasonEditor, { SeasonDraft } from "@/components/SeasonEditor";
 
 export default function SuggestPage() {
   const router = useRouter();
@@ -16,6 +17,7 @@ export default function SuggestPage() {
   const [imageUrl, setImageUrl] = useState("");
   const [link, setLink] = useState("");
   const [comment, setComment] = useState("");
+  const [seasons, setSeasons] = useState<SeasonDraft[]>([{ number: 1, episodes: 12, note: "" }]);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
@@ -47,6 +49,7 @@ export default function SuggestPage() {
       image_url: imageUrl,
       link: link.trim(),
       comment: comment.trim(),
+      seasons,
       status: "new",
     });
 
@@ -100,6 +103,10 @@ export default function SuggestPage() {
           <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Сезон</label>
           <input value={seasonInfo} onChange={(e) => setSeasonInfo(e.target.value)} placeholder="Например: Зима 2025"
             className="w-full bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-sky-500/50 transition-colors" />
+        </div>
+
+        <div>
+          <SeasonEditor seasons={seasons} onChange={setSeasons} />
         </div>
 
         <div className="flex gap-3">

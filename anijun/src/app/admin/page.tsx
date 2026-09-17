@@ -8,6 +8,7 @@ import ImageUpload from "@/components/ImageUpload";
 import { useSimulatedUser } from "@/lib/simulation-context";
 import { ALL_GENRES, AGE_RATINGS, ANIME_STATUSES } from "@/lib/genres";
 import { ADMIN_IDS } from "@/lib/admin";
+import SeasonEditor, { SeasonDraft } from "@/components/SeasonEditor";
 
 interface AnimeRow {
   id: number;
@@ -19,6 +20,7 @@ interface AnimeRow {
   age_rating: string;
   status?: string;
   created_at: string;
+  anime_seasons?: { id: number; season_number: number; episodes_count: number; note?: string }[];
 }
 
 interface SuggestionRow {
@@ -30,6 +32,7 @@ interface SuggestionRow {
   image_url: string;
   link: string;
   comment: string;
+  seasons?: SeasonDraft[];
   status: string;
   created_at: string;
   user_id: string;
@@ -68,7 +71,7 @@ export default function AdminPage() {
   const [newAgeRating, setNewAgeRating] = useState("16+");
   const [newStatus, setNewStatus] = useState("announced");
   const [newPosterUrl, setNewPosterUrl] = useState("");
-  const [seasons, setSeasons] = useState<{ number: number; episodes: number; note?: string }[]>([{ number: 1, episodes: 12, note: "" }]);
+  const [seasons, setSeasons] = useState<SeasonDraft[]>([{ number: 1, episodes: 12, note: "" }]);
   const [addingAnime, setAddingAnime] = useState(false);
 
   const [animeList, setAnimeList] = useState<AnimeRow[]>([]);
@@ -81,6 +84,7 @@ export default function AdminPage() {
   const [editSeason, setEditSeason] = useState("");
   const [editAgeRating, setEditAgeRating] = useState("16+");
   const [editStatus, setEditStatus] = useState("announced");
+  const [editSeasons, setEditSeasons] = useState<SeasonDraft[]>([]);
 
   const [suggestions, setSuggestions] = useState<SuggestionRow[]>([]);
   const [editingSuggestion, setEditingSuggestion] = useState<number | null>(null);
@@ -91,6 +95,7 @@ export default function AdminPage() {
   const [editSuggImageUrl, setEditSuggImageUrl] = useState("");
   const [editSuggLink, setEditSuggLink] = useState("");
   const [editSuggComment, setEditSuggComment] = useState("");
+  const [editSuggSeasons, setEditSuggSeasons] = useState<SeasonDraft[]>([]);
 
   const [users, setUsers] = useState<ProfileRow[]>([]);
 
@@ -187,10 +192,11 @@ export default function AdminPage() {
     }).select().single();
 
     if (anime) {
-      for (const s of seasons) {
+      for (let i = 0; i < seasons.length; i++) {
+        const s = seasons[i];
         await supabase.from("anime_seasons").insert({
           anime_id: anime.id,
-          season_number: s.number,
+          season_number: i + 1,
           episodes_count: s.episodes,
           note: s.note || "",
         });
@@ -225,6 +231,12 @@ export default function AdminPage() {
     setEditSeason(a.season_info);
     setEditAgeRating(a.age_rating);
     setEditStatus(a.status || "announced");
+    setEditSeasons((a.anime_seasons || []).map((s) => ({
+      id: s.id,
+      number: s.season_number,
+      episodes: s.episodes_count,
+      note: s.note || "",
+    })));
   }
 
   async function saveEditAnime() {
@@ -239,6 +251,31 @@ export default function AdminPage() {
       age_rating: editAgeRating,
       status: editStatus,
     }).eq("id", editingAnime);
+
+    const original = animeList.find((a) => a.id === editingAnime)?.anime_seasons || [];
+    const keptIds = editSeasons.filter((s) => s.id).map((s) => s.id as number);
+    const toDelete = original.filter((s) => !keptIds.includes(s.id)).map((s) => s.id);
+    if (toDelete.length > 0) {
+      await supabase.from("episode_progress").delete().in("season_id", toDelete);
+      await supabase.from("anime_seasons").delete().in("id", toDelete);
+    }
+    for (let i = 0; i < editSeasons.length; i++) {
+      const s = editSeasons[i];
+      if (s.id) {
+        await supabase.from("anime_seasons").update({
+          season_number: i + 1,
+          episodes_count: s.episodes,
+          note: s.note || "",
+        }).eq("id", s.id);
+      } else {
+        await supabase.from("anime_seasons").insert({
+          anime_id: editingAnime,
+          season_number: i + 1,
+          episodes_count: s.episodes,
+          note: s.note || "",
+        });
+      }
+    }
     setEditingAnime(null);
     await loadAll();
   }
@@ -252,6 +289,11 @@ export default function AdminPage() {
     setEditSuggImageUrl(s.image_url);
     setEditSuggLink(s.link || "");
     setEditSuggComment(s.comment || "");
+    setEditSuggSeasons(Array.isArray(s.seasons) ? s.seasons.map((x) => ({
+      number: x.number,
+      episodes: x.episodes,
+      note: x.note || "",
+    })) : []);
   }
 
   async function saveSuggestionEdits() {
@@ -264,6 +306,7 @@ export default function AdminPage() {
       image_url: editSuggImageUrl,
       link: editSuggLink,
       comment: editSuggComment,
+      seasons: editSuggSeasons,
       status: "in_review",
     }).eq("id", editingSuggestion);
     setEditingSuggestion(null);
@@ -271,7 +314,7 @@ export default function AdminPage() {
   }
 
   async function handleApproveSuggestion(id: number) {
-    if (!confirm("Одобрить заявку? Будет создано аниме + сезон (12 серий).")) return;
+    if (!confirm("Одобрить заявку? Будет создано аниме с указанными сезонами.")) return;
     const { data, error } = await supabase.rpc("approve_suggestion", { sugg_id: id });
     if (error) {
       alert("Ошибка: " + error.message);
@@ -449,31 +492,7 @@ export default function AdminPage() {
             </div>
           </div>
 
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Сезоны</label>
-              <button onClick={() => setSeasons([...seasons, { number: seasons.length + 1, episodes: 12, note: "" }])}
-                className="text-[10px] font-bold text-sky-400 hover:text-sky-300 transition-colors">+ Добавить сезон</button>
-            </div>
-            <div className="space-y-2">
-              {seasons.map((s, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <span className="text-xs text-gray-400 w-16">Сезон {s.number}:</span>
-                  <input type="number" min={1} value={s.episodes}
-                    onChange={(e) => { const c = [...seasons]; c[i] = { ...c[i], episodes: Number(e.target.value) }; setSeasons(c); }}
-                    className="w-20 bg-[#121214] border border-[#222226] rounded px-2 py-1 text-xs text-white outline-none focus:border-sky-500/50" />
-                  <span className="text-[10px] text-gray-500">серий</span>
-                  <input value={s.note || ""} placeholder="Название (опционально)"
-                    onChange={(e) => { const c = [...seasons]; c[i] = { ...c[i], note: e.target.value }; setSeasons(c); }}
-                    className="flex-1 min-w-[140px] bg-[#121214] border border-[#222226] rounded px-2 py-1 text-xs text-white outline-none focus:border-sky-500/50" />
-                  <button onClick={() => setSeasons(seasons.filter((_, j) => j !== i))} title="Удалить сезон"
-                    className="text-[10px] text-red-400 hover:text-red-300 transition-all px-1.5 py-1">
-                    <i className="fa-solid fa-trash-can"></i>
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
+          <SeasonEditor seasons={seasons} onChange={setSeasons} />
 
           <button onClick={handleAddAnime} disabled={addingAnime || !newTitle.trim()}
             className="bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs px-5 py-2.5 rounded-lg transition-all disabled:opacity-50 shadow-lg shadow-sky-500/10">
@@ -519,6 +538,7 @@ export default function AdminPage() {
                         }`}>{g}</button>
                     ))}
                   </div>
+                  <SeasonEditor seasons={editSeasons} onChange={setEditSeasons} />
                   <div className="flex gap-2">
                     <button onClick={saveEditAnime} className="bg-sky-500 hover:bg-sky-600 text-white text-[10px] font-bold px-3 py-1.5 rounded transition-all">Сохранить</button>
                     <button onClick={() => setEditingAnime(null)} className="bg-[#121214] text-gray-400 text-[10px] font-bold px-3 py-1.5 rounded border border-[#222226] hover:text-white transition-all">Отмена</button>
@@ -596,6 +616,7 @@ export default function AdminPage() {
                   </div>
                   <textarea value={editSuggComment} onChange={(e) => setEditSuggComment(e.target.value)} rows={2}
                     className="w-full bg-[#121214] border border-[#222226] rounded px-2 py-1 text-xs text-white outline-none focus:border-sky-500/50 resize-none" />
+                  <SeasonEditor seasons={editSuggSeasons} onChange={setEditSuggSeasons} />
                   <div className="flex gap-2">
                     <button onClick={saveSuggestionEdits} className="bg-sky-500 hover:bg-sky-600 text-white text-[10px] font-bold px-3 py-1.5 rounded transition-all">Сохранить правки</button>
                     <button onClick={() => setEditingSuggestion(null)} className="bg-[#121214] text-gray-400 text-[10px] font-bold px-3 py-1.5 rounded border border-[#222226] hover:text-white transition-all">Отмена</button>

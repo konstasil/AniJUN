@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import ImageUpload from "@/components/ImageUpload";
 import { ALL_GENRES, AGE_RATINGS, ANIME_STATUSES } from "@/lib/genres";
 import { ADMIN_IDS } from "@/lib/admin";
+import SeasonEditor, { SeasonDraft } from "@/components/SeasonEditor";
 
 export default function AdminAddAnimePage() {
   const router = useRouter();
@@ -23,7 +24,7 @@ export default function AdminAddAnimePage() {
   const [ageRating, setAgeRating] = useState("16+");
   const [status, setStatus] = useState("announced");
   const [posterUrl, setPosterUrl] = useState("");
-  const [seasons, setSeasons] = useState<{ number: number; episodes: number; note?: string }[]>([{ number: 1, episodes: 12, note: "" }]);
+  const [seasons, setSeasons] = useState<SeasonDraft[]>([{ number: 1, episodes: 12, note: "" }]);
 
   function generateSlug(title: string): string {
     return title
@@ -80,10 +81,11 @@ export default function AdminAddAnimePage() {
       return;
     }
 
-    for (const s of seasons) {
+    for (let i = 0; i < seasons.length; i++) {
+      const s = seasons[i];
       await supabase.from("anime_seasons").insert({
         anime_id: anime.id,
-        season_number: s.number,
+        season_number: i + 1,
         episodes_count: s.episodes,
         note: s.note || "",
       });
@@ -166,31 +168,7 @@ export default function AdminAddAnimePage() {
           </div>
         </div>
 
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Сезоны</label>
-            <button onClick={() => setSeasons([...seasons, { number: seasons.length + 1, episodes: 12, note: "" }])}
-              className="text-[10px] font-bold text-sky-400 hover:text-sky-300 transition-colors">+ Добавить сезон</button>
-          </div>
-          <div className="space-y-2">
-            {seasons.map((s, i) => (
-              <div key={i} className="flex items-center gap-3">
-                <span className="text-xs text-gray-400 w-16">Сезон {s.number}:</span>
-                <input type="number" min={1} value={s.episodes}
-                  onChange={(e) => { const c = [...seasons]; c[i] = { ...c[i], episodes: Number(e.target.value) }; setSeasons(c); }}
-                  className="w-20 bg-[#121214] border border-[#222226] rounded px-2 py-1 text-xs text-white outline-none focus:border-sky-500/50" />
-                <span className="text-[10px] text-gray-500">серий</span>
-                <input value={s.note || ""} placeholder="Название (опционально)"
-                  onChange={(e) => { const c = [...seasons]; c[i] = { ...c[i], note: e.target.value }; setSeasons(c); }}
-                  className="flex-1 min-w-[140px] bg-[#121214] border border-[#222226] rounded px-2 py-1 text-xs text-white outline-none focus:border-sky-500/50" />
-                <button onClick={() => setSeasons(seasons.filter((_, j) => j !== i))} title="Удалить сезон"
-                  className="text-[10px] text-red-400 hover:text-red-300 transition-all px-1.5 py-1">
-                  <i className="fa-solid fa-trash-can"></i>
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
+        <SeasonEditor seasons={seasons} onChange={setSeasons} />
 
         {error && (
           <div className="text-[10px] text-red-400 bg-red-950/20 border border-red-500/20 rounded-lg px-3 py-2">

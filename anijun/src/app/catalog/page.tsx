@@ -349,7 +349,7 @@ function CatalogContent() {
         </div>
       </aside>
 
-      <section className="lg:col-span-9 flex flex-col justify-between min-h-[60vh]">
+      <section className="lg:col-span-9 flex flex-col min-h-[60vh]">
         {subTab === "catalog" && (
           <>
             <div className="relative mb-6">
