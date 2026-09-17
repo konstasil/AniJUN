@@ -65,6 +65,13 @@ export default function ReviewsSection({ animeId, isAuthed, userId, defaultRatin
   }, [loadReviews]);
 
 
+
+
+
+
+
+
+
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
