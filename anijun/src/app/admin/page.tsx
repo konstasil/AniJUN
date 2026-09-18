@@ -101,10 +101,17 @@ export default function AdminPage() {
   const [admins, setAdmins] = useState<string[]>([]);
   const [newAdminId, setNewAdminId] = useState("");
 
-  const [bans, setBans] = useState<{ id: number; username: string | null; email: string | null; ip: string | null; reason: string | null; expires_at: string | null }[]>([]);
-  const [mutes, setMutes] = useState<{ id: number; username: string | null; email: string | null; ip: string | null; reason: string | null; expires_at: string | null }[]>([]);
-  const [banInput, setBanInput] = useState({ username: "", email: "", ip: "", reason: "", days: "" });
-  const [muteInput, setMuteInput] = useState({ username: "", email: "", ip: "", reason: "", days: "" });
+  const [bans, setBans] = useState<{ id: number; username: string | null; email: string | null; ip: string | null; user_id: string | null; reason: string | null; expires_at: string | null }[]>([]);
+  const [mutes, setMutes] = useState<{ id: number; username: string | null; email: string | null; ip: string | null; user_id: string | null; reason: string | null; expires_at: string | null }[]>([]);
+  const [banType, setBanType] = useState<"username" | "email" | "ip" | "uid">("username");
+  const [banValue, setBanValue] = useState("");
+  const [banReason, setBanReason] = useState("");
+  const [banDays, setBanDays] = useState("");
+  const [muteType, setMuteType] = useState<"username" | "email" | "ip" | "uid">("username");
+  const [muteValue, setMuteValue] = useState("");
+  const [muteReason, setMuteReason] = useState("");
+  const [muteDays, setMuteDays] = useState("");
+  const [userIps, setUserIps] = useState<{ user_id: string; ip: string; user_agent: string | null; last_seen: string }[]>([]);
 
   const [ratings, setRatings] = useState<RatingRow[]>([]);
   const [ratingAnimeId, setRatingAnimeId] = useState("");
@@ -163,10 +170,12 @@ export default function AdminPage() {
     const { data: adminsData } = await supabase.from("admins").select("user_id");
     if (adminsData) setAdmins(adminsData.map((a) => a.user_id));
 
-    const { data: bansData } = await supabase.from("bans").select("id, username, email, ip, reason, expires_at").order("created_at", { ascending: false });
+    const { data: bansData } = await supabase.from("bans").select("id, username, email, ip, user_id, reason, expires_at").order("created_at", { ascending: false });
     if (bansData) setBans(bansData);
-    const { data: mutesData } = await supabase.from("mutes").select("id, username, email, ip, reason, expires_at").order("created_at", { ascending: false });
+    const { data: mutesData } = await supabase.from("mutes").select("id, username, email, ip, user_id, reason, expires_at").order("created_at", { ascending: false });
     if (mutesData) setMutes(mutesData);
+    const { data: ipsData } = await supabase.from("user_ips").select("user_id, ip, user_agent, last_seen").order("last_seen", { ascending: false }).limit(100);
+    if (ipsData) setUserIps(ipsData);
 
     const { data: r } = await supabase
       .from("ratings")
@@ -373,10 +382,16 @@ export default function AdminPage() {
   }
 
   async function handleAddBan() {
-    const expires_at = banInput.days ? new Date(Date.now() + Number(banInput.days) * 86400000).toISOString() : null;
-    const { error } = await supabase.from("bans").insert({ username: banInput.username || null, email: banInput.email || null, ip: banInput.ip || null, reason: banInput.reason, expires_at });
+    if (!banValue.trim()) { alert("Введите значение"); return; }
+    const expires_at = banDays ? new Date(Date.now() + Number(banDays) * 86400000).toISOString() : null;
+    const payload: Record<string, unknown> = { reason: banReason, expires_at };
+    if (banType === "username") payload.username = banValue.trim();
+    else if (banType === "email") payload.email = banValue.trim();
+    else if (banType === "ip") payload.ip = banValue.trim();
+    else if (banType === "uid") payload.user_id = banValue.trim();
+    const { error } = await supabase.from("bans").insert(payload);
     if (error) { alert(error.message); return; }
-    setBanInput({ username: "", email: "", ip: "", reason: "", days: "" });
+    setBanValue(""); setBanReason(""); setBanDays("");
     await loadAll();
   }
   async function handleRemoveBan(id: number) {
@@ -384,10 +399,16 @@ export default function AdminPage() {
     await loadAll();
   }
   async function handleAddMute() {
-    const expires_at = muteInput.days ? new Date(Date.now() + Number(muteInput.days) * 86400000).toISOString() : null;
-    const { error } = await supabase.from("mutes").insert({ username: muteInput.username || null, email: muteInput.email || null, ip: muteInput.ip || null, reason: muteInput.reason, expires_at });
+    if (!muteValue.trim()) { alert("Введите значение"); return; }
+    const expires_at = muteDays ? new Date(Date.now() + Number(muteDays) * 86400000).toISOString() : null;
+    const payload: Record<string, unknown> = { reason: muteReason, expires_at };
+    if (muteType === "username") payload.username = muteValue.trim();
+    else if (muteType === "email") payload.email = muteValue.trim();
+    else if (muteType === "ip") payload.ip = muteValue.trim();
+    else if (muteType === "uid") payload.user_id = muteValue.trim();
+    const { error } = await supabase.from("mutes").insert(payload);
     if (error) { alert(error.message); return; }
-    setMuteInput({ username: "", email: "", ip: "", reason: "", days: "" });
+    setMuteValue(""); setMuteReason(""); setMuteDays("");
     await loadAll();
   }
   async function handleRemoveMute(id: number) {
@@ -847,23 +868,27 @@ export default function AdminPage() {
         <div className="space-y-6">
           <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-4">
             <h4 className="text-[10px] font-bold text-red-400 uppercase tracking-wider mb-3"><i className="fa-solid fa-ban mr-1"></i> Бан на сайте</h4>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
-              <input value={banInput.username} onChange={(e) => setBanInput({ ...banInput, username: e.target.value })} placeholder="Ник"
-                className="bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-red-500/50" />
-              <input value={banInput.email} onChange={(e) => setBanInput({ ...banInput, email: e.target.value })} placeholder="Почта"
-                className="bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-red-500/50" />
-              <input value={banInput.ip} onChange={(e) => setBanInput({ ...banInput, ip: e.target.value })} placeholder="IP"
-                className="bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-red-500/50" />
-              <input value={banInput.days} onChange={(e) => setBanInput({ ...banInput, days: e.target.value })} placeholder="Дней (пусто=навсегда)" type="number" min={1}
-                className="bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-red-500/50" />
+            <div className="flex flex-wrap gap-2 mb-3">
+              <select value={banType} onChange={(e) => setBanType(e.target.value as typeof banType)}
+                className="bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none">
+                <option value="username">По нику</option>
+                <option value="email">По почте</option>
+                <option value="ip">По IP</option>
+                <option value="uid">По UID</option>
+              </select>
+              <input value={banValue} onChange={(e) => setBanValue(e.target.value)} placeholder={banType === "username" ? "Ник" : banType === "email" ? "Почта" : banType === "ip" ? "IP" : "UID"}
+                className="flex-1 min-w-[160px] bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-red-500/50" />
+              <input value={banDays} onChange={(e) => setBanDays(e.target.value)} placeholder="Дней (пусто=навсегда)" type="number" min={1}
+                className="w-24 bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-red-500/50" />
             </div>
-            <input value={banInput.reason} onChange={(e) => setBanInput({ ...banInput, reason: e.target.value })} placeholder="Причина"
+            <input value={banReason} onChange={(e) => setBanReason(e.target.value)} placeholder="Причина"
               className="w-full bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-red-500/50 mb-3" />
             <button onClick={handleAddBan} className="bg-red-500 hover:bg-red-600 text-white text-xs font-bold px-4 py-1.5 rounded transition-all">Забанить</button>
             <div className="space-y-1.5 mt-4">
               {bans.map((b) => (
                 <div key={b.id} className="bg-[#121214] border border-[#222226] rounded px-3 py-2 flex items-center gap-3 text-xs">
-                  <span className="text-white flex-1 truncate">{[b.username, b.email, b.ip].filter(Boolean).join(" / ") || "—"} </span>
+                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${b.user_id ? "bg-sky-500/20 text-sky-400" : b.ip ? "bg-amber-500/20 text-amber-400" : b.email ? "bg-emerald-500/20 text-emerald-400" : "bg-purple-500/20 text-purple-400"}`}>{b.user_id ? "UID" : b.ip ? "IP" : b.email ? "Почта" : "Ник"}</span>
+                  <span className="text-white flex-1 truncate">{b.user_id || b.username || b.email || b.ip || "—"} </span>
                   <span className="text-gray-500 truncate">{b.reason || ""}</span>
                   <span className="text-[10px] text-gray-600">{b.expires_at ? new Date(b.expires_at).toLocaleDateString("ru-RU") : "навсегда"}</span>
                   <button onClick={() => handleRemoveBan(b.id)} className="text-gray-500 hover:text-green-400"><i className="fa-solid fa-xmark"></i></button>
@@ -875,29 +900,53 @@ export default function AdminPage() {
 
           <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-4">
             <h4 className="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-3"><i className="fa-solid fa-comment-slash mr-1"></i> Мут комментариев</h4>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
-              <input value={muteInput.username} onChange={(e) => setMuteInput({ ...muteInput, username: e.target.value })} placeholder="Ник"
-                className="bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-amber-500/50" />
-              <input value={muteInput.email} onChange={(e) => setMuteInput({ ...muteInput, email: e.target.value })} placeholder="Почта"
-                className="bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-amber-500/50" />
-              <input value={muteInput.ip} onChange={(e) => setMuteInput({ ...muteInput, ip: e.target.value })} placeholder="IP"
-                className="bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-amber-500/50" />
-              <input value={muteInput.days} onChange={(e) => setMuteInput({ ...muteInput, days: e.target.value })} placeholder="Дней (пусто=навсегда)" type="number" min={1}
-                className="bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-amber-500/50" />
+            <div className="flex flex-wrap gap-2 mb-3">
+              <select value={muteType} onChange={(e) => setMuteType(e.target.value as typeof muteType)}
+                className="bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none">
+                <option value="username">По нику</option>
+                <option value="email">По почте</option>
+                <option value="ip">По IP</option>
+                <option value="uid">По UID</option>
+              </select>
+              <input value={muteValue} onChange={(e) => setMuteValue(e.target.value)} placeholder={muteType === "username" ? "Ник" : muteType === "email" ? "Почта" : muteType === "ip" ? "IP" : "UID"}
+                className="flex-1 min-w-[160px] bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-amber-500/50" />
+              <input value={muteDays} onChange={(e) => setMuteDays(e.target.value)} placeholder="Дней (пусто=навсегда)" type="number" min={1}
+                className="w-24 bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-amber-500/50" />
             </div>
-            <input value={muteInput.reason} onChange={(e) => setMuteInput({ ...muteInput, reason: e.target.value })} placeholder="Причина"
+            <input value={muteReason} onChange={(e) => setMuteReason(e.target.value)} placeholder="Причина"
               className="w-full bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-amber-500/50 mb-3" />
             <button onClick={handleAddMute} className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-4 py-1.5 rounded transition-all">Замутить</button>
             <div className="space-y-1.5 mt-4">
               {mutes.map((m) => (
                 <div key={m.id} className="bg-[#121214] border border-[#222226] rounded px-3 py-2 flex items-center gap-3 text-xs">
-                  <span className="text-white flex-1 truncate">{[m.username, m.email, m.ip].filter(Boolean).join(" / ") || "—"}</span>
+                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${m.user_id ? "bg-sky-500/20 text-sky-400" : m.ip ? "bg-amber-500/20 text-amber-400" : m.email ? "bg-emerald-500/20 text-emerald-400" : "bg-purple-500/20 text-purple-400"}`}>{m.user_id ? "UID" : m.ip ? "IP" : m.email ? "Почта" : "Ник"}</span>
+                  <span className="text-white flex-1 truncate">{m.user_id || m.username || m.email || m.ip || "—"}</span>
                   <span className="text-gray-500 truncate">{m.reason || ""}</span>
                   <span className="text-[10px] text-gray-600">{m.expires_at ? new Date(m.expires_at).toLocaleDateString("ru-RU") : "навсегда"}</span>
                   <button onClick={() => handleRemoveMute(m.id)} className="text-gray-500 hover:text-green-400"><i className="fa-solid fa-xmark"></i></button>
                 </div>
               ))}
               {mutes.length === 0 && <p className="text-[11px] text-gray-600 text-center py-2">Мут-лист пуст</p>}
+            </div>
+          </div>
+
+          <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-4">
+            <h4 className="text-[10px] font-bold text-sky-400 uppercase tracking-wider mb-3"><i className="fa-solid fa-network-wired mr-1"></i> Последние IP пользователей</h4>
+            <div className="space-y-1.5 max-h-72 overflow-auto pr-1">
+              {userIps.map((u) => {
+                const prof = users.find((x) => x.id === u.user_id);
+                return (
+                  <div key={`${u.user_id}-${u.ip}`} className="bg-[#121214] border border-[#222226] rounded px-3 py-2 flex items-center gap-3 text-xs">
+                    <span className="text-white truncate flex-1">{prof?.username || u.user_id.slice(0, 8)}</span>
+                    <span className="text-sky-400 font-mono text-[11px]">{u.ip}</span>
+                    <span className="text-[10px] text-gray-600 hidden sm:inline truncate" title={u.user_agent || ""}>{u.user_agent?.slice(0, 30) || ""}</span>
+                    <span className="text-[10px] text-gray-600">{new Date(u.last_seen).toLocaleString("ru-RU")}</span>
+                    <button onClick={() => { setBanType("ip"); setBanValue(u.ip); }} className="text-[10px] text-red-400 hover:text-red-300 border border-red-500/20 px-1.5 py-0.5 rounded">Бан</button>
+                    <button onClick={() => { setMuteType("ip"); setMuteValue(u.ip); }} className="text-[10px] text-amber-400 hover:text-amber-300 border border-amber-500/20 px-1.5 py-0.5 rounded">Мут</button>
+                  </div>
+                );
+              })}
+              {userIps.length === 0 && <p className="text-[11px] text-gray-600 text-center py-2">Пока нет данных — пользователи появятся после заходов</p>}
             </div>
           </div>
         </div>

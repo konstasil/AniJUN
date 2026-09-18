@@ -115,16 +115,9 @@ export default function ReviewsSection({ animeId, isAuthed, userId, defaultRatin
       return;
     }
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const { data: prof } = user ? await supabase.from("profiles").select("username").eq("id", user.id).single() : { data: null };
-      const uname = prof?.username || "";
-      const email = user?.email || "";
-      const nowIso = new Date().toISOString();
-      const { data: muteRows } = await supabase.from("mutes").select("id, expires_at").or(`username.eq.${uname},email.eq.${email}`).limit(10);
-      const muted = muteRows?.some((r) => !r.expires_at || r.expires_at > nowIso);
+      const { data: muted } = await supabase.rpc("is_current_user_muted");
       if (muted) { setError("Вы замучены и не можете оставлять отзывы"); setSaving(false); return; }
-      const { data: banRows } = await supabase.from("bans").select("id, expires_at").or(`username.eq.${uname},email.eq.${email}`).limit(10);
-      const banned = banRows?.some((r) => !r.expires_at || r.expires_at > nowIso);
+      const { data: banned } = await supabase.rpc("is_current_user_banned");
       if (banned) { setError("Вы забанены"); setSaving(false); return; }
     } catch {}
     const { error: err } = await supabase.from("reviews").upsert(
