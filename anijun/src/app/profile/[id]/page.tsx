@@ -344,6 +344,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
   if (!profile) return <div className="text-center py-20 text-gray-500 text-xs">Пользователь не найден</div>;
 
   const maxGenreCount = profile.topGenres[0]?.count || 1;
+  const canViewPrivate = !!viewerId && (viewerId === id || viewerFriendIds.has(id));
 
   return (
     <div className="flex flex-col gap-6 max-w-4xl mx-auto">
@@ -532,31 +533,33 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
         </div>
       </div>
 
-      <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-5">
-        <span className="text-gray-500 text-[10px] font-bold uppercase tracking-wider block mb-4">
-          Публичные коллекции <i className="fa-solid fa-folder text-amber-400 ml-1"></i>
-        </span>
-        <div className="flex flex-col gap-2">
-          {collections.length === 0 ? (
-            <div className="text-xs text-gray-500 text-center py-4">Публичных коллекций нет</div>
-          ) : (
-            collections.map((c) => (
-              <div key={c.id} className="flex items-center justify-between p-3 bg-[#121214] rounded-lg border border-[#222226]">
-                <div className="flex items-center gap-3 overflow-hidden mr-2">
-                  <i className="fa-solid fa-folder-open text-amber-400/80"></i>
-                  <div className="min-w-0">
-                    <span className="font-semibold text-gray-300 text-xs block truncate">{c.name}</span>
-                    {c.description && <span className="text-[10px] text-gray-600 truncate block">{c.description}</span>}
+      {canViewPrivate ? (
+        <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-5">
+          <span className="text-gray-500 text-[10px] font-bold uppercase tracking-wider block mb-4">
+            Публичные коллекции <i className="fa-solid fa-folder text-amber-400 ml-1"></i>
+          </span>
+          <div className="flex flex-col gap-2">
+            {collections.length === 0 ? (
+              <div className="text-xs text-gray-500 text-center py-4">Публичных коллекций нет</div>
+            ) : (
+              collections.map((c) => (
+                <div key={c.id} className="flex items-center justify-between p-3 bg-[#121214] rounded-lg border border-[#222226]">
+                  <div className="flex items-center gap-3 overflow-hidden mr-2">
+                    <i className="fa-solid fa-folder-open text-amber-400/80"></i>
+                    <div className="min-w-0">
+                      <span className="font-semibold text-gray-300 text-xs block truncate">{c.name}</span>
+                      {c.description && <span className="text-[10px] text-gray-600 truncate block">{c.description}</span>}
+                    </div>
                   </div>
+                  <span className="text-[10px] text-gray-500 shrink-0">{c.count} тайтл.</span>
                 </div>
-                <span className="text-[10px] text-gray-500 shrink-0">{c.count} тайтл.</span>
-              </div>
-            ))
-          )}
+              ))
+            )}
+          </div>
         </div>
-      </div>
+      ) : null}
 
-      {favoritesLoaded && favorites.length > 0 && (
+      {canViewPrivate && favoritesLoaded && favorites.length > 0 && (
         <div>
           <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-4 flex items-center gap-2">
             <i className="fa-solid fa-star text-amber-400"></i>

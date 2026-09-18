@@ -676,7 +676,7 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
       </div>
 
       <div className="flex flex-col gap-8 mt-8">
-        <ReviewsSection animeId={anime.id} isAuthed={isAuthed} userId={userId} defaultRating={userRating} onRatingChange={handleRate} />
+        <ReviewsSection animeId={anime.id} isAuthed={isAuthed} userId={userId} defaultRating={userRating} />
         <CollectionsSection animeId={anime.id} animeTitle={anime.title} userId={userId} />
       </div>
 

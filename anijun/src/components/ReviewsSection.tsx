@@ -19,10 +19,9 @@ interface ReviewsSectionProps {
   isAuthed: boolean;
   userId: string | null;
   defaultRating: number | "-";
-  onRatingChange?: (rating: number | "-") => void;
 }
 
-export default function ReviewsSection({ animeId, isAuthed, userId, defaultRating, onRatingChange }: ReviewsSectionProps) {
+export default function ReviewsSection({ animeId, isAuthed, userId, defaultRating }: ReviewsSectionProps) {
   const supabase = useMemo(() => createClient(), []);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [myText, setMyText] = useState("");
@@ -195,11 +194,8 @@ export default function ReviewsSection({ animeId, isAuthed, userId, defaultRatin
           {(!myReview || editingOwn) && (
             <div className="mb-5 p-3 bg-[#121214] border border-[#222226] rounded-lg flex flex-col gap-2">
               <div className="flex items-center gap-2 text-xs">
-                <span className="text-gray-500 text-[10px] uppercase tracking-wider">Оценка автора:</span>
-                <select value={myRating} onChange={(e) => { const v = Number(e.target.value); setMyRating(v); onRatingChange?.(v); }}
-                  className="bg-[#1a1a1e] border border-[#222226] rounded px-2 py-1 text-xs text-white outline-none focus:border-sky-500/50">
-                  {[1,2,3,4,5,6,7,8,9,10].map((n) => <option key={n} value={n}>{n}</option>)}
-                </select>
+                <span className="text-gray-500 text-[10px] uppercase tracking-wider">Оценка:</span>
+                <span className="text-amber-400 font-bold">{myRating}/10</span>
               </div>
               <textarea value={myText} onChange={(e) => setMyText(e.target.value)} rows={3}
                 placeholder="Поделитесь впечатлениями..."

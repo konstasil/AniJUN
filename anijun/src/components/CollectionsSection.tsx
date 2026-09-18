@@ -28,6 +28,7 @@ export default function CollectionsSection({ animeId, animeTitle, userId }: Coll
   const [newPublic, setNewPublic] = useState(true);
   const [saving, setSaving] = useState(false);
   const [myCollections, setMyCollections] = useState<Collection[]>([]);
+  const [friendIds, setFriendIds] = useState<Set<string>>(new Set());
 
   const loadCollections = useCallback(async () => {
 
@@ -83,6 +84,22 @@ export default function CollectionsSection({ animeId, animeTitle, userId }: Coll
     const t = setTimeout(() => { loadMyCollections(); }, 0);
     return () => clearTimeout(t);
   }, [loadMyCollections]);
+
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    supabase.from("friends").select("user_id, friend_id").eq("status", "accepted").or(`user_id.eq.${userId},friend_id.eq.${userId}`).then(({ data }) => {
+      if (cancelled) return;
+      const s = new Set<string>();
+      data?.forEach((r) => s.add(r.user_id === userId ? r.friend_id : r.user_id));
+      setFriendIds(s);
+    });
+    return () => { cancelled = true; };
+  }, [userId, supabase]);
+
+  useEffect(() => {
+    if (!userId) setFriendIds(new Set());
+  }, [userId]);
 
   async function handleCreateAndAdd() {
     if (!userId || !newName.trim()) return;
@@ -158,22 +175,25 @@ export default function CollectionsSection({ animeId, animeTitle, userId }: Coll
         </div>
       )}
 
-      {/* Коллекции других, где есть это аниме */}
+      {/* Коллекции друзей, где есть это аниме */}
       <div className="flex flex-col gap-2">
-        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">В коллекциях пользователей</p>
-        {collections.filter((c) => !c.owned).length === 0 && (
-          <p className="text-[11px] text-gray-600">Пока нигде нет — добавьте в свою коллекцию!</p>
-        )}
-        {collections.filter((c) => !c.owned).map((c) => (
-          <Link key={c.id} href={`/profile/${c.user_id}`}
-            className="flex items-center gap-3 p-2.5 bg-[#121214] border border-[#222226] rounded-lg hover:border-sky-500/30 transition-all">
-            <i className="fa-solid fa-folder-open text-amber-400/70 text-sm"></i>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-gray-300 truncate">{c.name}</p>
-              {c.description && <p className="text-[10px] text-gray-600 truncate">{c.description}</p>}
-            </div>
-          </Link>
-        ))}
+        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">В коллекциях друзей</p>
+        {!userId ? (
+          <p className="text-[11px] text-gray-600"><Link href="/login" className="text-sky-400 hover:underline">Войдите</Link>, чтобы видеть коллекции друзей</p>
+        ) : (() => {
+          const friendsCols = collections.filter((c) => !c.owned && friendIds.has(c.user_id));
+          if (friendsCols.length === 0) return <p className="text-[11px] text-gray-600">У друзей пока нет — добавьте в свою коллекцию!</p>;
+          return friendsCols.map((c) => (
+            <Link key={c.id} href={`/profile/${c.user_id}`}
+              className="flex items-center gap-3 p-2.5 bg-[#121214] border border-[#222226] rounded-lg hover:border-sky-500/30 transition-all">
+              <i className="fa-solid fa-folder-open text-amber-400/70 text-sm"></i>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-gray-300 truncate">{c.name}</p>
+                {c.description && <p className="text-[10px] text-gray-600 truncate">{c.description}</p>}
+              </div>
+            </Link>
+          ));
+        })()}
       </div>
     </div>
   );
