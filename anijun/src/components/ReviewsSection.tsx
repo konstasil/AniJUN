@@ -19,9 +19,10 @@ interface ReviewsSectionProps {
   isAuthed: boolean;
   userId: string | null;
   defaultRating: number | "-";
+  onRatingChange?: (rating: number | "-") => void;
 }
 
-export default function ReviewsSection({ animeId, isAuthed, userId, defaultRating }: ReviewsSectionProps) {
+export default function ReviewsSection({ animeId, isAuthed, userId, defaultRating, onRatingChange }: ReviewsSectionProps) {
   const supabase = useMemo(() => createClient(), []);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [myText, setMyText] = useState("");
@@ -31,6 +32,7 @@ export default function ReviewsSection({ animeId, isAuthed, userId, defaultRatin
   const [error, setError] = useState("");
   const [friendIds, setFriendIds] = useState<Set<string>>(new Set());
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
+  const [isReviewAdmin, setIsReviewAdmin] = useState(false);
   const [lastDefaultRating, setLastDefaultRating] = useState<number | "-">("-");
 
   if (defaultRating !== lastDefaultRating) {
@@ -76,6 +78,7 @@ export default function ReviewsSection({ animeId, isAuthed, userId, defaultRatin
     if (!userId) return;
     let cancelled = false;
     (async () => {
+      try { const { data } = await supabase.rpc("is_admin"); if (!cancelled) setIsReviewAdmin(!!data); } catch {}
       const { data: accepted } = await supabase
         .from("friends")
         .select("user_id, friend_id")
@@ -111,6 +114,19 @@ export default function ReviewsSection({ animeId, isAuthed, userId, defaultRatin
       setSaving(false);
       return;
     }
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: prof } = user ? await supabase.from("profiles").select("username").eq("id", user.id).single() : { data: null };
+      const uname = prof?.username || "";
+      const email = user?.email || "";
+      const nowIso = new Date().toISOString();
+      const { data: muteRows } = await supabase.from("mutes").select("id, expires_at").or(`username.eq.${uname},email.eq.${email}`).limit(10);
+      const muted = muteRows?.some((r) => !r.expires_at || r.expires_at > nowIso);
+      if (muted) { setError("Вы замучены и не можете оставлять отзывы"); setSaving(false); return; }
+      const { data: banRows } = await supabase.from("bans").select("id, expires_at").or(`username.eq.${uname},email.eq.${email}`).limit(10);
+      const banned = banRows?.some((r) => !r.expires_at || r.expires_at > nowIso);
+      if (banned) { setError("Вы забанены"); setSaving(false); return; }
+    } catch {}
     const { error: err } = await supabase.from("reviews").upsert(
       { user_id: userId, anime_id: animeId, text, rating: myRating },
       { onConflict: "user_id,anime_id" }
@@ -131,6 +147,16 @@ export default function ReviewsSection({ animeId, isAuthed, userId, defaultRatin
     await supabase.from("reviews").delete().eq("user_id", userId).eq("anime_id", animeId);
     setEditingOwn(false);
     await loadReviews();
+  }
+
+  async function handleDeleteReview(targetUserId: string) {
+    const { data: { session } } = await supabase.auth.getSession();
+    const isAdmin = session?.user ? (await supabase.rpc("is_admin")).data : false;
+    if (targetUserId !== userId && !isAdmin) return;
+    if (!confirm("Удалить отзыв?")) return;
+    await supabase.from("reviews").delete().eq("user_id", targetUserId).eq("anime_id", animeId);
+    await loadReviews();
+    if (targetUserId === userId) setEditingOwn(false);
   }
 
   async function handleAddFriend(authorId: string) {
@@ -177,7 +203,7 @@ export default function ReviewsSection({ animeId, isAuthed, userId, defaultRatin
             <div className="mb-5 p-3 bg-[#121214] border border-[#222226] rounded-lg flex flex-col gap-2">
               <div className="flex items-center gap-2 text-xs">
                 <span className="text-gray-500 text-[10px] uppercase tracking-wider">Оценка автора:</span>
-                <select value={myRating} onChange={(e) => setMyRating(Number(e.target.value))}
+                <select value={myRating} onChange={(e) => { const v = Number(e.target.value); setMyRating(v); onRatingChange?.(v); }}
                   className="bg-[#1a1a1e] border border-[#222226] rounded px-2 py-1 text-xs text-white outline-none focus:border-sky-500/50">
                   {[1,2,3,4,5,6,7,8,9,10].map((n) => <option key={n} value={n}>{n}</option>)}
                 </select>
@@ -226,6 +252,9 @@ export default function ReviewsSection({ animeId, isAuthed, userId, defaultRatin
                 <span className="text-[10px] text-gray-600">{new Date(r.created_at).toLocaleDateString("ru-RU")}</span>
               </div>
               <span className="text-[10px] font-bold text-amber-400 border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 rounded">{r.rating}/10</span>
+              {(r.user_id === userId || isReviewAdmin) && (
+                <button onClick={() => handleDeleteReview(r.user_id)} className="text-[9px] text-red-400 hover:text-red-300 ml-1"><i className="fa-solid fa-trash-can"></i></button>
+              )}
               {isAuthed && userId && r.user_id !== userId && (
                 friendIds.has(r.user_id) ? (
                   <span className="text-[9px] font-bold px-2 py-1 rounded border text-green-400 border-green-500/20 bg-green-500/10">

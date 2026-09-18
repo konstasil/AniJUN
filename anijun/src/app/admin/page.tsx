@@ -54,7 +54,7 @@ interface RatingRow {
   anime?: { title: string }[];
 }
 
-type Tab = "add-anime" | "anime-list" | "suggestions" | "users" | "ratings";
+type Tab = "add-anime" | "anime-list" | "suggestions" | "users" | "ratings" | "bans";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -100,6 +100,11 @@ export default function AdminPage() {
   const [users, setUsers] = useState<ProfileRow[]>([]);
   const [admins, setAdmins] = useState<string[]>([]);
   const [newAdminId, setNewAdminId] = useState("");
+
+  const [bans, setBans] = useState<{ id: number; username: string | null; email: string | null; ip: string | null; reason: string | null; expires_at: string | null }[]>([]);
+  const [mutes, setMutes] = useState<{ id: number; username: string | null; email: string | null; ip: string | null; reason: string | null; expires_at: string | null }[]>([]);
+  const [banInput, setBanInput] = useState({ username: "", email: "", ip: "", reason: "", days: "" });
+  const [muteInput, setMuteInput] = useState({ username: "", email: "", ip: "", reason: "", days: "" });
 
   const [ratings, setRatings] = useState<RatingRow[]>([]);
   const [ratingAnimeId, setRatingAnimeId] = useState("");
@@ -157,6 +162,11 @@ export default function AdminPage() {
 
     const { data: adminsData } = await supabase.from("admins").select("user_id");
     if (adminsData) setAdmins(adminsData.map((a) => a.user_id));
+
+    const { data: bansData } = await supabase.from("bans").select("id, username, email, ip, reason, expires_at").order("created_at", { ascending: false });
+    if (bansData) setBans(bansData);
+    const { data: mutesData } = await supabase.from("mutes").select("id, username, email, ip, reason, expires_at").order("created_at", { ascending: false });
+    if (mutesData) setMutes(mutesData);
 
     const { data: r } = await supabase
       .from("ratings")
@@ -362,6 +372,29 @@ export default function AdminPage() {
     await loadAll();
   }
 
+  async function handleAddBan() {
+    const expires_at = banInput.days ? new Date(Date.now() + Number(banInput.days) * 86400000).toISOString() : null;
+    const { error } = await supabase.from("bans").insert({ username: banInput.username || null, email: banInput.email || null, ip: banInput.ip || null, reason: banInput.reason, expires_at });
+    if (error) { alert(error.message); return; }
+    setBanInput({ username: "", email: "", ip: "", reason: "", days: "" });
+    await loadAll();
+  }
+  async function handleRemoveBan(id: number) {
+    await supabase.from("bans").delete().eq("id", id);
+    await loadAll();
+  }
+  async function handleAddMute() {
+    const expires_at = muteInput.days ? new Date(Date.now() + Number(muteInput.days) * 86400000).toISOString() : null;
+    const { error } = await supabase.from("mutes").insert({ username: muteInput.username || null, email: muteInput.email || null, ip: muteInput.ip || null, reason: muteInput.reason, expires_at });
+    if (error) { alert(error.message); return; }
+    setMuteInput({ username: "", email: "", ip: "", reason: "", days: "" });
+    await loadAll();
+  }
+  async function handleRemoveMute(id: number) {
+    await supabase.from("mutes").delete().eq("id", id);
+    await loadAll();
+  }
+
   async function handleAddRating() {
     if (!ratingAnimeId || !ratingUserId) return;
     await supabase.from("ratings").upsert(
@@ -396,6 +429,7 @@ export default function AdminPage() {
     ["suggestions", "Предложения", "fa-lightbulb"],
     ["users", "Пользователи", "fa-users"],
     ["ratings", "Рейтинги", "fa-star"],
+    ["bans", "Баны / Муты", "fa-ban"],
   ];
 
   return (
@@ -805,6 +839,66 @@ export default function AdminPage() {
                 </button>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {tab === "bans" && (
+        <div className="space-y-6">
+          <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-4">
+            <h4 className="text-[10px] font-bold text-red-400 uppercase tracking-wider mb-3"><i className="fa-solid fa-ban mr-1"></i> Бан на сайте</h4>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+              <input value={banInput.username} onChange={(e) => setBanInput({ ...banInput, username: e.target.value })} placeholder="Ник"
+                className="bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-red-500/50" />
+              <input value={banInput.email} onChange={(e) => setBanInput({ ...banInput, email: e.target.value })} placeholder="Почта"
+                className="bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-red-500/50" />
+              <input value={banInput.ip} onChange={(e) => setBanInput({ ...banInput, ip: e.target.value })} placeholder="IP"
+                className="bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-red-500/50" />
+              <input value={banInput.days} onChange={(e) => setBanInput({ ...banInput, days: e.target.value })} placeholder="Дней (пусто=навсегда)" type="number" min={1}
+                className="bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-red-500/50" />
+            </div>
+            <input value={banInput.reason} onChange={(e) => setBanInput({ ...banInput, reason: e.target.value })} placeholder="Причина"
+              className="w-full bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-red-500/50 mb-3" />
+            <button onClick={handleAddBan} className="bg-red-500 hover:bg-red-600 text-white text-xs font-bold px-4 py-1.5 rounded transition-all">Забанить</button>
+            <div className="space-y-1.5 mt-4">
+              {bans.map((b) => (
+                <div key={b.id} className="bg-[#121214] border border-[#222226] rounded px-3 py-2 flex items-center gap-3 text-xs">
+                  <span className="text-white flex-1 truncate">{[b.username, b.email, b.ip].filter(Boolean).join(" / ") || "—"} </span>
+                  <span className="text-gray-500 truncate">{b.reason || ""}</span>
+                  <span className="text-[10px] text-gray-600">{b.expires_at ? new Date(b.expires_at).toLocaleDateString("ru-RU") : "навсегда"}</span>
+                  <button onClick={() => handleRemoveBan(b.id)} className="text-gray-500 hover:text-green-400"><i className="fa-solid fa-xmark"></i></button>
+                </div>
+              ))}
+              {bans.length === 0 && <p className="text-[11px] text-gray-600 text-center py-2">Бан-лист пуст</p>}
+            </div>
+          </div>
+
+          <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-4">
+            <h4 className="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-3"><i className="fa-solid fa-comment-slash mr-1"></i> Мут комментариев</h4>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+              <input value={muteInput.username} onChange={(e) => setMuteInput({ ...muteInput, username: e.target.value })} placeholder="Ник"
+                className="bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-amber-500/50" />
+              <input value={muteInput.email} onChange={(e) => setMuteInput({ ...muteInput, email: e.target.value })} placeholder="Почта"
+                className="bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-amber-500/50" />
+              <input value={muteInput.ip} onChange={(e) => setMuteInput({ ...muteInput, ip: e.target.value })} placeholder="IP"
+                className="bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-amber-500/50" />
+              <input value={muteInput.days} onChange={(e) => setMuteInput({ ...muteInput, days: e.target.value })} placeholder="Дней (пусто=навсегда)" type="number" min={1}
+                className="bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-amber-500/50" />
+            </div>
+            <input value={muteInput.reason} onChange={(e) => setMuteInput({ ...muteInput, reason: e.target.value })} placeholder="Причина"
+              className="w-full bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-amber-500/50 mb-3" />
+            <button onClick={handleAddMute} className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-4 py-1.5 rounded transition-all">Замутить</button>
+            <div className="space-y-1.5 mt-4">
+              {mutes.map((m) => (
+                <div key={m.id} className="bg-[#121214] border border-[#222226] rounded px-3 py-2 flex items-center gap-3 text-xs">
+                  <span className="text-white flex-1 truncate">{[m.username, m.email, m.ip].filter(Boolean).join(" / ") || "—"}</span>
+                  <span className="text-gray-500 truncate">{m.reason || ""}</span>
+                  <span className="text-[10px] text-gray-600">{m.expires_at ? new Date(m.expires_at).toLocaleDateString("ru-RU") : "навсегда"}</span>
+                  <button onClick={() => handleRemoveMute(m.id)} className="text-gray-500 hover:text-green-400"><i className="fa-solid fa-xmark"></i></button>
+                </div>
+              ))}
+              {mutes.length === 0 && <p className="text-[11px] text-gray-600 text-center py-2">Мут-лист пуст</p>}
+            </div>
           </div>
         </div>
       )}

@@ -794,11 +794,11 @@ export default function ProfilePage() {
                     </span>
                   </Link>
                   <button
-                    onClick={() => handleRemoveFriend(f.id)}
-                    className="text-[10px] text-red-400 hover:text-red-300 transition-colors px-2 py-1"
+                    onClick={() => { if (confirm(`Удалить ${f.username} из друзей?`)) handleRemoveFriend(f.id); }}
+                    className="text-[9px] font-bold text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 px-2 py-1 rounded transition-all flex items-center gap-1 shrink-0"
                     title="Удалить из друзей"
                   >
-                    <i className="fa-solid fa-xmark"></i>
+                    <i className="fa-solid fa-user-xmark"></i> Удалить
                   </button>
                 </div>
               ))

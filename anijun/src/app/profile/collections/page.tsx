@@ -53,12 +53,13 @@ export default function CollectionsPage() {
 
     const itemsByCollection = new Map<number, OwnCollection["items"]>();
     (items || []).forEach((i) => {
+      const a = Array.isArray((i as unknown as { anime: unknown }).anime) ? (i as unknown as { anime: { slug?: string; title: string; image_url: string }[] }).anime[0] : (i as unknown as { anime: { slug?: string; title: string; image_url: string } }).anime;
       const mapped = {
         id: i.id,
         anime_id: i.anime_id,
-        slug: i.anime?.[0]?.slug,
-        title: i.anime?.[0]?.title || "Unknown",
-        image_url: i.anime?.[0]?.image_url || "",
+        slug: a?.slug,
+        title: a?.title || "Unknown",
+        image_url: a?.image_url || "",
       };
       const list = itemsByCollection.get(i.collection_id) || [];
       list.push(mapped);
@@ -202,7 +203,7 @@ export default function CollectionsPage() {
                 <div key={item.id} className="relative group">
                   <Link href={item.slug ? `/anime/${item.slug}` : `/anime/${item.anime_id}`}
                     className="block w-16 h-22 aspect-[3/4] rounded-lg overflow-hidden bg-[#121214] relative">
-                    {item.image_url && <Image src={item.image_url} alt={item.title} fill className="object-cover" sizes="64px" />}
+                    <Image src={item.image_url || "/window.svg"} alt={item.title} fill unoptimized className="object-cover" sizes="64px" />
                   </Link>
                   <button onClick={() => handleRemoveItem(col, item.id)}
                     className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">

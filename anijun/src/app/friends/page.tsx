@@ -117,12 +117,22 @@ export default function FriendsPage() {
                 <div className="text-xs text-gray-500 text-center py-4">Друзей пока нет</div>
               ) : (
                 friends.map(f => (
-                  <Link key={f.id} href={`/profile/${f.id}`} className="flex items-center gap-3 p-3 bg-[#121214] rounded-lg border border-[#222226] group hover:border-sky-400/30 transition-all">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-white text-[10px] font-bold shrink-0 overflow-hidden relative">
-                      {f.avatar_url ? <Image src={f.avatar_url} alt={f.username} fill unoptimized sizes="32px" className="object-cover" /> : (f.username || "?").charAt(0).toUpperCase()}
-                    </div>
-                    <span className="text-xs font-bold text-gray-200 truncate group-hover:text-sky-400 transition-colors">{f.username}</span>
-                  </Link>
+                  <div key={f.id} className="flex items-center justify-between p-3 bg-[#121214] rounded-lg border border-[#222226]">
+                    <Link href={`/profile/${f.id}`} className="flex items-center gap-3 flex-1 min-w-0 group">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-white text-[10px] font-bold shrink-0 overflow-hidden relative">
+                        {f.avatar_url ? <Image src={f.avatar_url} alt={f.username} fill unoptimized sizes="32px" className="object-cover" /> : (f.username || "?").charAt(0).toUpperCase()}
+                      </div>
+                      <span className="text-xs font-bold text-gray-200 truncate group-hover:text-sky-400 transition-colors">{f.username}</span>
+                    </Link>
+                    <button onClick={async () => {
+                      if (!confirm(`Удалить ${f.username} из друзей?`)) return;
+                      const { data: { session } } = await supabase.auth.getSession();
+                      const uid = session?.user?.id;
+                      if (!uid) return;
+                      await supabase.from("friends").delete().or(`and(user_id.eq.${uid},friend_id.eq.${f.id}),and(user_id.eq.${f.id},friend_id.eq.${uid})`).eq("status","accepted");
+                      setFriends(prev => prev.filter(x => x.id !== f.id));
+                    }} className="text-[10px] font-bold text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 px-2 py-1 rounded transition-all flex items-center gap-1 shrink-0"><i className="fa-solid fa-user-xmark"></i> Удалить</button>
+                  </div>
                 ))
               )}
             </div>

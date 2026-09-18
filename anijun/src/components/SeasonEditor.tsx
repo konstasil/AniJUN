@@ -15,7 +15,8 @@ interface SeasonEditorProps {
 export default function SeasonEditor({ seasons, onChange }: SeasonEditorProps) {
   function update(i: number, patch: Partial<SeasonDraft>) {
     const copy = [...seasons];
-    copy[i] = { ...copy[i], ...patch };
+    const nextEpisodes = patch.episodes !== undefined ? Math.max(1, Math.floor(patch.episodes)) : copy[i].episodes;
+    copy[i] = { ...copy[i], ...patch, episodes: nextEpisodes };
     onChange(copy);
   }
 
@@ -25,6 +26,16 @@ export default function SeasonEditor({ seasons, onChange }: SeasonEditorProps) {
 
   function remove(i: number) {
     onChange(seasons.filter((_, j) => j !== i));
+  }
+
+  function move(i: number, dir: number) {
+    const j = i + dir;
+    if (j < 0 || j >= seasons.length) return;
+    const copy = [...seasons];
+    const tmp = copy[i];
+    copy[i] = copy[j];
+    copy[j] = tmp;
+    onChange(copy);
   }
 
   return (
@@ -44,16 +55,26 @@ export default function SeasonEditor({ seasons, onChange }: SeasonEditorProps) {
             <div key={s.id ?? i} className="flex items-center gap-2 flex-wrap">
               <span className="text-xs text-gray-400 w-16 shrink-0">Сезон {i + 1}:</span>
               <input type="number" min={1} value={s.episodes}
-                onChange={(e) => update(i, { episodes: Number(e.target.value) })}
+                onChange={(e) => update(i, { episodes: Math.max(1, Number(e.target.value) || 1) })}
                 className="w-20 bg-[#121214] border border-[#222226] rounded px-2 py-1 text-xs text-white outline-none focus:border-sky-500/50" />
               <span className="text-[10px] text-gray-500">серий</span>
               <input value={s.note || ""} placeholder="Название (опционально)"
                 onChange={(e) => update(i, { note: e.target.value })}
                 className="flex-1 min-w-[120px] bg-[#121214] border border-[#222226] rounded px-2 py-1 text-xs text-white outline-none focus:border-sky-500/50" />
-              <button type="button" onClick={() => remove(i)} title="Удалить сезон"
-                className="text-[10px] text-red-400 hover:text-red-300 transition-all px-1.5 py-1">
-                <i className="fa-solid fa-trash-can"></i>
-              </button>
+              <div className="flex items-center gap-1">
+                <button type="button" onClick={() => move(i, -1)} disabled={i === 0} title="Вверх"
+                  className="text-[10px] text-gray-500 hover:text-white disabled:opacity-30 px-1">
+                  <i className="fa-solid fa-chevron-up"></i>
+                </button>
+                <button type="button" onClick={() => move(i, 1)} disabled={i === seasons.length - 1} title="Вниз"
+                  className="text-[10px] text-gray-500 hover:text-white disabled:opacity-30 px-1">
+                  <i className="fa-solid fa-chevron-down"></i>
+                </button>
+                <button type="button" onClick={() => remove(i)} title="Удалить сезон"
+                  className="text-[10px] text-red-400 hover:text-red-300 transition-all px-1.5 py-1">
+                  <i className="fa-solid fa-trash-can"></i>
+                </button>
+              </div>
             </div>
           ))}
         </div>
