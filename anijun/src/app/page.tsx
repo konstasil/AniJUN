@@ -286,7 +286,7 @@ export default function HomePage() {
                   className="p-3 bg-[#1a1a1e] border border-[#222226] rounded-xl hover:border-sky-400/30 transition-colors flex items-center gap-4"
                 >
                   <div className="w-12 h-16 rounded overflow-hidden bg-[#121214] relative shrink-0">
-                    <Image src={a.image_url} alt={a.title} fill className="object-cover" sizes="48px" />
+                    <Image src={a.image_url} alt={a.title} fill unoptimized className="object-cover" sizes="48px" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">

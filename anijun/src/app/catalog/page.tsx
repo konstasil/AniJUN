@@ -430,7 +430,7 @@ function CatalogContent() {
                     className="p-3 bg-[#1a1a1e] border border-[#222226] rounded-xl flex items-center gap-4 hover:border-emerald-400/30 transition-colors"
                   >
                     <div className="w-16 h-20 rounded overflow-hidden bg-[#121214] relative shrink-0">
-                      <Image src={a.image_url} alt={a.title} fill className="object-cover" sizes="64px" />
+                      <Image src={a.image_url} alt={a.title} fill unoptimized className="object-cover" sizes="64px" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <span className="text-[9px] text-emerald-400 font-bold uppercase">● Онгоинг</span>
@@ -465,7 +465,7 @@ function CatalogContent() {
                     className="p-3 bg-[#1a1a1e] border border-[#222226] rounded-xl flex items-center gap-4 hover:border-amber-400/30 transition-colors"
                   >
                     <div className="w-16 h-20 rounded overflow-hidden bg-[#121214] relative shrink-0">
-                      <Image src={a.image_url} alt={a.title} fill className="object-cover" sizes="64px" />
+                      <Image src={a.image_url} alt={a.title} fill unoptimized className="object-cover" sizes="64px" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <span className="text-[9px] text-amber-400 font-bold uppercase">● Анонс</span>

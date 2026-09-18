@@ -106,7 +106,7 @@ export default function TopPage() {
                   </td>
                   <td className="py-2.5 px-3">
                     <Link href={animeUrl} className="block w-[50px] h-[70px] rounded overflow-hidden bg-[#121214] relative">
-                      <Image src={a.image_url} alt={a.title} fill className="object-cover" sizes="50px" />
+                      <Image src={a.image_url} alt={a.title} fill unoptimized className="object-cover" sizes="50px" />
                     </Link>
                   </td>
                   <td className="py-2.5 px-3 font-bold text-gray-200 max-w-[220px]">

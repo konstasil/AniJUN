@@ -89,6 +89,7 @@ export default function AnimeCard({
           src={image_url}
           alt={title}
           fill
+          unoptimized
           className="object-cover group-hover:scale-[1.02] transition-all duration-300"
           sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 20vw"
         />

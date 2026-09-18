@@ -629,7 +629,7 @@ export default function AdminPage() {
               ) : (
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-16 rounded overflow-hidden bg-[#121214] flex-shrink-0 relative">
-                    <Image src={a.image_url} alt={a.title} fill className="object-cover" sizes="48px" />
+                    <Image src={a.image_url} alt={a.title} fill unoptimized className="object-cover" sizes="48px" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-bold text-white truncate">{a.title}</p>
@@ -707,7 +707,7 @@ export default function AdminPage() {
               ) : (
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-16 rounded overflow-hidden bg-[#121214] flex-shrink-0 relative">
-                    {s.image_url ? <Image src={s.image_url} alt={s.title} fill className="object-cover" sizes="48px" /> : (
+                    {s.image_url ? <Image src={s.image_url} alt={s.title} fill unoptimized className="object-cover" sizes="48px" /> : (
                       <div className="w-full h-full flex items-center justify-center text-gray-600"><i className="fa-solid fa-image text-sm"></i></div>
                     )}
                   </div>
