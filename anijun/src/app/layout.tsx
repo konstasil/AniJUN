@@ -18,6 +18,13 @@ export const metadata: Metadata = {
   description: "Твой аниме-дневник",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: "cover",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -25,11 +32,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ru" className={`${inter.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col custom-scrollbar">
+      <body className="min-h-full flex flex-col custom-scrollbar overflow-x-hidden">
         <ErudaConsole />
         <SimulationProvider>
           <Header />
-          <main className="flex-1 max-w-[1600px] w-full mx-auto p-6">
+          <main className="flex-1 max-w-[1600px] w-full mx-auto p-4 sm:p-6 pb-[calc(1rem+env(safe-area-inset-bottom))]">
             {children}
           </main>
         </SimulationProvider>

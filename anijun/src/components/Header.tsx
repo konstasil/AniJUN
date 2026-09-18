@@ -15,6 +15,7 @@ export default function Header() {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [animeDropdown, setAnimeDropdown] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
@@ -95,18 +96,19 @@ export default function Header() {
 
 
   return (
-    <header className="border-b border-[#222226] bg-[#1a1a1e] px-8 py-4 flex flex-col md:flex-row gap-6 justify-between items-center sticky top-0 z-40">
-      <Link href="/" className="flex items-center gap-2 cursor-pointer group" title="AniJUN — на главную">
-        <Image
-          src="/favicon.ico"
-          alt="AniJUN"
-          width={36}
-          height={36}
-          className="w-9 h-9 rounded-lg group-hover:scale-110 transition-transform"
-        />
-      </Link>
+    <header className="border-b border-[#222226] bg-[#1a1a1e] px-4 md:px-8 py-3 md:py-4 sticky top-0 z-40">
+      <div className="flex items-center justify-between gap-4">
+        <Link href="/" className="flex items-center gap-2 cursor-pointer group shrink-0" title="AniJUN — на главную">
+          <Image
+            src="/favicon.ico"
+            alt="AniJUN"
+            width={36}
+            height={36}
+            className="w-9 h-9 rounded-lg group-hover:scale-110 transition-transform"
+          />
+        </Link>
 
-      <nav className="flex items-center gap-8 text-xs font-bold uppercase tracking-widest text-gray-400">
+        <nav className="hidden md:flex items-center gap-8 text-xs font-bold uppercase tracking-widest text-gray-400">
         <Link
           href="/"
           className={`nav-tab flex items-center gap-1.5 py-1 transition-colors hover:text-white ${
@@ -172,7 +174,14 @@ export default function Header() {
         </Link>
       </nav>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 md:gap-3">
+        <button
+          onClick={() => setMobileNavOpen(!mobileNavOpen)}
+          className="md:hidden w-9 h-9 flex items-center justify-center rounded-lg bg-[#121214] border border-[#222226] text-gray-400 hover:text-white hover:border-gray-600 transition-all shrink-0"
+          aria-label="Меню"
+        >
+          <i className={`fa-solid ${mobileNavOpen ? "fa-xmark" : "fa-bars"} text-sm`}></i>
+        </button>
 
         {isSimulating && (
           <div className="bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-bold px-2.5 py-1.5 rounded-lg flex items-center gap-2">
@@ -250,13 +259,13 @@ export default function Header() {
           <div className="flex items-center gap-2">
             <Link
               href="/login"
-              className="text-xs font-bold text-gray-300 hover:text-white px-3 py-2 rounded-lg hover:bg-[#222226] transition-all"
+              className="text-xs font-bold text-gray-300 hover:text-white px-3 py-2 rounded-lg hover:bg-[#222226] transition-all min-h-[36px] flex items-center"
             >
               Войти
             </Link>
             <Link
               href="/signup"
-              className="bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs px-4 py-2 rounded-lg transition-all flex items-center gap-1.5 shadow-lg shadow-sky-500/10"
+              className="bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs px-4 py-2 rounded-lg transition-all flex items-center gap-1.5 shadow-lg shadow-sky-500/10 min-h-[36px]"
             >
               <i className="fa-solid fa-user-plus text-[10px]"></i>{" "}
               Регистрация
@@ -264,6 +273,33 @@ export default function Header() {
           </div>
         )}
       </div>
+      </div>
+
+      {mobileNavOpen && (
+        <nav className="md:hidden mt-4 pt-4 border-t border-[#222226] flex flex-col gap-1">
+          <Link href="/" onClick={() => setMobileNavOpen(false)} className={`flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-bold transition-colors ${pathname === "/" ? "bg-sky-500/10 text-sky-400" : "text-gray-400 hover:bg-[#222226] hover:text-white"}`}>
+            <i className="fa-solid fa-home w-5"></i> Главная
+          </Link>
+          <Link href="/catalog" onClick={() => setMobileNavOpen(false)} className={`flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-bold transition-colors ${pathname === "/catalog" ? "bg-sky-500/10 text-sky-400" : "text-gray-400 hover:bg-[#222226] hover:text-white"}`}>
+            <i className="fa-solid fa-folder-open w-5"></i> Каталог
+          </Link>
+          <Link href="/catalog?tab=ongoing" onClick={() => setMobileNavOpen(false)} className="flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-bold text-gray-400 hover:bg-[#222226] hover:text-white transition-colors">
+            <i className="fa-solid fa-clock w-5"></i> Онгоинги
+          </Link>
+          <Link href="/catalog?tab=announcements" onClick={() => setMobileNavOpen(false)} className="flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-bold text-gray-400 hover:bg-[#222226] hover:text-white transition-colors">
+            <i className="fa-solid fa-bullhorn w-5"></i> Анонсы
+          </Link>
+          <Link href="/top" onClick={() => setMobileNavOpen(false)} className={`flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-bold transition-colors ${pathname === "/top" ? "bg-sky-500/10 text-sky-400" : "text-gray-400 hover:bg-[#222226] hover:text-white"}`}>
+            <i className="fa-solid fa-chart-simple w-5"></i> Топ-100
+          </Link>
+          <button onClick={() => { setMobileNavOpen(false); handleRandomAnime(); }} className="flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-bold text-gray-400 hover:bg-[#222226] hover:text-white transition-colors text-left w-full">
+            <i className="fa-solid fa-shuffle w-5"></i> Случайное
+          </button>
+          <Link href="/suggest" onClick={() => setMobileNavOpen(false)} className="flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-bold text-amber-400 hover:bg-amber-500/10 transition-colors">
+            <i className="fa-solid fa-lightbulb w-5"></i> Предложить
+          </Link>
+        </nav>
+      )}
     </header>
   );
 }
