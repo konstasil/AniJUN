@@ -103,6 +103,7 @@ export default function AdminPage() {
 
   const [bans, setBans] = useState<{ id: number; username: string | null; email: string | null; ip: string | null; user_id: string | null; reason: string | null; expires_at: string | null }[]>([]);
   const [mutes, setMutes] = useState<{ id: number; username: string | null; email: string | null; ip: string | null; user_id: string | null; reason: string | null; expires_at: string | null }[]>([]);
+  const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
   const [banType, setBanType] = useState<"username" | "email" | "ip" | "uid">("username");
   const [banValue, setBanValue] = useState("");
   const [banReason, setBanReason] = useState("");
@@ -792,19 +793,45 @@ export default function AdminPage() {
             {users.length === 0 && <p className="text-gray-500 text-xs text-center py-8">Нет пользователей</p>}
             {users.map((u) => {
               const isAdmin = admins.includes(u.id) || ADMIN_IDS.includes(u.id);
+              const expanded = expandedUserId === u.id;
+              const ips = userIps.filter((x) => x.user_id === u.id);
               return (
-                <div key={u.id} className="bg-[#1a1a1e] border border-[#222226] rounded-lg p-3 flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-sky-400 to-blue-600 flex items-center justify-center text-white text-xs font-black flex-shrink-0">
-                    {u.username.substring(0, 2).toUpperCase()}
+                <div key={u.id} className="bg-[#1a1a1e] border border-[#222226] rounded-lg p-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-sky-400 to-blue-600 flex items-center justify-center text-white text-xs font-black flex-shrink-0">
+                      {u.username.substring(0, 2).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-white truncate">{u.username}</p>
+                      <p className="text-[10px] text-gray-500">{u.id}</p>
+                    </div>
+                    <button onClick={() => setExpandedUserId(expanded ? null : u.id)}
+                      className="text-[10px] text-gray-400 hover:text-white border border-[#222226] px-2 py-1 rounded">
+                      <i className={`fa-solid ${expanded ? "fa-chevron-up" : "fa-chevron-down"} mr-1`}></i>{expanded ? "Скрыть" : "Подробнее"}
+                    </button>
+                    {isAdmin ? (
+                      <span className="text-[9px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/20">Админ</span>
+                    ) : (
+                      <button onClick={() => { setNewAdminId(u.id); }} className="text-[10px] text-sky-400 hover:text-sky-300 border border-sky-500/20 px-2 py-0.5 rounded">Выдать</button>
+                    )}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-white truncate">{u.username}</p>
-                    <p className="text-[10px] text-gray-500">{u.id}</p>
-                  </div>
-                  {isAdmin ? (
-                    <span className="text-[9px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/20">Админ</span>
-                  ) : (
-                    <button onClick={() => { setNewAdminId(u.id); }} className="text-[10px] text-sky-400 hover:text-sky-300 border border-sky-500/20 px-2 py-0.5 rounded">Выдать</button>
+                  {expanded && (
+                    <div className="mt-3 pt-3 border-t border-[#222226] space-y-2">
+                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider"><i className="fa-solid fa-network-wired mr-1"></i>IP пользователя</p>
+                      {ips.length === 0 ? (
+                        <p className="text-[11px] text-gray-600">IP пока нет — появится после захода</p>
+                      ) : (
+                        ips.map((ip) => (
+                          <div key={`${ip.user_id}-${ip.ip}`} className="bg-[#121214] border border-[#222226] rounded px-3 py-2 flex items-center gap-3 text-xs">
+                            <span className="text-sky-400 font-mono text-[11px]">{ip.ip}</span>
+                            <span className="text-[10px] text-gray-600 hidden sm:inline truncate flex-1" title={ip.user_agent || ""}>{ip.user_agent?.slice(0, 40) || ""}</span>
+                            <span className="text-[10px] text-gray-600">{new Date(ip.last_seen).toLocaleString("ru-RU")}</span>
+                            <button onClick={() => { setTab("bans"); setBanType("ip"); setBanValue(ip.ip); }} className="text-[10px] text-red-400 hover:text-red-300 border border-red-500/20 px-1.5 py-0.5 rounded">Бан</button>
+                            <button onClick={() => { setTab("bans"); setMuteType("ip"); setMuteValue(ip.ip); }} className="text-[10px] text-amber-400 hover:text-amber-300 border border-amber-500/20 px-1.5 py-0.5 rounded">Мут</button>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   )}
                 </div>
               );
@@ -930,25 +957,6 @@ export default function AdminPage() {
             </div>
           </div>
 
-          <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-4">
-            <h4 className="text-[10px] font-bold text-sky-400 uppercase tracking-wider mb-3"><i className="fa-solid fa-network-wired mr-1"></i> Последние IP пользователей</h4>
-            <div className="space-y-1.5 max-h-72 overflow-auto pr-1">
-              {userIps.map((u) => {
-                const prof = users.find((x) => x.id === u.user_id);
-                return (
-                  <div key={`${u.user_id}-${u.ip}`} className="bg-[#121214] border border-[#222226] rounded px-3 py-2 flex items-center gap-3 text-xs">
-                    <span className="text-white truncate flex-1">{prof?.username || u.user_id.slice(0, 8)}</span>
-                    <span className="text-sky-400 font-mono text-[11px]">{u.ip}</span>
-                    <span className="text-[10px] text-gray-600 hidden sm:inline truncate" title={u.user_agent || ""}>{u.user_agent?.slice(0, 30) || ""}</span>
-                    <span className="text-[10px] text-gray-600">{new Date(u.last_seen).toLocaleString("ru-RU")}</span>
-                    <button onClick={() => { setBanType("ip"); setBanValue(u.ip); }} className="text-[10px] text-red-400 hover:text-red-300 border border-red-500/20 px-1.5 py-0.5 rounded">Бан</button>
-                    <button onClick={() => { setMuteType("ip"); setMuteValue(u.ip); }} className="text-[10px] text-amber-400 hover:text-amber-300 border border-amber-500/20 px-1.5 py-0.5 rounded">Мут</button>
-                  </div>
-                );
-              })}
-              {userIps.length === 0 && <p className="text-[11px] text-gray-600 text-center py-2">Пока нет данных — пользователи появятся после заходов</p>}
-            </div>
-          </div>
         </div>
       )}
     </div>
