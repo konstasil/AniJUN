@@ -31,7 +31,7 @@ type SubTab = "catalog" | "ongoing" | "announcements";
 const STORAGE_KEY = "anijun_catalog_state";
 
 interface SavedState {
-  page: number;
+  visibleCount: number;
   scrollY: number;
   search: string;
   statusFilter: string;
@@ -55,7 +55,8 @@ function CatalogContent() {
 
   const [allAnime, setAllAnime] = useState<Anime[]>([]);
   const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
+  const [visibleCount, setVisibleCount] = useState(CARDS_PER_PAGE);
+  const sentinelRef = useRef<HTMLDivElement>(null);
   const [subTab, setSubTab] = useState<SubTab>(() => {
     const tab = searchParams.get("tab");
     if (tab === "ongoing" || tab === "announcements") return tab;
@@ -80,7 +81,7 @@ function CatalogContent() {
       const state: SavedState = JSON.parse(saved);
 
       setTimeout(() => {
-        setPage(state.page);
+        setVisibleCount(state.visibleCount || CARDS_PER_PAGE);
         setSearch(state.search);
         setStatusFilter(state.statusFilter);
         setSelectedGenres(state.selectedGenres);
@@ -100,7 +101,7 @@ function CatalogContent() {
 
   const saveState = useCallback(() => {
     const state: SavedState = {
-      page,
+      visibleCount,
       scrollY: window.scrollY,
       search,
       statusFilter,
@@ -112,7 +113,7 @@ function CatalogContent() {
     try {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch {  }
-  }, [page, search, statusFilter, selectedGenres, ageFilter, episodeFilter, subTab]);
+  }, [visibleCount, search, statusFilter, selectedGenres, ageFilter, episodeFilter, subTab]);
 
   useEffect(() => {
     async function load() {
@@ -201,21 +202,31 @@ function CatalogContent() {
     });
   }, [allAnime, search, statusFilter, selectedGenres, ageFilter, episodeFilter]);
 
-  const totalPages = Math.ceil(filtered.length / CARDS_PER_PAGE);
-  const safePage = Math.min(page, totalPages || 1);
-  const paginated = filtered.slice(
-    (safePage - 1) * CARDS_PER_PAGE,
-    safePage * CARDS_PER_PAGE
-  );
+  const paginated = filtered.slice(0, visibleCount);
 
   const ongoingAnime = allAnime.filter((a) => a.anime_status === "ongoing");
   const announcementsAnime = allAnime.filter((a) => a.anime_status === "announced");
+
+  useEffect(() => {
+    setVisibleCount(CARDS_PER_PAGE);
+  }, [search, statusFilter, selectedGenres, ageFilter, episodeFilter, subTab]);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || subTab !== "catalog") return;
+    const obs = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && visibleCount < filtered.length) {
+        setVisibleCount((c) => Math.min(c + CARDS_PER_PAGE, filtered.length));
+      }
+    }, { rootMargin: "400px" });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [visibleCount, filtered.length, subTab]);
 
   function toggleGenre(g: string) {
     setSelectedGenres((prev) =>
       prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g]
     );
-    setPage(1);
   }
 
   function resetFilters() {
@@ -224,12 +235,10 @@ function CatalogContent() {
     setSelectedGenres([]);
     setAgeFilter("");
     setEpisodeFilter("");
-    setPage(1);
   }
 
   function handleSearch(e: React.ChangeEvent<HTMLInputElement>) {
     setSearch(e.target.value);
-    setPage(1);
   }
 
   return (
@@ -276,7 +285,7 @@ function CatalogContent() {
                 ].map(([val, label]) => (
                   <button
                     key={val}
-                    onClick={() => { setStatusFilter(val); setPage(1); }}
+                    onClick={() => setStatusFilter(val)}
                     className={`w-full text-left px-3 py-1.5 rounded text-xs font-medium transition-colors ${
                       statusFilter === val
                         ? "bg-sky-400/10 text-sky-400 font-semibold"
@@ -312,7 +321,7 @@ function CatalogContent() {
               </h3>
               <select
                 value={ageFilter}
-                onChange={(e) => { setAgeFilter(e.target.value); setPage(1); }}
+                onChange={(e) => setAgeFilter(e.target.value)}
                 className="w-full bg-[#121214] border border-[#222226] rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-sky-400"
               >
                 <option value="">Любой возраст</option>
@@ -329,7 +338,7 @@ function CatalogContent() {
               </h3>
               <select
                 value={episodeFilter}
-                onChange={(e) => { setEpisodeFilter(e.target.value); setPage(1); }}
+                onChange={(e) => setEpisodeFilter(e.target.value)}
                 className="w-full bg-[#121214] border border-[#222226] rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-sky-400"
               >
                 <option value="">Любое количество</option>
@@ -374,37 +383,9 @@ function CatalogContent() {
                     <AnimeCard key={anime.id} {...anime} onCardClick={() => saveState()} />
                   ))}
                 </div>
-
-                {totalPages > 1 && (
-                  <div className="flex justify-center items-center gap-2 mt-8">
-                    <button
-                      onClick={() => setPage(Math.max(1, safePage - 1))}
-                      disabled={safePage === 1}
-                      className="w-8 h-8 rounded border border-[#222226] bg-[#1a1a1e] hover:bg-[#222226] disabled:opacity-30 disabled:cursor-not-allowed text-gray-400 flex items-center justify-center text-xs transition-all"
-                    >
-                      <i className="fa-solid fa-chevron-left"></i>
-                    </button>
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                      <button
-                        key={p}
-                        onClick={() => setPage(p)}
-                        className={`w-8 h-8 rounded text-xs font-bold transition-all ${
-                          p === safePage
-                            ? "bg-sky-500 text-white"
-                            : "border border-[#222226] text-gray-400 hover:bg-[#222226]"
-                        }`}
-                      >
-                        {p}
-                      </button>
-                    ))}
-                    <button
-                      onClick={() => setPage(Math.min(totalPages, safePage + 1))}
-                      disabled={safePage === totalPages}
-                      className="w-8 h-8 rounded border border-[#222226] bg-[#1a1a1e] hover:bg-[#222226] disabled:opacity-30 disabled:cursor-not-allowed text-gray-400 flex items-center justify-center text-xs transition-all"
-                    >
-                      <i className="fa-solid fa-chevron-right"></i>
-                    </button>
-                  </div>
+                <div ref={sentinelRef} className="h-4" />
+                {visibleCount < filtered.length && (
+                  <div className="text-center py-4 text-gray-500 text-xs">Загрузка ещё...</div>
                 )}
               </>
             )}
