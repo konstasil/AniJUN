@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "";
+  const cfIp = req.headers.get("cf-connecting-ip")?.trim();
+  const xff = req.headers.get("x-forwarded-for");
+  const forwarded = xff ? xff.split(",").map((s) => s.trim()).find((s) => s && !s.startsWith("172.69.") && !s.startsWith("172.64.") && !s.startsWith("108.162.") && !s.startsWith("162.158.") && !s.startsWith("104.16.") && !s.startsWith("131.0.")) || xff.split(",")[0].trim() : "";
+  const ip = cfIp || forwarded || req.headers.get("x-real-ip")?.trim() || req.headers.get("x-vercel-forwarded-for")?.split(",")[0]?.trim() || "";
   if (!ip) return NextResponse.json({ ok: true });
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
