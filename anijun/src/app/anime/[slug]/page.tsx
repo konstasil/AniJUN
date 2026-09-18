@@ -9,6 +9,7 @@ import ImageUpload from "@/components/ImageUpload";
 import RatingToast, { ToastData } from "@/components/RatingToast";
 import ReviewsSection from "@/components/ReviewsSection";
 import CollectionsSection from "@/components/CollectionsSection";
+import CommentsSection from "@/components/CommentsSection";
 import { useSimulatedUser } from "@/lib/simulation-context";
 import { ALL_GENRES, AGE_RATINGS, ANIME_STATUSES } from "@/lib/genres";
 import { calcWeightedRating, fetchViewersCount, fetchViewersByAnime, enrichWithWeightedRating } from "@/lib/ratings";
@@ -677,6 +678,7 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
 
       <div className="flex flex-col gap-8 mt-8">
         <ReviewsSection animeId={anime.id} isAuthed={isAuthed} userId={userId} defaultRating={userRating} />
+        <CommentsSection animeId={anime.id} isAuthed={isAuthed} userId={userId} />
         <CollectionsSection animeId={anime.id} animeTitle={anime.title} userId={userId} />
       </div>
 
