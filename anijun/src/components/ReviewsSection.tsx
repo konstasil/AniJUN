@@ -132,6 +132,9 @@ export default function ReviewsSection({ animeId, isAuthed, userId }: { animeId:
               {children(c.id).map((ch) => (
                 <div key={ch.id} className="ml-4 pl-3 border-l border-[#222226] p-2 bg-[#1a1a1e] rounded">
                   <div className="flex items-center gap-2 mb-1">
+                    <Link href={`/profile/${ch.user_id}`} className="w-6 h-6 rounded-full bg-gradient-to-tr from-emerald-400 to-teal-600 flex items-center justify-center text-white text-[9px] font-black overflow-hidden shrink-0 relative">
+                      {ch.profiles?.[0]?.avatar_url ? <Image src={ch.profiles[0].avatar_url} alt={ch.profiles[0].username} fill unoptimized sizes="24px" className="object-cover" /> : (ch.profiles?.[0]?.username || "?").substring(0, 1).toUpperCase()}
+                    </Link>
                     <Link href={`/profile/${ch.user_id}`} className="text-xs font-bold text-white hover:text-sky-400 truncate flex-1">{ch.profiles?.[0]?.username || "Пользователь"}</Link>
                     {ratingsMap.get(ch.user_id) && <span className="text-[9px] font-bold text-amber-400 border border-amber-400/30 bg-amber-400/10 px-1 py-0.5 rounded">{ratingsMap.get(ch.user_id)}/10</span>}
                     <span className="text-[10px] text-gray-600">{new Date(ch.created_at).toLocaleDateString("ru-RU")}</span>
