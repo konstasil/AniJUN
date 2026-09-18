@@ -32,6 +32,7 @@ export default function ReviewsSection({ animeId, isAuthed, userId, defaultRatin
   const [friendIds, setFriendIds] = useState<Set<string>>(new Set());
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
   const [isReviewAdmin, setIsReviewAdmin] = useState(false);
+  const [reviewVotes, setReviewVotes] = useState<{ review_id: number; user_id: string; vote: number }[]>([]);
   const [lastDefaultRating, setLastDefaultRating] = useState<number | "-">("-");
 
   if (defaultRating !== lastDefaultRating) {
@@ -45,7 +46,7 @@ export default function ReviewsSection({ animeId, isAuthed, userId, defaultRatin
       .select("id, user_id, text, rating, created_at")
       .eq("anime_id", animeId)
       .order("created_at", { ascending: false });
-    if (!data || data.length === 0) { setReviews([]); return; }
+    if (!data || data.length === 0) { setReviews([]); setReviewVotes([]); return; }
     const ids = [...new Set(data.map((r) => r.user_id))];
     const { data: profs } = await supabase
       .from("profiles")
@@ -58,6 +59,9 @@ export default function ReviewsSection({ animeId, isAuthed, userId, defaultRatin
       profiles: map.has(r.user_id) ? [map.get(r.user_id)!] : [],
     }));
     setReviews(enriched as unknown as Review[]);
+    const rids = data.map((r) => r.id);
+    const { data: rv } = await supabase.from("review_votes").select("review_id, user_id, vote").in("review_id", rids);
+    setReviewVotes((rv || []) as { review_id: number; user_id: string; vote: number }[]);
   }, [animeId, supabase]);
 
   useEffect(() => {
@@ -166,6 +170,20 @@ export default function ReviewsSection({ animeId, isAuthed, userId, defaultRatin
     if (!err) setPendingIds(new Set(pendingIds).add(authorId));
   }
 
+  async function handleReviewVote(reviewId: number, v: number) {
+    if (!userId) return;
+    const existing = reviewVotes.find((x) => x.review_id === reviewId && x.user_id === userId);
+    if (existing?.vote === v) {
+      await supabase.from("review_votes").delete().eq("user_id", userId).eq("review_id", reviewId);
+    } else if (existing) {
+      await supabase.from("review_votes").update({ vote: v }).eq("user_id", userId).eq("review_id", reviewId);
+    } else {
+      await supabase.from("review_votes").insert({ user_id: userId, review_id: reviewId, vote: v });
+    }
+    const { data: rv } = await supabase.from("review_votes").select("review_id, user_id, vote").in("review_id", reviews.map((r) => r.id));
+    setReviewVotes((rv || []) as { review_id: number; user_id: string; vote: number }[]);
+  }
+
   function startEditOwn() {
     if (!myReview) return;
     setMyText(myReview.text);
@@ -267,6 +285,23 @@ export default function ReviewsSection({ animeId, isAuthed, userId, defaultRatin
               )}
             </div>
             <p className="text-xs text-gray-300 whitespace-pre-wrap break-words">{r.text}</p>
+            <div className="flex items-center gap-2 mt-2">
+              {(() => {
+                const likes = reviewVotes.filter((x) => x.review_id === r.id && x.vote === 1).length;
+                const dislikes = reviewVotes.filter((x) => x.review_id === r.id && x.vote === -1).length;
+                const myV = reviewVotes.find((x) => x.review_id === r.id && x.user_id === userId)?.vote || 0;
+                return (
+                  <>
+                    <button onClick={() => handleReviewVote(r.id, 1)} className={`flex items-center gap-1 text-[11px] px-2 py-1 rounded border transition-all ${myV === 1 ? "bg-green-500/20 text-green-400 border-green-500/30" : "text-gray-500 border-[#222226] hover:text-green-400"}`}>
+                      <i className="fa-solid fa-thumbs-up text-[10px]"></i> {likes || ""}
+                    </button>
+                    <button onClick={() => handleReviewVote(r.id, -1)} className={`flex items-center gap-1 text-[11px] px-2 py-1 rounded border transition-all ${myV === -1 ? "bg-red-500/20 text-red-400 border-red-500/30" : "text-gray-500 border-[#222226] hover:text-red-400"}`}>
+                      <i className="fa-solid fa-thumbs-down text-[10px]"></i> {dislikes || ""}
+                    </button>
+                  </>
+                );
+              })()}
+            </div>
           </div>
         ))}
       </div>
