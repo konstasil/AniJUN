@@ -565,13 +565,13 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
 
           {userDataLoaded && (
             <>
-              <div className="flex items-center gap-2 mb-6 flex-wrap">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Статус:</span>
+              <div className="flex items-center gap-1.5 sm:gap-2 mb-6 flex-wrap">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider w-full sm:w-auto mb-1 sm:mb-0">Статус:</span>
                 {["", "planned", "watching", "completed", "on_hold", "dropped"].map((s) => {
                   const labels: Record<string, string> = { "": "Без статуса", planned: "Запланировано", watching: "Смотрю", completed: "Просмотрено", on_hold: "Отложено", dropped: "Брошено" };
                   return (
                     <button key={s || "none"} onClick={() => handleStatus(s)}
-                      className={`text-[10px] font-bold px-3 py-1 rounded transition-all ${userStatus === s ? "bg-sky-500/20 text-sky-400 border border-sky-500/30" : "bg-[#121214] text-gray-500 border border-[#222226] hover:text-gray-300"}`}>
+                      className={`text-[9px] sm:text-[10px] font-bold px-2.5 sm:px-3 py-1 sm:py-1 rounded-md transition-all leading-none ${userStatus === s ? "bg-sky-500/20 text-sky-400 border border-sky-500/30" : "bg-[#121214] text-gray-500 border border-[#222226] hover:text-gray-300"}`}>
                       {labels[s]}
                     </button>
                   );

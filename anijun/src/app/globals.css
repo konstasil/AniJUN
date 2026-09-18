@@ -126,9 +126,6 @@ body {
 }
 
 @media (max-width: 768px) {
-  button, a, [role="button"] {
-    min-height: 44px;
-  }
   input, select, textarea {
     font-size: 16px;
   }
@@ -142,7 +139,6 @@ body {
 
 @media (pointer: coarse) {
   button:active, a:active {
-    opacity: 0.85;
-    transform: scale(0.98);
+    opacity: 0.92;
   }
 }

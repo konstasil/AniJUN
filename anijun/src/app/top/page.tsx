@@ -67,8 +67,8 @@ export default function TopPage() {
         </h3>
         <span className="text-[10px] text-gray-600">Рейтинг</span>
       </div>
-      <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl overflow-hidden">
-        <table className="w-full text-left text-xs border-collapse">
+      <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl overflow-hidden overflow-x-auto">
+        <table className="w-full text-left text-xs border-collapse min-w-[640px]">
           <thead>
             <tr className="border-b border-[#222226] bg-[#121214] text-gray-500">
               <th className="py-3 px-3 font-bold text-center w-10">№</th>
