@@ -25,7 +25,7 @@ export default function ReviewsSection({ animeId, isAuthed, userId, defaultRatin
   const supabase = useMemo(() => createClient(), []);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [myText, setMyText] = useState("");
-  const [myRating, setMyRating] = useState<number>(7);
+  const [myRating, setMyRating] = useState<number | "-">(defaultRating);
   const [editingOwn, setEditingOwn] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -36,7 +36,7 @@ export default function ReviewsSection({ animeId, isAuthed, userId, defaultRatin
 
   if (defaultRating !== lastDefaultRating) {
     setLastDefaultRating(defaultRating);
-    if (typeof defaultRating === "number") setMyRating(defaultRating);
+    setMyRating(defaultRating);
   }
 
   const loadReviews = useCallback(async () => {
@@ -113,6 +113,11 @@ export default function ReviewsSection({ animeId, isAuthed, userId, defaultRatin
       setSaving(false);
       return;
     }
+    if (myRating === "-") {
+      setError("Сначала поставьте оценку аниме");
+      setSaving(false);
+      return;
+    }
     try {
       const { data: muted } = await supabase.rpc("is_current_user_muted");
       if (muted) { setError("Вы замучены и не можете оставлять отзывы"); setSaving(false); return; }
@@ -120,7 +125,7 @@ export default function ReviewsSection({ animeId, isAuthed, userId, defaultRatin
       if (banned) { setError("Вы забанены"); setSaving(false); return; }
     } catch {}
     const { error: err } = await supabase.from("reviews").upsert(
-      { user_id: userId, anime_id: animeId, text, rating: myRating },
+      { user_id: userId, anime_id: animeId, text, rating: myRating as number },
       { onConflict: "user_id,anime_id" }
     );
     if (err) {
@@ -195,7 +200,7 @@ export default function ReviewsSection({ animeId, isAuthed, userId, defaultRatin
             <div className="mb-5 p-3 bg-[#121214] border border-[#222226] rounded-lg flex flex-col gap-2">
               <div className="flex items-center gap-2 text-xs">
                 <span className="text-gray-500 text-[10px] uppercase tracking-wider">Оценка:</span>
-                <span className="text-amber-400 font-bold">{myRating}/10</span>
+                <span className="text-amber-400 font-bold">{myRating === "-" ? "—" : `${myRating}/10`}</span>
               </div>
               <textarea value={myText} onChange={(e) => setMyText(e.target.value)} rows={3}
                 placeholder="Поделитесь впечатлениями..."

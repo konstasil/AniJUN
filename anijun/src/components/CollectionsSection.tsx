@@ -182,7 +182,10 @@ export default function CollectionsSection({ animeId, animeTitle, userId }: Coll
           <p className="text-[11px] text-gray-600"><Link href="/login" className="text-sky-400 hover:underline">Войдите</Link>, чтобы видеть коллекции друзей</p>
         ) : (() => {
           const friendsCols = collections.filter((c) => !c.owned && friendIds.has(c.user_id));
-          if (friendsCols.length === 0) return <p className="text-[11px] text-gray-600">У друзей пока нет — добавьте в свою коллекцию!</p>;
+          if (friendsCols.length === 0) {
+            if (friendIds.size === 0) return <p className="text-[11px] text-gray-600">У вас пока нет друзей</p>;
+            return <p className="text-[11px] text-gray-600">У друзей пока нет публичных коллекций с этим аниме</p>;
+          }
           return friendsCols.map((c) => (
             <Link key={c.id} href={`/profile/${c.user_id}`}
               className="flex items-center gap-3 p-2.5 bg-[#121214] border border-[#222226] rounded-lg hover:border-sky-500/30 transition-all">
