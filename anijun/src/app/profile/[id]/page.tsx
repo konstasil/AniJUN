@@ -88,6 +88,8 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
   const [animeTitles, setAnimeTitles] = useState<Map<number, { title: string; image_url: string }>>(new Map());
   const [favoritesLoaded, setFavoritesLoaded] = useState(false);
   const [reviewsLoaded, setReviewsLoaded] = useState(false);
+  const [expandedCol, setExpandedCol] = useState<number | null>(null);
+  const [colItems, setColItems] = useState<Map<number, { anime_id: number; title: string; image_url: string; slug?: string }[]>>(new Map());
 
   useEffect(() => {
     let cancelled = false;
@@ -264,12 +266,19 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
       const { data: items } = cols?.length
         ? await supabase
             .from("collection_items")
-            .select("collection_id, id")
+            .select("collection_id, id, anime:anime_id(id, title, image_url, slug)")
             .in("collection_id", cols.map((c) => c.id))
         : { data: [] };
       const countByCollection = new Map<number, number>();
+      const itemsByCol = new Map<number, { anime_id: number; title: string; image_url: string; slug?: string }[]>();
       for (const it of items || []) {
         countByCollection.set(it.collection_id, (countByCollection.get(it.collection_id) ?? 0) + 1);
+        const a = Array.isArray((it as unknown as { anime: unknown }).anime) ? (it as unknown as { anime: { id: number; title: string; image_url: string; slug?: string }[] }).anime[0] : (it as unknown as { anime: { id: number; title: string; image_url: string; slug?: string } }).anime;
+        if (a) {
+          const list = itemsByCol.get(it.collection_id) || [];
+          list.push({ anime_id: a.id, title: a.title, image_url: a.image_url, slug: a.slug });
+          itemsByCol.set(it.collection_id, list);
+        }
       }
       const colList: PublicCollection[] = (cols || []).map((c) => ({
         id: c.id,
@@ -279,6 +288,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
       }));
       if (cancelled) return;
       setCollections(colList);
+      setColItems(itemsByCol);
 
       setProfile({
         id: p.id,
@@ -541,15 +551,35 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
             <div className="text-xs text-gray-500 text-center py-4">Публичных коллекций нет</div>
           ) : (
             collections.map((c) => (
-              <div key={c.id} className="flex items-center justify-between p-3 bg-[#121214] rounded-lg border border-[#222226]">
-                <div className="flex items-center gap-3 overflow-hidden mr-2">
-                  <i className="fa-solid fa-folder-open text-amber-400/80"></i>
-                  <div className="min-w-0">
-                    <span className="font-semibold text-gray-300 text-xs block truncate">{c.name}</span>
-                    {c.description && <span className="text-[10px] text-gray-600 truncate block">{c.description}</span>}
+              <div key={c.id} className="bg-[#121214] rounded-lg border border-[#222226] overflow-hidden">
+                <div onClick={() => setExpandedCol(expandedCol === c.id ? null : c.id)} className="flex items-center justify-between p-3 hover:bg-[#1a1a1e] cursor-pointer transition-colors">
+                  <div className="flex items-center gap-3 overflow-hidden mr-2">
+                    <i className={`fa-solid ${expandedCol === c.id ? "fa-folder-open" : "fa-folder"} text-amber-400/80`}></i>
+                    <div className="min-w-0">
+                      <span className="font-semibold text-gray-300 text-xs block truncate">{c.name}</span>
+                      {c.description && <span className="text-[10px] text-gray-600 truncate block">{c.description}</span>}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[10px] text-gray-500">{c.count} тайтл.</span>
+                    <i className={`fa-solid ${expandedCol === c.id ? "fa-chevron-up" : "fa-chevron-down"} text-gray-600 text-[9px]`}></i>
                   </div>
                 </div>
-                <span className="text-[10px] text-gray-500 shrink-0">{c.count} тайтл.</span>
+                {expandedCol === c.id && (
+                  <div className="px-3 pb-3 pt-1 border-t border-[#222226]/50">
+                    {(colItems.get(c.id) || []).length === 0 ? (
+                      <p className="text-[11px] text-gray-600 py-2">Пусто</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {(colItems.get(c.id) || []).map((a) => (
+                          <Link key={a.anime_id} href={a.slug ? `/anime/${a.slug}` : `/anime/${a.anime_id}`} className="block w-14 h-20 rounded overflow-hidden bg-[#121214] relative">
+                            <Image src={a.image_url || "/window.svg"} alt={a.title} fill unoptimized className="object-cover" sizes="56px" />
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ))
           )}

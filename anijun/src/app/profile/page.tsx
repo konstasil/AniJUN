@@ -483,7 +483,7 @@ export default function ProfilePage() {
   const onHold = profile.onHold;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 max-w-4xl mx-auto">
       {/* Profile Card */}
       <div
         className="relative overflow-hidden border transition-all duration-300"
@@ -870,7 +870,7 @@ export default function ProfilePage() {
             </div>
           ) : (
             collections.map((c) => (
-              <div key={c.id} className="flex items-center justify-between p-3 bg-[#121214] rounded-lg border border-[#222226]">
+              <div key={c.id} onClick={() => router.push("/profile/collections")} className="flex items-center justify-between p-3 bg-[#121214] rounded-lg border border-[#222226] hover:border-sky-500/30 cursor-pointer transition-all">
                 <div className="flex items-center gap-3 overflow-hidden mr-2">
                   <i className={`fa-solid fa-folder-open ${c.is_public ? "text-amber-400/80" : "text-gray-600"}`}></i>
                   <div className="min-w-0">
@@ -881,6 +881,7 @@ export default function ProfilePage() {
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="text-[10px] text-gray-500">{c.count} тайтл.</span>
                   {!c.is_public && <i className="fa-solid fa-lock text-gray-600 text-[10px]"></i>}
+                  <i className="fa-solid fa-chevron-right text-gray-600 text-[9px]"></i>
                 </div>
               </div>
             ))
