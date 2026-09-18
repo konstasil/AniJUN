@@ -571,7 +571,7 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
                   const labels: Record<string, string> = { "": "Без статуса", planned: "Запланировано", watching: "Смотрю", completed: "Просмотрено", on_hold: "Отложено", dropped: "Брошено" };
                   return (
                     <button key={s || "none"} onClick={() => handleStatus(s)}
-                      className={`text-[9px] sm:text-[10px] font-bold px-2.5 sm:px-3 py-1 sm:py-1 rounded-md transition-all leading-none ${userStatus === s ? "bg-sky-500/20 text-sky-400 border border-sky-500/30" : "bg-[#121214] text-gray-500 border border-[#222226] hover:text-gray-300"}`}>
+                      className={`text-[10px] font-bold px-3 py-1.5 rounded transition-all ${userStatus === s ? "bg-sky-500/20 text-sky-400 border border-sky-500/30" : "bg-[#121214] text-gray-500 border border-[#222226] hover:text-gray-300"}`}>
                       {labels[s]}
                     </button>
                   );
