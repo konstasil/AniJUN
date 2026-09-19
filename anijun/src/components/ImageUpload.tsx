@@ -72,6 +72,12 @@ export default function ImageUpload({
     }
 
     const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+    if (currentUrl && currentUrl.includes(`/storage/v1/object/public/${bucket}/`)) {
+      const oldPath = currentUrl.split(`/storage/v1/object/public/${bucket}/`)[1]?.split("?")[0];
+      if (oldPath && oldPath !== path) {
+        try { await supabase.storage.from(bucket).remove([oldPath]); } catch {}
+      }
+    }
     setUploading(false);
     setPreview(null);
     onUploaded(data.publicUrl);
