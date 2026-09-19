@@ -40,6 +40,9 @@ interface ProfileData {
   avatar_url: string;
   bio: string;
   background_url: string;
+  background_pos_x: number;
+  background_pos_y: number;
+  background_zoom: number;
   primary_color: string;
   secondary_color: string;
   border_radius: string;
@@ -85,6 +88,9 @@ export default function ProfilePage() {
   const [editSecondaryColor, setEditSecondaryColor] = useState("#0ea5e9");
   const [editBorderRadius, setEditBorderRadius] = useState("12px");
   const [displayBackground, setDisplayBackground] = useState(true);
+  const [editBgPosX, setEditBgPosX] = useState(50);
+  const [editBgPosY, setEditBgPosY] = useState(50);
+  const [editBgZoom, setEditBgZoom] = useState(100);
   const [friends, setFriends] = useState<FriendRecommendation[]>([]);
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
   const [recommendations, setRecommendations] = useState<FriendRecommendation[]>([]);
@@ -354,6 +360,9 @@ export default function ProfilePage() {
           secondary_color: profileData.secondary_color || "#0ea5e9",
           border_radius: profileData.border_radius || "12px",
           display_background: profileData.display_background ?? true,
+          background_pos_x: profileData.background_pos_x ?? 50,
+          background_pos_y: profileData.background_pos_y ?? 50,
+          background_zoom: profileData.background_zoom ?? 100,
           is_verified: profileData.is_verified || false,
           total,
           completed,
@@ -373,6 +382,9 @@ export default function ProfilePage() {
         setEditSecondaryColor(profileData.secondary_color || "#0ea5e9");
         setEditBorderRadius(profileData.border_radius || "12px");
         setDisplayBackground(profileData.display_background ?? true);
+        setEditBgPosX(profileData.background_pos_x ?? 50);
+        setEditBgPosY(profileData.background_pos_y ?? 50);
+        setEditBgZoom(profileData.background_zoom ?? 100);
         setFriends((friendsProfiles || []).map(p => ({
           id: p.id,
           username: p.username,
@@ -413,13 +425,19 @@ export default function ProfilePage() {
       secondary_color: string;
       border_radius: string;
       display_background: boolean;
+      background_pos_x: number;
+      background_pos_y: number;
+      background_zoom: number;
     } = {
       bio: editBio,
       display_name: editDisplayName,
       primary_color: editPrimaryColor,
       secondary_color: editSecondaryColor,
       border_radius: editBorderRadius,
-      display_background: displayBackground
+      display_background: displayBackground,
+      background_pos_x: editBgPosX,
+      background_pos_y: editBgPosY,
+      background_zoom: editBgZoom,
     };
     const { error } = await supabase.from("profiles").update(updates).eq("id", userId);
     if (!error) {
@@ -509,7 +527,7 @@ export default function ProfilePage() {
       >
         {/* Background */}
         {profile.display_background && profile.background_url && (
-          <div className="absolute inset-0 z-0">
+          <div className="absolute inset-0 z-0 overflow-hidden">
             <Image
               src={profile.background_url}
               alt="Background"
@@ -517,6 +535,7 @@ export default function ProfilePage() {
               unoptimized
               sizes="100vw"
               className="object-cover opacity-30"
+              style={{ objectPosition: `${(isEditing ? editBgPosX : profile.background_pos_x)}% ${(isEditing ? editBgPosY : profile.background_pos_y)}%`, transform: `scale(${(isEditing ? editBgZoom : profile.background_zoom) / 100})`, transformOrigin: "center" }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
           </div>
@@ -678,6 +697,22 @@ export default function ProfilePage() {
                   userId={userId || undefined}
                 />
               </div>
+              {displayBackground && profile.background_url && (
+                <div className="space-y-3 p-3 bg-[#121214] rounded-lg border border-[#222226]">
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block mb-1">Сдвиг по X: {editBgPosX}%</label>
+                    <input type="range" min="0" max="100" value={editBgPosX} onChange={(e) => setEditBgPosX(Number(e.target.value))} className="w-full accent-sky-400" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block mb-1">Сдвиг по Y: {editBgPosY}%</label>
+                    <input type="range" min="0" max="100" value={editBgPosY} onChange={(e) => setEditBgPosY(Number(e.target.value))} className="w-full accent-sky-400" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block mb-1">Размер: {editBgZoom}%</label>
+                    <input type="range" min="100" max="200" value={editBgZoom} onChange={(e) => setEditBgZoom(Number(e.target.value))} className="w-full accent-sky-400" />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

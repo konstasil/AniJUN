@@ -15,6 +15,9 @@ interface PublicProfile {
   display_name?: string;
   avatar_url: string;
   is_verified?: boolean;
+  background_pos_x: number;
+  background_pos_y: number;
+  background_zoom: number;
   bio: string;
   background_url: string;
   primary_color: string;
@@ -105,7 +108,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
 
       const { data: p } = await supabase
         .from("profiles")
-        .select("id, username, display_name, avatar_url, bio, background_url, primary_color, secondary_color, border_radius, display_background, is_verified")
+        .select("id, username, display_name, avatar_url, bio, background_url, background_pos_x, background_pos_y, background_zoom, primary_color, secondary_color, border_radius, display_background, is_verified")
         .eq("id", id)
         .single();
       if (!p || cancelled) { setLoading(false); return; }
@@ -300,6 +303,9 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
         display_name: p.display_name || "",
         avatar_url: p.avatar_url || "",
         is_verified: p.is_verified || false,
+        background_pos_x: p.background_pos_x ?? 50,
+        background_pos_y: p.background_pos_y ?? 50,
+        background_zoom: p.background_zoom ?? 100,
         bio: p.bio || "",
         background_url: p.background_url || "",
         primary_color: p.primary_color || "#38bdf8",
@@ -365,8 +371,8 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
       <div className="relative overflow-hidden border transition-all duration-300"
         style={{ backgroundColor: profile.primary_color + "15", borderColor: profile.primary_color + "40", borderRadius: profile.border_radius }}>
         {profile.display_background && profile.background_url && (
-          <div className="absolute inset-0">
-            <Image src={profile.background_url} alt="" fill unoptimized sizes="900px" className="object-cover opacity-25" />
+          <div className="absolute inset-0 overflow-hidden">
+            <Image src={profile.background_url} alt="" fill unoptimized sizes="900px" className="object-cover opacity-25" style={{ objectPosition: `${profile.background_pos_x}% ${profile.background_pos_y}%`, transform: `scale(${profile.background_zoom / 100})`, transformOrigin: "center" }} />
           </div>
         )}
         <div className="relative p-4 sm:p-6 flex flex-col sm:flex-row items-center gap-3 sm:gap-6">
