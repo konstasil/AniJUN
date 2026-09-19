@@ -6,6 +6,7 @@ import Header from "@/components/Header";
 import ErudaConsole from "@/components/ErudaConsole";
 import { SimulationProvider } from "@/lib/simulation-context";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import IpTracker from "@/components/IpTracker";
 
 const inter = Inter({
@@ -41,6 +42,7 @@ export default function RootLayout({
           </main>
         </SimulationProvider>
         <Analytics />
+        <SpeedInsights />
         <IpTracker />
       </body>
     </html>
