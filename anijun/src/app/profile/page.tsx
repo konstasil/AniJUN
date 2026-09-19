@@ -508,8 +508,8 @@ export default function ProfilePage() {
           </div>
         )}
 
-        <div className="relative z-10 p-6 flex flex-col sm:flex-row items-center gap-6">
-          <div className="relative">
+        <div className="relative z-10 p-4 sm:p-6 flex flex-col sm:flex-row items-center gap-3 sm:gap-6">
+          <div className="relative scale-[0.85] sm:scale-100 origin-center">
             <ImageUpload
               bucket="users"
               currentUrl={profile.avatar_url || undefined}
@@ -695,9 +695,9 @@ export default function ProfilePage() {
       )}
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-6">
         {/* Stats */}
-        <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-5 flex flex-col justify-between min-h-[160px]">
+        <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-3 sm:p-5 flex flex-col justify-between min-h-[139px] sm:min-h-[160px]">
           <div>
             <span className="text-gray-500 text-[10px] font-bold uppercase tracking-wider block mb-2">
               Просмотры
@@ -732,7 +732,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Genres */}
-        <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-5 flex flex-col min-h-[160px]">
+        <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-3 sm:p-5 flex flex-col min-h-[180px] sm:min-h-[160px]">
           <span className="text-gray-500 text-[10px] font-bold uppercase tracking-wider block mb-4">
             Любимые жанры
           </span>
@@ -766,7 +766,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Friends */}
-        <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-5 flex flex-col min-h-[160px]">
+        <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-3 sm:p-5 flex flex-col min-h-[120px] sm:min-h-[160px] col-span-2 md:col-span-1">
           <span className="text-gray-500 text-[10px] font-bold uppercase tracking-wider block mb-3">
             Друзья ({profile.friends_count})
           </span>

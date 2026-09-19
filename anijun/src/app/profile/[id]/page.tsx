@@ -364,8 +364,8 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
             <Image src={profile.background_url} alt="" fill unoptimized sizes="900px" className="object-cover opacity-25" />
           </div>
         )}
-        <div className="relative p-6 flex flex-col sm:flex-row items-center gap-6">
-          <div className="w-24 h-24 rounded-2xl overflow-hidden bg-[#121214] relative shrink-0">
+        <div className="relative p-4 sm:p-6 flex flex-col sm:flex-row items-center gap-3 sm:gap-6">
+          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden bg-[#121214] relative shrink-0">
             {profile.avatar_url ? (
               <Image src={profile.avatar_url} alt={profile.username} fill unoptimized sizes="96px" className="object-cover" />
             ) : (
@@ -411,8 +411,8 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-5 flex flex-col justify-between min-h-[160px]">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-6">
+        <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-3 sm:p-5 flex flex-col justify-between min-h-[139px] sm:min-h-[160px]">
           <div>
             <span className="text-gray-500 text-[10px] font-bold uppercase tracking-wider block mb-2">Просмотры</span>
             <div className="flex items-baseline gap-2">
@@ -440,7 +440,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
           </div>
         </div>
 
-        <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-5 flex flex-col min-h-[160px]">
+        <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-3 sm:p-5 flex flex-col min-h-[180px] sm:min-h-[160px]">
           <span className="text-gray-500 text-[10px] font-bold uppercase tracking-wider block mb-4">Любимые жанры</span>
           <div className="flex flex-col gap-3 flex-1 justify-center">
             {profile.topGenres.length === 0 ? (
@@ -462,7 +462,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
           </div>
         </div>
 
-        <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-5 flex flex-col min-h-[160px]">
+        <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-3 sm:p-5 flex flex-col min-h-[120px] sm:min-h-[160px] col-span-2 md:col-span-1">
           <span className="text-gray-500 text-[10px] font-bold uppercase tracking-wider block mb-3">
             Друзья ({profile.friends_count})
           </span>
