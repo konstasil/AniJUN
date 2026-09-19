@@ -373,7 +373,7 @@ export default function ProfilePage() {
           topGenres,
           favorites,
           rareAnime: rareAnime.slice(0, 6),
-          friends_count: friendsCount || 0
+          friends_count: friendIds.length
         });
         setCollections(collectionList);
         setEditBio(profileData.bio || "");

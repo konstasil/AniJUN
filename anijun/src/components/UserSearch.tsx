@@ -19,7 +19,25 @@ export default function UserSearch({ currentUserId, onAddFriend }: UserSearchPro
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<UserResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [friendIds, setFriendIds] = useState<Set<string>>(new Set());
+  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
   const supabase = useMemo(() => createClient(), []);
+
+  useEffect(() => {
+    if (!currentUserId) return;
+    (async () => {
+      const { data: f } = await supabase.from("friends").select("user_id, friend_id").eq("status", "accepted").or(`user_id.eq.${currentUserId},friend_id.eq.${currentUserId}`);
+      const s = new Set<string>();
+      f?.forEach((r) => s.add(r.user_id === currentUserId ? r.friend_id : r.user_id));
+      setFriendIds(s);
+      const { data: p } = await supabase.from("friends").select("friend_id").eq("status", "pending").eq("user_id", currentUserId);
+      const ps = new Set<string>();
+      p?.forEach((r) => ps.add(r.friend_id));
+      const { data: inc } = await supabase.from("friends").select("user_id").eq("status", "pending").eq("friend_id", currentUserId);
+      inc?.forEach((r) => ps.add(r.user_id));
+      setPendingIds(ps);
+    })();
+  }, [currentUserId, supabase]);
 
   useEffect(() => {
     if (!query.trim()) return;
@@ -77,12 +95,18 @@ export default function UserSearch({ currentUserId, onAddFriend }: UserSearchPro
                   </div>
                 </div>
               </div>
-              <button
-                onClick={() => onAddFriend(user.id)}
-                className="px-3 py-1.5 rounded-lg bg-sky-500/10 text-sky-400 border border-sky-500/20 hover:bg-sky-500/20 transition-all text-[11px] font-bold"
-              >
-                Добавить
-              </button>
+              {friendIds.has(user.id) ? (
+                <span className="text-[10px] font-bold text-green-400 bg-green-500/10 border border-green-500/20 px-3 py-1.5 rounded-lg">В друзьях</span>
+              ) : pendingIds.has(user.id) ? (
+                <span className="text-[10px] font-bold text-gray-400 bg-[#1a1a1e] border border-[#222226] px-3 py-1.5 rounded-lg">Заявка</span>
+              ) : (
+                <button
+                  onClick={() => onAddFriend(user.id)}
+                  className="px-3 py-1.5 rounded-lg bg-sky-500/10 text-sky-400 border border-sky-500/20 hover:bg-sky-500/20 transition-all text-[11px] font-bold"
+                >
+                  Добавить
+                </button>
+              )}
             </div>
           ))}
         </div>

@@ -402,9 +402,17 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
               <i className="fa-solid fa-pen text-[10px]"></i>Редактировать
             </Link>
           ) : relation === "friends" ? (
-            <span className="shrink-0 px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 border bg-green-500/10 border-green-500/20 text-green-400">
-              <i className="fa-solid fa-user-check text-[10px]"></i>В друзьях
-            </span>
+            <button onClick={async () => {
+              if (!confirm("Удалить из друзей?")) return;
+              if (!viewerId) return;
+              await supabase.from("friends").delete().or(`and(user_id.eq.${viewerId},friend_id.eq.${id}),and(user_id.eq.${id},friend_id.eq.${viewerId})`).eq("status","accepted");
+              setRelation("none");
+              setViewerFriendIds((prev) => { const n = new Set(prev); n.delete(id); return n; });
+              setProfile((prev) => prev ? { ...prev, friends_count: Math.max(0, prev.friends_count - 1) } : prev);
+            }} className="shrink-0 px-4 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 border bg-green-500/10 border-green-500/20 text-green-400 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-400 transition-all group min-w-[140px]">
+              <span className="group-hover:hidden flex items-center gap-2"><i className="fa-solid fa-user-check text-[10px]"></i>В друзьях</span>
+              <span className="hidden group-hover:inline-flex items-center gap-2"><i className="fa-solid fa-user-xmark text-[10px]"></i>Удалить из друзей</span>
+            </button>
           ) : relation === "request_sent" ? (
             <span className="shrink-0 px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 border bg-[#1a1a1e] border-[#222226] text-gray-400">
               <i className="fa-solid fa-clock text-[10px]"></i>Заявка отправлена
