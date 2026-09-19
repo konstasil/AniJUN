@@ -522,7 +522,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
         <span className="text-gray-500 text-[10px] font-bold uppercase tracking-wider block mb-1">
           Редкие находки <i className="fa-solid fa-gem text-amber-400 ml-1"></i>
         </span>
-        <p className="text-[10px] text-gray-600 mb-3">
+        <p className="text-[10px] text-gray-600 mb-3" title="Берём список 'Просмотрено'/'Смотрю' этого пользователя, считаем rarity = 1 - (оценившие это аниме / все активные пользователи). Если ≥95% — редкая находка.">
           Тайтлы, которые посмотрели меньше 5% активных пользователей
         </p>
         <div className="flex flex-col gap-2">

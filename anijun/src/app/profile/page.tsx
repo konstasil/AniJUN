@@ -152,7 +152,7 @@ export default function ProfilePage() {
         .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`)
         .eq("status", "accepted");
 
-      const friendIds = (friendsData || []).map(f => f.user_id === user.id ? f.friend_id : f.user_id);
+      const friendIds = [...new Set((friendsData || []).map(f => f.user_id === user.id ? f.friend_id : f.user_id))];
       const { data: friendsProfiles } = friendIds.length > 0 ? await supabase
         .from("profiles")
         .select("id, username, avatar_url, is_verified")
@@ -180,6 +180,10 @@ export default function ProfilePage() {
         is_verified: p.is_verified || false,
       }));
 
+      const { data: outgoingData } = await supabase.from("friends").select("friend_id").eq("user_id", user.id).eq("status", "pending");
+      const outgoingIds = new Set((outgoingData || []).map((r) => r.friend_id));
+      const incomingIds = new Set(requestUserIds);
+
       // Recommendations: users with shared anime interests but not friends yet
       const currentUserGenres = new Set<string>();
       userList?.forEach(l => {
@@ -198,7 +202,7 @@ export default function ProfilePage() {
       const recs: FriendRecommendation[] = [];
       if (otherProfiles && currentUserGenres.size > 0) {
         const candidateIds = otherProfiles
-          .filter((other) => !friendIds.includes(other.id))
+          .filter((other) => !friendIds.includes(other.id) && !incomingIds.has(other.id) && !outgoingIds.has(other.id))
           .map((other) => other.id);
 
         if (candidateIds.length > 0) {
@@ -220,7 +224,7 @@ export default function ProfilePage() {
           });
 
           for (const other of otherProfiles) {
-            if (friendIds.includes(other.id)) continue;
+            if (friendIds.includes(other.id) || incomingIds.has(other.id) || outgoingIds.has(other.id)) continue;
             const otherAnimeIds = listByUser.get(other.id);
             if (!otherAnimeIds) continue;
 
@@ -427,6 +431,8 @@ export default function ProfilePage() {
 
   async function handleAddFriend(targetId: string) {
     if (!userId) return;
+    const { data: existing } = await supabase.from("friends").select("id, status").or(`and(user_id.eq.${userId},friend_id.eq.${targetId}),and(user_id.eq.${targetId},friend_id.eq.${userId})`).limit(1);
+    if (existing && existing.length > 0) return;
     const { error } = await supabase.from("friends").insert({
       user_id: userId,
       friend_id: targetId,
@@ -821,7 +827,7 @@ export default function ProfilePage() {
         <span className="text-gray-500 text-[10px] font-bold uppercase tracking-wider block mb-1">
           Редкие находки <i className="fa-solid fa-gem text-amber-400 ml-1"></i>
         </span>
-        <p className="text-[10px] text-gray-600 mb-3">
+        <p className="text-[10px] text-gray-600 mb-3" title="Берём твой список 'Просмотрено'/'Смотрю', считаем rarity = 1 - (оценившие это аниме / все активные пользователи). Если rarity ≥ 95% — попадает в редкие.">
           Тайтлы, которые посмотрели меньше 5% активных пользователей
         </p>
         <div className="flex flex-col gap-2">
