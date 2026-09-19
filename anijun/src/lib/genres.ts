@@ -33,6 +33,7 @@ export const ALL_GENRES = [
   "Исекай",
   "Магия",
   "Лгбт",
+  "Выживание",
 ];
 
 export const AGE_RATINGS = ["0+", "6+", "12+", "16+", "18+", "21+"];
