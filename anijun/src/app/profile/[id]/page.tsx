@@ -51,6 +51,7 @@ interface FriendItem {
   id: string;
   username: string;
   avatar_url: string;
+  is_verified?: boolean;
 }
 
 interface UserReview {
@@ -208,13 +209,14 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
         .or(`user_id.eq.${id},friend_id.eq.${id}`);
       const friendIds = (friendsData || []).map((f) => (f.user_id === id ? f.friend_id : f.user_id));
       const { data: friendsProfiles } = friendIds.length > 0
-        ? await supabase.from("profiles").select("id, username, avatar_url").in("id", friendIds)
-        : { data: [] as { id: string; username: string; avatar_url: string }[] };
+        ? await supabase.from("profiles").select("id, username, avatar_url, is_verified").in("id", friendIds)
+        : { data: [] as { id: string; username: string; avatar_url: string; is_verified?: boolean }[] };
       if (cancelled) return;
       setFriends((friendsProfiles || []).map((f) => ({
         id: f.id,
         username: f.username,
         avatar_url: f.avatar_url || "",
+        is_verified: f.is_verified || false,
       })));
 
       if (viewer && !isSelf) {
@@ -488,8 +490,8 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
                           f.username.charAt(0).toUpperCase()
                         )}
                       </div>
-                      <span className="font-semibold text-gray-300 text-xs truncate group-hover:text-sky-400 transition-colors">
-                        {f.username}
+                      <span className="font-semibold text-gray-300 text-xs truncate group-hover:text-sky-400 transition-colors inline-flex items-center gap-1">
+                        {f.username} {f.is_verified && <VerifiedBadge size={12} />}
                       </span>
                     </Link>
                     {!isViewer && (

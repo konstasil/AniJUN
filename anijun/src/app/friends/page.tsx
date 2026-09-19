@@ -5,11 +5,13 @@ import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import VerifiedBadge from "@/components/VerifiedBadge";
 
 interface Friend {
   id: string;
   username: string;
   avatar_url: string;
+  is_verified?: boolean;
 }
 
 interface Request {
@@ -17,6 +19,7 @@ interface Request {
   user_id: string;
   username: string;
   avatar_url: string;
+  is_verified?: boolean;
 }
 
 export default function FriendsPage() {
@@ -45,10 +48,10 @@ export default function FriendsPage() {
       const ids = (friendsData || []).map(f => f.user_id === userId ? f.friend_id : f.user_id);
       const { data: profiles } = ids.length > 0 ? await supabase
         .from("profiles")
-        .select("id, username, avatar_url")
+        .select("id, username, avatar_url, is_verified")
         .in("id", ids) : { data: [] };
 
-      setFriends((profiles || []).map(p => ({ id: p.id, username: p.username, avatar_url: p.avatar_url })));
+      setFriends((profiles || []).map(p => ({ id: p.id, username: p.username, avatar_url: p.avatar_url, is_verified: p.is_verified })) );
 
       const { data: reqs } = await supabase
         .from("friends")
@@ -59,11 +62,11 @@ export default function FriendsPage() {
       const uids = (reqs || []).map(r => r.user_id);
       const { data: reqProfiles } = uids.length > 0 ? await supabase
         .from("profiles")
-        .select("id, username, avatar_url")
+        .select("id, username, avatar_url, is_verified")
         .in("id", uids) : { data: [] };
 
       const map = new Map((reqs || []).map(r => [r.user_id, r.id]));
-      setRequests((reqProfiles || []).map(p => ({ request_id: map.get(p.id) || 0, user_id: p.id, username: p.username, avatar_url: p.avatar_url || "" })));
+      setRequests((reqProfiles || []).map(p => ({ request_id: map.get(p.id) || 0, user_id: p.id, username: p.username, avatar_url: p.avatar_url || "", is_verified: p.is_verified })) );
 
       setLoading(false);
     }
@@ -73,17 +76,18 @@ export default function FriendsPage() {
 
   async function handleAccept(id: number, from: string) {
     await supabase.from("friends").update({ status: "accepted" }).eq("id", id);
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("id, username, avatar_url")
-      .eq("id", from)
-      .maybeSingle();
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id, username, avatar_url, is_verified")
+        .eq("id", from)
+        .maybeSingle();
     setRequests(r => r.filter(x => x.user_id !== from));
     if (profile) {
       setFriends(f => [...f, {
         id: profile.id,
         username: profile.username || "?",
         avatar_url: profile.avatar_url || "",
+        is_verified: profile.is_verified || false,
       }]);
     }
   }
@@ -122,7 +126,7 @@ export default function FriendsPage() {
                       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-white text-[10px] font-bold shrink-0 overflow-hidden relative">
                         {f.avatar_url ? <Image src={f.avatar_url} alt={f.username} fill unoptimized sizes="32px" className="object-cover" /> : (f.username || "?").charAt(0).toUpperCase()}
                       </div>
-                      <span className="text-xs font-bold text-gray-200 truncate group-hover:text-sky-400 transition-colors">{f.username}</span>
+                      <span className="text-xs font-bold text-gray-200 truncate group-hover:text-sky-400 transition-colors inline-flex items-center gap-1">{f.username} {f.is_verified && <VerifiedBadge size={12} />}</span>
                     </Link>
                     <button onClick={async () => {
                       if (!confirm(`Удалить ${f.username} из друзей?`)) return;
@@ -150,7 +154,7 @@ export default function FriendsPage() {
                       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-white text-[10px] font-bold overflow-hidden relative">
                         {r.avatar_url ? <Image src={r.avatar_url} alt={r.username} fill unoptimized sizes="32px" className="object-cover" /> : (r.username || "?").charAt(0).toUpperCase()}
                       </div>
-                      <span className="text-xs font-bold text-white truncate group-hover:text-sky-400 transition-colors">{r.username}</span>
+                      <span className="text-xs font-bold text-white truncate group-hover:text-sky-400 transition-colors inline-flex items-center gap-1">{r.username} {r.is_verified && <VerifiedBadge size={12} />}</span>
                     </Link>
                     <div className="flex gap-2">
                       <button onClick={() => handleAccept(r.request_id, r.user_id)} className="px-3 py-1.5 rounded-lg bg-green-500/10 text-green-400 border border-green-500/20 text-[11px] font-bold">Принять</button>

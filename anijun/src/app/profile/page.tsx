@@ -62,12 +62,14 @@ interface FriendRequest {
   user_id: string;
   username: string;
   avatar_url: string;
+  is_verified?: boolean;
 }
 
 interface FriendRecommendation {
   id: string;
   username: string;
   avatar_url: string;
+  is_verified?: boolean;
   shared_genres: number;
   shared_anime: number;
 }
@@ -153,7 +155,7 @@ export default function ProfilePage() {
       const friendIds = (friendsData || []).map(f => f.user_id === user.id ? f.friend_id : f.user_id);
       const { data: friendsProfiles } = friendIds.length > 0 ? await supabase
         .from("profiles")
-        .select("id, username, avatar_url")
+        .select("id, username, avatar_url, is_verified")
         .in("id", friendIds) : { data: [] };
 
       // Friend requests
@@ -166,7 +168,7 @@ export default function ProfilePage() {
       const requestUserIds = (requestsData || []).map(r => r.user_id);
       const { data: requestProfiles } = requestUserIds.length > 0 ? await supabase
         .from("profiles")
-        .select("id, username, avatar_url")
+        .select("id, username, avatar_url, is_verified")
         .in("id", requestUserIds) : { data: [] };
 
       const requestsMap = new Map((requestsData || []).map(r => [r.user_id, r.id]));
@@ -174,7 +176,8 @@ export default function ProfilePage() {
         request_id: requestsMap.get(p.id) || 0,
         user_id: p.id,
         username: p.username,
-        avatar_url: p.avatar_url || ""
+        avatar_url: p.avatar_url || "",
+        is_verified: p.is_verified || false,
       }));
 
       // Recommendations: users with shared anime interests but not friends yet
@@ -188,7 +191,7 @@ export default function ProfilePage() {
 
       const { data: otherProfiles } = await supabase
         .from("profiles")
-        .select("id, username, avatar_url")
+        .select("id, username, avatar_url, is_verified")
         .neq("id", user.id)
         .limit(50);
 
@@ -237,6 +240,7 @@ export default function ProfilePage() {
                 id: other.id,
                 username: other.username,
                 avatar_url: other.avatar_url || "",
+                is_verified: other.is_verified || false,
                 shared_genres: sharedGenres,
                 shared_anime: sharedAnime,
               });
@@ -369,6 +373,7 @@ export default function ProfilePage() {
           id: p.id,
           username: p.username,
           avatar_url: p.avatar_url,
+          is_verified: p.is_verified || false,
           shared_genres: 0,
           shared_anime: 0
         })));
@@ -793,8 +798,8 @@ export default function ProfilePage() {
                         f.username.charAt(0).toUpperCase()
                       )}
                     </div>
-                    <span className="font-semibold text-gray-300 text-xs truncate group-hover:text-sky-400 transition-colors">
-                      {f.username}
+                    <span className="font-semibold text-gray-300 text-xs truncate group-hover:text-sky-400 transition-colors inline-flex items-center gap-1">
+                      {f.username} {f.is_verified && <VerifiedBadge size={12} />}
                     </span>
                   </Link>
                   <button
@@ -911,7 +916,7 @@ export default function ProfilePage() {
                       req.username.charAt(0).toUpperCase()
                     )}
                   </div>
-                  <span className="font-bold text-white text-sm group-hover:text-sky-400 transition-colors">{req.username}</span>
+                  <span className="font-bold text-white text-sm group-hover:text-sky-400 transition-colors inline-flex items-center gap-1">{req.username} {req.is_verified && <VerifiedBadge size={14} />}</span>
                 </Link>
                 <div className="flex gap-2">
                   <button
@@ -952,7 +957,7 @@ export default function ProfilePage() {
                     )}
                   </div>
                   <div>
-                    <span className="font-bold text-white text-sm block group-hover:text-sky-400 transition-colors">{rec.username}</span>
+                    <span className="font-bold text-white text-sm block group-hover:text-sky-400 transition-colors inline-flex items-center gap-1">{rec.username} {rec.is_verified && <VerifiedBadge size={12} />}</span>
                     <span className="text-[10px] text-gray-500">
                       {rec.shared_anime} общих аниме • {rec.shared_genres} общих жанров
                     </span>
