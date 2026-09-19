@@ -527,7 +527,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
         </p>
         <div className="flex flex-col gap-2">
           {profile.rareAnime.length === 0 ? (
-            <div className="text-xs text-gray-500 text-center py-4">Пока нет просмотренных аниме</div>
+            <div className="text-xs text-gray-500 text-center py-4">Пока нет редких находок</div>
           ) : (
             profile.rareAnime.map((r) => (
               <div key={r.id} onClick={() => router.push(`/anime/${r.id}`)}

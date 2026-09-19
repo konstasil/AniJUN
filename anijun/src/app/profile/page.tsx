@@ -827,7 +827,7 @@ export default function ProfilePage() {
         <div className="flex flex-col gap-2">
           {profile.rareAnime.length === 0 ? (
             <div className="text-xs text-gray-500 text-center py-4">
-              Пока нет просмотренных аниме
+              Пока нет редких находок
             </div>
           ) : (
             profile.rareAnime.map((r) => (
