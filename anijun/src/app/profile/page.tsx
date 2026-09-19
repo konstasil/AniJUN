@@ -8,6 +8,7 @@ import Link from "next/link";
 import AnimeCard from "@/components/AnimeCard";
 import ImageUpload from "@/components/ImageUpload";
 import UserSearch from "@/components/UserSearch";
+import VerifiedBadge from "@/components/VerifiedBadge";
 
 interface RareAnime {
   id: number;
@@ -43,6 +44,7 @@ interface ProfileData {
   secondary_color: string;
   border_radius: string;
   display_background: boolean;
+  is_verified?: boolean;
   total: number;
   completed: number;
   watching: number;
@@ -344,6 +346,7 @@ export default function ProfilePage() {
           secondary_color: profileData.secondary_color || "#0ea5e9",
           border_radius: profileData.border_radius || "12px",
           display_background: profileData.display_background ?? true,
+          is_verified: profileData.is_verified || false,
           total,
           completed,
           watching,
@@ -521,11 +524,12 @@ export default function ProfilePage() {
           </div>
 
           <div className="text-center sm:text-left flex-1 min-w-0">
-            <h2 className="text-2xl font-black text-white truncate">
+            <h2 className="text-2xl font-black text-white truncate flex items-center gap-1.5 justify-center sm:justify-start">
               {profile.display_name || profile.username}
+              {profile.is_verified && <VerifiedBadge size={20} />}
             </h2>
             {profile.display_name && (
-              <p className="text-xs text-gray-400 mt-0.5">@{profile.username}</p>
+              <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1 justify-center sm:justify-start">@{profile.username} {profile.is_verified && <VerifiedBadge size={14} />}</p>
             )}
             <p className="text-xs text-gray-400 mt-1.5 line-clamp-2">
               {profile.bio || "Пока нет описания. Добавь пару слов о себе!"}

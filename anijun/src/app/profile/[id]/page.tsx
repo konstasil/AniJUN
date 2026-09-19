@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import AnimeCard from "@/components/AnimeCard";
+import VerifiedBadge from "@/components/VerifiedBadge";
 import { useSimulatedUser } from "@/lib/simulation-context";
 
 interface PublicProfile {
@@ -13,6 +14,7 @@ interface PublicProfile {
   username: string;
   display_name?: string;
   avatar_url: string;
+  is_verified?: boolean;
   bio: string;
   background_url: string;
   primary_color: string;
@@ -102,7 +104,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
 
       const { data: p } = await supabase
         .from("profiles")
-        .select("id, username, display_name, avatar_url, bio, background_url, primary_color, secondary_color, border_radius, display_background")
+        .select("id, username, display_name, avatar_url, bio, background_url, primary_color, secondary_color, border_radius, display_background, is_verified")
         .eq("id", id)
         .single();
       if (!p || cancelled) { setLoading(false); return; }
@@ -295,6 +297,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
         username: p.username,
         display_name: p.display_name || "",
         avatar_url: p.avatar_url || "",
+        is_verified: p.is_verified || false,
         bio: p.bio || "",
         background_url: p.background_url || "",
         primary_color: p.primary_color || "#38bdf8",
@@ -375,11 +378,12 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
             )}
           </div>
           <div className="text-center sm:text-left flex-1 min-w-0">
-            <h2 className="text-2xl font-black text-white truncate">
+            <h2 className="text-2xl font-black text-white truncate flex items-center gap-1.5 justify-center sm:justify-start">
               {profile.display_name || profile.username}
+              {profile.is_verified && <VerifiedBadge size={20} />}
             </h2>
             {profile.display_name && (
-              <span className="text-[11px] text-gray-500">@{profile.username}</span>
+              <span className="text-[11px] text-gray-500 flex items-center gap-1 justify-center sm:justify-start">@{profile.username} {profile.is_verified && <VerifiedBadge size={14} />}</span>
             )}
             <p className="text-xs text-gray-400 mt-1.5 line-clamp-2">{profile.bio || "Пока без описания"}</p>
           </div>

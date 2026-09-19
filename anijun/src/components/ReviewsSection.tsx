@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import VerifiedBadge from "@/components/VerifiedBadge";
 
 interface Comment {
   id: number;
@@ -10,7 +11,7 @@ interface Comment {
   text: string;
   created_at: string;
   parent_id: number | null;
-  profiles?: { username: string; avatar_url: string }[];
+  profiles?: { username: string; avatar_url: string; is_verified?: boolean }[];
 }
 
 export default function ReviewsSection({ animeId, isAuthed, userId }: { animeId: number; isAuthed: boolean; userId: string | null; defaultRating?: number | "-" }) {
@@ -28,9 +29,9 @@ export default function ReviewsSection({ animeId, isAuthed, userId }: { animeId:
     const { data } = await supabase.from("comments").select("id, user_id, text, created_at, parent_id").eq("anime_id", animeId).order("created_at", { ascending: true });
     if (!data || data.length === 0) { setComments([]); setVotes([]); setRatingsMap(new Map()); return; }
     const ids = [...new Set(data.map((c) => c.user_id))];
-    const { data: profs } = await supabase.from("profiles").select("id, username, avatar_url").in("id", ids);
-    const map = new Map<string, { username: string; avatar_url: string }>();
-    profs?.forEach((p) => map.set(p.id, { username: p.username, avatar_url: p.avatar_url || "" }));
+    const { data: profs } = await supabase.from("profiles").select("id, username, avatar_url, is_verified").in("id", ids);
+    const map = new Map<string, { username: string; avatar_url: string; is_verified?: boolean }>();
+    profs?.forEach((p) => map.set(p.id, { username: p.username, avatar_url: p.avatar_url || "", is_verified: p.is_verified }));
     const enriched = data.map((c) => ({ ...c, profiles: map.has(c.user_id) ? [map.get(c.user_id)!] : [] }));
     setComments(enriched as unknown as Comment[]);
     const cids = data.map((c) => c.id);
@@ -111,7 +112,7 @@ export default function ReviewsSection({ animeId, isAuthed, userId }: { animeId:
               <Link href={`/profile/${c.user_id}`} className="w-7 h-7 rounded-full bg-gradient-to-tr from-emerald-400 to-teal-600 flex items-center justify-center text-white text-[10px] font-black overflow-hidden shrink-0 relative">
                 {c.profiles?.[0]?.avatar_url ? <Image src={c.profiles[0].avatar_url} alt={c.profiles[0].username} fill unoptimized sizes="28px" className="object-cover" /> : (c.profiles?.[0]?.username || "?").substring(0, 1).toUpperCase()}
               </Link>
-              <Link href={`/profile/${c.user_id}`} className="text-xs font-bold text-white hover:text-sky-400 truncate flex-1">{c.profiles?.[0]?.username || "Пользователь"}</Link>
+              <Link href={`/profile/${c.user_id}`} className="text-xs font-bold text-white hover:text-sky-400 truncate flex-1 flex items-center gap-1">{c.profiles?.[0]?.username || "Пользователь"} {c.profiles?.[0]?.is_verified && <VerifiedBadge size={14} />}</Link>
               {ratingsMap.get(c.user_id) && <span className="text-[10px] font-bold text-amber-400 border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 rounded">{ratingsMap.get(c.user_id)}/10</span>}
               <span className="text-[10px] text-gray-600">{new Date(c.created_at).toLocaleDateString("ru-RU")}</span>
               {(c.user_id === userId || isAdmin) && <button onClick={() => handleDelete(c.id, c.user_id)} className="text-[10px] text-red-400 hover:text-red-300"><i className="fa-solid fa-trash-can"></i></button>}
@@ -135,7 +136,7 @@ export default function ReviewsSection({ animeId, isAuthed, userId }: { animeId:
                     <Link href={`/profile/${ch.user_id}`} className="w-6 h-6 rounded-full bg-gradient-to-tr from-emerald-400 to-teal-600 flex items-center justify-center text-white text-[9px] font-black overflow-hidden shrink-0 relative">
                       {ch.profiles?.[0]?.avatar_url ? <Image src={ch.profiles[0].avatar_url} alt={ch.profiles[0].username} fill unoptimized sizes="24px" className="object-cover" /> : (ch.profiles?.[0]?.username || "?").substring(0, 1).toUpperCase()}
                     </Link>
-                    <Link href={`/profile/${ch.user_id}`} className="text-xs font-bold text-white hover:text-sky-400 truncate flex-1">{ch.profiles?.[0]?.username || "Пользователь"}</Link>
+                    <Link href={`/profile/${ch.user_id}`} className="text-xs font-bold text-white hover:text-sky-400 truncate flex-1 flex items-center gap-1">{ch.profiles?.[0]?.username || "Пользователь"} {ch.profiles?.[0]?.is_verified && <VerifiedBadge size={12} />}</Link>
                     {ratingsMap.get(ch.user_id) && <span className="text-[9px] font-bold text-amber-400 border border-amber-400/30 bg-amber-400/10 px-1 py-0.5 rounded">{ratingsMap.get(ch.user_id)}/10</span>}
                     <span className="text-[10px] text-gray-600">{new Date(ch.created_at).toLocaleDateString("ru-RU")}</span>
                     {(ch.user_id === userId || isAdmin) && <button onClick={() => handleDelete(ch.id, ch.user_id)} className="text-[10px] text-red-400"><i className="fa-solid fa-trash-can"></i></button>}

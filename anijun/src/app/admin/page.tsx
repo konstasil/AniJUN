@@ -98,7 +98,7 @@ export default function AdminPage() {
   const [editSuggComment, setEditSuggComment] = useState("");
   const [editSuggSeasons, setEditSuggSeasons] = useState<SeasonDraft[]>([]);
 
-  const [users, setUsers] = useState<ProfileRow[]>([]);
+  const [users, setUsers] = useState<(ProfileRow & { is_verified?: boolean })[]>([]);
   const [admins, setAdmins] = useState<string[]>([]);
   const [newAdminId, setNewAdminId] = useState("");
 
@@ -168,8 +168,8 @@ export default function AdminPage() {
     const { data: anime } = await supabase.from("anime").select("*, anime_seasons(*)").order("id", { ascending: false });
     if (anime) setAnimeList(anime);
 
-    const { data: profiles } = await supabase.from("profiles").select("id, username, created_at").order("created_at", { ascending: false });
-    if (profiles) setUsers(profiles);
+    const { data: profiles } = await supabase.from("profiles").select("id, username, created_at, is_verified").order("created_at", { ascending: false });
+    if (profiles) setUsers(profiles as (ProfileRow & { is_verified?: boolean })[]);
 
     const { data: adminsData } = await supabase.from("admins").select("user_id");
     if (adminsData) setAdmins(adminsData.map((a) => a.user_id));
@@ -817,9 +817,10 @@ export default function AdminPage() {
                       {u.username.substring(0, 2).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-white truncate">{u.username}</p>
+                      <p className="text-xs font-bold text-white truncate flex items-center gap-1">{u.username} {u.is_verified && <span className="inline-flex"><span style={{ width: 14, height: 14, display: "inline-flex" }}><svg viewBox="0 0 512 512" width="14" height="14"><g transform="matrix(1.11,0,0,1.11,236,258)"><g><path fill="rgb(48,168,232)" d="M128.29,25.58 C128.29,25.58 106.81,47.06 106.81,47.06 C106.81,47.06 106.81,79.68 106.81,79.68 C106.81,95.62 93.89,108.54 77.95,108.54 C77.95,108.54 45.32,108.54 45.32,108.54 C45.32,108.54 25.57,128.29 25.57,128.29 C11.45,142.42 -11.45,142.42 -25.58,128.29 C-25.58,128.29 -45.33,108.54 -45.33,108.54 C-45.33,108.54 -79.87,108.54 -79.87,108.54 C-95.81,108.54 -108.73,95.62 -108.73,79.68 C-108.73,79.68 -108.73,45.54 -108.73,45.54 C-108.73,45.41 -108.73,45.28 -108.72,45.15 C-108.72,45.15 -128.29,25.58 -128.29,25.58 C-142.42,11.45 -142.42,-11.45 -128.29,-25.57 C-128.29,-25.57 -108.73,-45.13 -108.73,-45.13 C-108.73,-45.13 -108.73,-78.56 -108.73,-78.56 C-108.73,-94.5 -95.81,-107.42 -79.87,-107.42 C-79.87,-107.42 -46.45,-107.42 -46.45,-107.42 C-46.45,-107.42 -25.58,-128.29 -25.58,-128.29 C-11.45,-142.42 11.45,-142.42 25.57,-128.29 C25.57,-128.29 46.44,-107.42 46.44,-107.42 C46.44,-107.42 77.95,-107.42 77.95,-107.42 C93.89,-107.42 106.81,-94.5 106.81,-78.56 C106.81,-78.56 106.81,-47.05 106.81,-47.05 C106.81,-47.05 128.29,-25.57 128.29,-25.57 C142.42,-11.45 142.42,11.45 128.29,25.58 Z"/></g></g><g transform="matrix(1.09,0,0,1.09,236,258)"><g><path fill="rgb(255,255,255)" d="M63.61,-26.62 C63.61,-26.62 -8.29,45.27 -8.29,45.27 C-13.19,50.16 -21.15,50.16 -26.06,45.27 C-26.06,45.27 -26.93,44.4 -26.93,44.4 C-26.93,44.4 -63.6,7.72 -63.6,7.72 C-68.51,2.81 -68.51,-5.14 -63.6,-10.05 C-61.15,-12.51 -57.94,-13.73 -54.72,-13.73 C-51.5,-13.73 -48.28,-12.51 -45.83,-10.05 C-45.83,-10.05 -18.04,17.74 -18.04,17.74 C-18.04,17.74 44.97,-45.26 44.97,-45.26 C49.87,-50.17 57.83,-50.17 62.73,-45.26 C62.73,-45.26 63.61,-44.39 63.61,-44.39 C68.51,-39.49 68.51,-31.53 63.61,-26.62 Z"/></g></g></svg></span></span>}</p>
                       <p className="text-[10px] text-gray-500">{u.id}</p>
                     </div>
+                    <button onClick={async () => { const { error } = await supabase.from("profiles").update({ is_verified: !u.is_verified }).eq("id", u.id); if (!error) await loadAll(); }} className={`text-[9px] font-bold px-2 py-0.5 rounded border ${u.is_verified ? "bg-sky-500/20 text-sky-400 border-sky-500/30" : "bg-[#121214] text-gray-500 border-[#222226]"}`} title="Верификация"><i className="fa-solid fa-circle-check mr-1"></i>{u.is_verified ? "Снять" : "Вериф"}</button>
                     <button onClick={() => setExpandedUserId(expanded ? null : u.id)}
                       className="text-[10px] text-gray-400 hover:text-white border border-[#222226] px-2 py-1 rounded">
                       <i className={`fa-solid ${expanded ? "fa-chevron-up" : "fa-chevron-down"} mr-1`}></i>{expanded ? "Скрыть" : "Подробнее"}
