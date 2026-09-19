@@ -78,6 +78,7 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
   const [newSeasonNumber, setNewSeasonNumber] = useState(0);
   const [newSeasonEps, setNewSeasonEps] = useState(12);
   const [newSeasonNote, setNewSeasonNote] = useState("");
+  const [expandedSeasons, setExpandedSeasons] = useState<Set<number>>(new Set());
 
   const animeIdRef = useRef<number | null>(null);
 
@@ -135,6 +136,13 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
     return () => { cancelled = true; };
   }, [slug, supabase]);
 
+
+  useEffect(() => {
+    if (!anime?.anime_seasons) return;
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    if (isMobile) setExpandedSeasons(new Set());
+    else setExpandedSeasons(new Set(anime.anime_seasons.map((s) => s.id)));
+  }, [anime]);
 
   useEffect(() => {
     const id = animeId;
@@ -625,12 +633,14 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
                         </div>
                       ) : (
                         <>
-                          <div className="flex justify-between items-center text-xs">
-                            <span className="font-bold text-gray-300">
+                          <div className="flex justify-between items-center text-xs gap-2">
+                            <button onClick={() => setExpandedSeasons((prev) => { const n = new Set(prev); if (n.has(season.id)) n.delete(season.id); else n.add(season.id); return n; })}
+                              className="flex items-center gap-1.5 font-bold text-gray-300 hover:text-white text-left">
+                              <i className={`fa-solid ${expandedSeasons.has(season.id) ? "fa-chevron-up" : "fa-chevron-down"} text-[9px] text-gray-500`}></i>
                               {season.season_number} Сезон ({season.episodes_count} сер.)
-                              {season.note ? <span className="text-gray-500 font-normal ml-1">— {season.note}</span> : null}
-                            </span>
-                            <div className="flex items-center gap-2">
+                              {season.note ? <span className="text-gray-500 font-normal ml-1 hidden sm:inline">— {season.note}</span> : null}
+                            </button>
+                            <div className="flex items-center gap-2 shrink-0">
                               {isAdmin && (
                                 <>
                                   <button onClick={() => handleReorderSeason(season.id, -1)} className="text-[10px] text-gray-500 hover:text-white disabled:opacity-30"><i className="fa-solid fa-chevron-up"></i></button>
@@ -641,17 +651,24 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
                                 </>
                               )}
                               <button onClick={() => toggleWholeSeason(season.id, season.episodes_count)}
-                                className="text-[10px] text-sky-400 hover:underline">{allEpsWatched ? "Сбросить сезон" : "Посмотрел весь"}</button>
+                                className="hidden sm:block text-[10px] text-sky-400 hover:underline">{allEpsWatched ? "Сбросить сезон" : "Посмотрел весь"}</button>
                             </div>
                           </div>
-                          <div className="flex flex-wrap gap-1">
+                          {season.note && <p className="text-[11px] text-gray-500 sm:hidden -mt-1">{season.note}</p>}
+                          <div className={`flex flex-wrap gap-1 ${expandedSeasons.has(season.id) ? "flex" : "hidden"}`}>
                             {Array.from({ length: season.episodes_count }, (_, i) => i + 1).map((ep) => (
                               <button key={ep} onClick={() => toggleEpisode(season.id, ep)}
-                                className={`w-6 h-6 text-[9px] font-bold rounded transition-all ${watched.has(ep) ? "bg-sky-500/20 text-sky-400 border border-sky-400/30" : "bg-[#1a1a1e] text-gray-500 border border-[#222226] hover:text-gray-300"}`}>
+                                className={`w-7 h-7 sm:w-6 sm:h-6 text-[10px] sm:text-[9px] font-bold rounded transition-all ${watched.has(ep) ? "bg-sky-500/20 text-sky-400 border border-sky-400/30" : "bg-[#1a1a1e] text-gray-500 border border-[#222226] hover:text-gray-300"}`}>
                                 {ep}
                               </button>
                             ))}
+                            <button onClick={() => toggleWholeSeason(season.id, season.episodes_count)}
+                              className="sm:hidden w-full mt-1 text-[10px] text-sky-400 hover:underline py-1">{allEpsWatched ? "Сбросить сезон" : "Посмотрел весь"}</button>
                           </div>
+                          {!expandedSeasons.has(season.id) && (
+                            <button onClick={() => setExpandedSeasons((prev) => { const n = new Set(prev); n.add(season.id); return n; })}
+                              className="text-[11px] text-gray-500 hover:text-sky-400 text-left">Показать серии ({season.episodes_count}) <i className="fa-solid fa-chevron-down ml-1 text-[9px]"></i></button>
+                          )}
                         </>
                       )}
                     </div>
