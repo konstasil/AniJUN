@@ -665,10 +665,6 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
                             <button onClick={() => toggleWholeSeason(season.id, season.episodes_count)}
                               className="sm:hidden w-full mt-1 text-[10px] text-sky-400 hover:underline py-1">{allEpsWatched ? "Сбросить сезон" : "Посмотрел весь"}</button>
                           </div>
-                          {!expandedSeasons.has(season.id) && (
-                            <button onClick={() => setExpandedSeasons((prev) => { const n = new Set(prev); n.add(season.id); return n; })}
-                              className="text-[11px] text-gray-500 hover:text-sky-400 text-left">Показать серии ({season.episodes_count}) <i className="fa-solid fa-chevron-down ml-1 text-[9px]"></i></button>
-                          )}
                         </>
                       )}
                     </div>
