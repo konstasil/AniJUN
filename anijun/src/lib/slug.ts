@@ -16,18 +16,17 @@ function transliterate(str: string): string {
 }
 
 export function generateSlug(title: string): string {
-  let s = transliterate(title).toLowerCase();
-  s = s.replace(/\s+/g, "-");
-  s = s.replace(/[^a-z0-9-_]/g, "");
+  let s = title.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-_]/g, "");
   s = s.replace(/-+/g, "-").replace(/_+/g, "_").replace(/^-+|-+$/g, "").replace(/^_+|_+$/g, "");
-  s = s.replace(/-{2,}/g, "-");
+  if (!s) {
+    s = transliterate(title).toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-_]/g, "");
+    s = s.replace(/-+/g, "-").replace(/_+/g, "_").replace(/^-+|-+$/g, "").replace(/^_+|_+$/g, "");
+  }
   return s;
 }
 
 export function sanitizeSlugInput(value: string): string {
-  let s = transliterate(value).toLowerCase();
-  s = s.replace(/\s+/g, "-");
-  s = s.replace(/[^a-z0-9-_]/g, "");
+  let s = value.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-_]/g, "");
   s = s.replace(/-+/g, "-").replace(/_+/g, "_");
   return s;
 }

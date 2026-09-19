@@ -416,8 +416,7 @@ export default function AdminPage() {
     setBrokenLinks([]);
     const broken: { id: number; title: string; url: string; slug?: string }[] = [];
     for (const a of animeList) {
-      const url = a.image_url;
-      if (!url || url.startsWith("/")) continue;
+      const url = `${window.location.origin}/anime/${a.slug || a.id}`;
       try {
         const controller = new AbortController();
         const t = setTimeout(() => controller.abort(), 7000);
@@ -425,18 +424,7 @@ export default function AdminPage() {
         clearTimeout(t);
         if (!res.ok) broken.push({ id: a.id, title: a.title, url, slug: a.slug });
       } catch {
-        try {
-          const ok = await new Promise<boolean>((resolve) => {
-            const img = new window.Image();
-            img.onload = () => resolve(true);
-            img.onerror = () => resolve(false);
-            img.src = url;
-            setTimeout(() => resolve(false), 7000);
-          });
-          if (!ok) broken.push({ id: a.id, title: a.title, url, slug: a.slug });
-        } catch {
-          broken.push({ id: a.id, title: a.title, url, slug: a.slug });
-        }
+        broken.push({ id: a.id, title: a.title, url, slug: a.slug });
       }
     }
     setBrokenLinks(broken);
@@ -990,7 +978,7 @@ export default function AdminPage() {
         <div className="space-y-4">
           <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-4">
             <h4 className="text-[10px] font-bold text-sky-400 uppercase tracking-wider mb-3"><i className="fa-solid fa-link mr-1"></i> Проверка ссылок аниме</h4>
-            <p className="text-[11px] text-gray-500 mb-3">Проверяет image_url каждого аниме на доступность (HEAD → fallback Image). Битые покажет ниже.</p>
+            <p className="text-[11px] text-gray-500 mb-3">Проверяет ссылку на страницу каждого аниме (/anime/slug). Битые покажет ниже.</p>
             <button onClick={handleCheckLinks} disabled={checkingLinks} className="bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-xs font-bold px-4 py-1.5 rounded transition-all">
               {checkingLinks ? "Проверка..." : "Проверить ссылки"}
             </button>
