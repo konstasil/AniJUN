@@ -13,6 +13,7 @@ import { useSimulatedUser } from "@/lib/simulation-context";
 import { ALL_GENRES, AGE_RATINGS, ANIME_STATUSES } from "@/lib/genres";
 import { calcWeightedRating, fetchViewersCount, fetchViewersByAnime, enrichWithWeightedRating } from "@/lib/ratings";
 import { isAdminId } from "@/lib/admin";
+import { generateSlug, sanitizeSlugInput } from "@/lib/slug";
 
 interface Season {
   id: number;
@@ -79,15 +80,6 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
   const [newSeasonNote, setNewSeasonNote] = useState("");
 
   const animeIdRef = useRef<number | null>(null);
-
-  function generateSlug(title: string): string {
-    return title
-      .toLowerCase()
-      .replace(/[^a-z0-9а-я\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '');
-  }
 
   const loadTopPosition = useCallback(async (animeId: number): Promise<number | null> => {
     const { data: allAnime } = await supabase.from("anime").select("id").order("id");
@@ -299,14 +291,21 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
   }
 
   async function handleDelete() {
-    if (!userId || animeId === null) return;
-    if (!confirm(`Удалить "${anime?.title}"?`)) return;
+    if (!isAdmin || animeId === null) { alert("Только админ может удалить аниме"); return; }
+    if (!confirm(`Удалить "${anime?.title}" со всеми данными?`)) return;
     const { data: seasons } = await supabase.from("anime_seasons").select("id").eq("anime_id", animeId);
     if (seasons && seasons.length > 0) {
-      await supabase.from("episode_progress").delete().eq("user_id", userId).in("season_id", seasons.map((s) => s.id));
+      const ids = seasons.map((s) => s.id);
+      await supabase.from("episode_progress").delete().in("season_id", ids);
+      await supabase.from("anime_seasons").delete().in("id", ids);
     }
-    await supabase.from("ratings").delete().eq("user_id", userId).eq("anime_id", animeId);
-    await supabase.from("user_anime_list").delete().eq("user_id", userId).eq("anime_id", animeId);
+    await supabase.from("ratings").delete().eq("anime_id", animeId);
+    await supabase.from("user_anime_list").delete().eq("anime_id", animeId);
+    await supabase.from("collection_items").delete().eq("anime_id", animeId);
+    await supabase.from("comments").delete().eq("anime_id", animeId);
+    await supabase.from("reviews").delete().eq("anime_id", animeId);
+    const { error } = await supabase.from("anime").delete().eq("id", animeId);
+    if (error) { alert("Ошибка удаления: " + error.message); return; }
     router.push("/");
   }
 
@@ -441,7 +440,7 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
           <div className="flex items-center gap-3 mb-4 pr-8">
             <h2 className="text-xl font-bold text-white flex-1">{anime.title}</h2>
             {isAdmin && !editingAnime && (
-              <button onClick={() => { setEditTitle(anime.title); setEditSlug(anime.slug || ""); setEditGenres(anime.genres || []); setEditSeason(anime.season_info); setEditAgeRating(anime.age_rating); setEditStatus(anime.status || "announced"); setEditingAnime(true); }}
+              <button onClick={() => { setEditTitle(anime.title); setEditSlug(anime.slug || ""); setEditGenres(anime.genres || []); setEditSeason(anime.season_info); setEditAgeRating(anime.age_rating); setEditStatus(anime.status || "finished"); setEditingAnime(true); }}
                 className="text-[10px] font-bold text-gray-400 hover:text-sky-400 px-2.5 py-1 rounded bg-[#121214] border border-[#222226] transition-all flex items-center gap-1.5 shrink-0">
                 <i className="fa-solid fa-pen"></i> Редактировать
               </button>
@@ -451,7 +450,7 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
           {editingAnime ? (
             <div className="mb-5 pb-3 border-b border-[#222226] space-y-3">
               <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="w-full bg-[#121214] border border-[#222226] rounded px-3 py-2 text-sm text-white outline-none focus:border-sky-500/50" placeholder="Название" />
-              <input value={editSlug} onChange={(e) => setEditSlug(e.target.value)} className="w-full bg-[#121214] border border-[#222226] rounded px-3 py-2 text-sm text-white outline-none focus:border-sky-500/50" placeholder="slug (адресная строка)" />
+              <input value={editSlug} onChange={(e) => setEditSlug(sanitizeSlugInput(e.target.value))} className="w-full bg-[#121214] border border-[#222226] rounded px-3 py-2 text-sm text-white outline-none focus:border-sky-500/50" placeholder="slug (адресная строка)" />
               <div className="flex gap-2">
                 <input value={editSeason} onChange={(e) => setEditSeason(e.target.value)} className="flex-1 bg-[#121214] border border-[#222226] rounded px-2 py-1 text-xs text-white outline-none focus:border-sky-500/50" placeholder="Сезон" />
                 <select value={editAgeRating} onChange={(e) => setEditAgeRating(e.target.value)} className="bg-[#121214] border border-[#222226] rounded px-2 py-1 text-xs text-white outline-none">
@@ -665,10 +664,10 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
             </>
           )}
 
-          {userId && (
+          {isAdmin && (
             <div className="border-t border-[#222226] pt-4 mt-6 flex justify-end">
               <button onClick={handleDelete} className="px-3 py-1.5 rounded bg-red-950/20 hover:bg-red-950/60 text-red-400 font-semibold border border-red-500/10 text-xs transition-all">
-                <i className="fa-solid fa-trash-can mr-1"></i> Удалить
+                <i className="fa-solid fa-trash-can mr-1"></i> Удалить аниме
               </button>
             </div>
           )}

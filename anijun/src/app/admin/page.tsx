@@ -9,6 +9,7 @@ import { useSimulatedUser } from "@/lib/simulation-context";
 import { ALL_GENRES, AGE_RATINGS, ANIME_STATUSES } from "@/lib/genres";
 import { ADMIN_IDS } from "@/lib/admin";
 import SeasonEditor, { SeasonDraft } from "@/components/SeasonEditor";
+import { generateSlug, sanitizeSlugInput } from "@/lib/slug";
 
 interface AnimeRow {
   id: number;
@@ -54,7 +55,7 @@ interface RatingRow {
   anime?: { title: string }[];
 }
 
-type Tab = "add-anime" | "anime-list" | "suggestions" | "users" | "ratings" | "bans";
+type Tab = "add-anime" | "anime-list" | "suggestions" | "users" | "ratings" | "bans" | "tools";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -69,7 +70,7 @@ export default function AdminPage() {
   const [newGenres, setNewGenres] = useState<string[]>([]);
   const [newSeason, setNewSeason] = useState("Зима 2025");
   const [newAgeRating, setNewAgeRating] = useState("16+");
-  const [newStatus, setNewStatus] = useState("announced");
+  const [newStatus, setNewStatus] = useState("finished");
   const [newPosterUrl, setNewPosterUrl] = useState("");
   const [seasons, setSeasons] = useState<SeasonDraft[]>([{ number: 1, episodes: 12, note: "" }]);
   const [addingAnime, setAddingAnime] = useState(false);
@@ -113,6 +114,8 @@ export default function AdminPage() {
   const [muteReason, setMuteReason] = useState("");
   const [muteDays, setMuteDays] = useState("");
   const [userIps, setUserIps] = useState<{ user_id: string; ip: string; user_agent: string | null; last_seen: string }[]>([]);
+  const [checkingLinks, setCheckingLinks] = useState(false);
+  const [brokenLinks, setBrokenLinks] = useState<{ id: number; title: string; url: string; slug?: string }[]>([]);
 
   const [ratings, setRatings] = useState<RatingRow[]>([]);
   const [ratingAnimeId, setRatingAnimeId] = useState("");
@@ -194,15 +197,6 @@ export default function AdminPage() {
   }
 
   // Функция для генерации slug из названия
-  function generateSlug(title: string): string {
-    return title
-      .toLowerCase()
-      .replace(/[^a-z0-9а-я\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '');
-  }
-
   function toggleGenre(genre: string, list: string[], setter: (v: string[]) => void) {
     setter(list.includes(genre) ? list.filter((g) => g !== genre) : [...list, genre]);
   }
@@ -417,6 +411,38 @@ export default function AdminPage() {
     await loadAll();
   }
 
+  async function handleCheckLinks() {
+    setCheckingLinks(true);
+    setBrokenLinks([]);
+    const broken: { id: number; title: string; url: string; slug?: string }[] = [];
+    for (const a of animeList) {
+      const url = a.image_url;
+      if (!url || url.startsWith("/")) continue;
+      try {
+        const controller = new AbortController();
+        const t = setTimeout(() => controller.abort(), 7000);
+        const res = await fetch(url, { method: "HEAD", signal: controller.signal });
+        clearTimeout(t);
+        if (!res.ok) broken.push({ id: a.id, title: a.title, url, slug: a.slug });
+      } catch {
+        try {
+          const ok = await new Promise<boolean>((resolve) => {
+            const img = new window.Image();
+            img.onload = () => resolve(true);
+            img.onerror = () => resolve(false);
+            img.src = url;
+            setTimeout(() => resolve(false), 7000);
+          });
+          if (!ok) broken.push({ id: a.id, title: a.title, url, slug: a.slug });
+        } catch {
+          broken.push({ id: a.id, title: a.title, url, slug: a.slug });
+        }
+      }
+    }
+    setBrokenLinks(broken);
+    setCheckingLinks(false);
+  }
+
   async function handleAddRating() {
     if (!ratingAnimeId || !ratingUserId) return;
     await supabase.from("ratings").upsert(
@@ -452,6 +478,7 @@ export default function AdminPage() {
     ["users", "Пользователи", "fa-users"],
     ["ratings", "Рейтинги", "fa-star"],
     ["bans", "Баны / Муты", "fa-ban"],
+    ["tools", "Инструменты", "fa-screwdriver-wrench"],
   ];
 
   return (
@@ -530,7 +557,7 @@ export default function AdminPage() {
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
                   Slug (адресная строка) <span className="text-gray-600 font-normal">— если пусто, сгенерируется из названия</span>
                 </label>
-                <input value={newSlug} onChange={(e) => setNewSlug(e.target.value)} placeholder="naprimer-takoy-slug"
+                <input value={newSlug} onChange={(e) => setNewSlug(sanitizeSlugInput(e.target.value))} placeholder="naprimer-takoy-slug"
                   className="w-full bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-sky-500/50 transition-colors" />
               </div>
               <div className="flex gap-3">
@@ -598,7 +625,7 @@ export default function AdminPage() {
                     <div className="flex-1 space-y-2">
                       <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)}
                         className="w-full bg-[#121214] border border-[#222226] rounded px-2 py-1 text-xs text-white outline-none focus:border-sky-500/50" />
-                      <input value={editSlug} onChange={(e) => setEditSlug(e.target.value)} placeholder="slug (адресная строка)"
+                      <input value={editSlug} onChange={(e) => setEditSlug(sanitizeSlugInput(e.target.value))} placeholder="slug (адресная строка)"
                         className="w-full bg-[#121214] border border-[#222226] rounded px-2 py-1 text-xs text-white outline-none focus:border-sky-500/50" />
                       <input value={editSeason} onChange={(e) => setEditSeason(e.target.value)} placeholder="Сезон"
                         className="w-full bg-[#121214] border border-[#222226] rounded px-2 py-1 text-xs text-white outline-none focus:border-sky-500/50" />
@@ -956,7 +983,31 @@ export default function AdminPage() {
               {mutes.length === 0 && <p className="text-[11px] text-gray-600 text-center py-2">Мут-лист пуст</p>}
             </div>
           </div>
+        </div>
+      )}
 
+      {tab === "tools" && (
+        <div className="space-y-4">
+          <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-4">
+            <h4 className="text-[10px] font-bold text-sky-400 uppercase tracking-wider mb-3"><i className="fa-solid fa-link mr-1"></i> Проверка ссылок аниме</h4>
+            <p className="text-[11px] text-gray-500 mb-3">Проверяет image_url каждого аниме на доступность (HEAD → fallback Image). Битые покажет ниже.</p>
+            <button onClick={handleCheckLinks} disabled={checkingLinks} className="bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-xs font-bold px-4 py-1.5 rounded transition-all">
+              {checkingLinks ? "Проверка..." : "Проверить ссылки"}
+            </button>
+            {brokenLinks.length > 0 && (
+              <div className="mt-4 space-y-1.5">
+                <p className="text-[11px] text-red-400 font-bold">Найдено битых: {brokenLinks.length}</p>
+                {brokenLinks.map((b) => (
+                  <div key={b.id} className="bg-[#121214] border border-red-500/20 rounded px-3 py-2 flex items-center gap-3 text-xs">
+                    <span className="text-white flex-1 truncate">{b.title}</span>
+                    <span className="text-gray-500 truncate max-w-[220px]">{b.url}</span>
+                    <a href={b.slug ? `/anime/${b.slug}` : `/anime/${b.id}`} target="_blank" className="text-sky-400 hover:text-sky-300 text-[10px] font-bold px-2 py-1 rounded border border-sky-500/20">Открыть</a>
+                  </div>
+                ))}
+              </div>
+            )}
+            {!checkingLinks && brokenLinks.length === 0 && <p className="text-[11px] text-gray-600 mt-3">Нажми кнопку чтобы проверить. Если всё ок — список останется пустым.</p>}
+          </div>
         </div>
       )}
     </div>

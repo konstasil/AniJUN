@@ -7,6 +7,7 @@ import ImageUpload from "@/components/ImageUpload";
 import { ALL_GENRES, AGE_RATINGS, ANIME_STATUSES } from "@/lib/genres";
 import { ADMIN_IDS } from "@/lib/admin";
 import SeasonEditor, { SeasonDraft } from "@/components/SeasonEditor";
+import { generateSlug, sanitizeSlugInput } from "@/lib/slug";
 
 export default function AdminAddAnimePage() {
   const router = useRouter();
@@ -22,18 +23,11 @@ export default function AdminAddAnimePage() {
   const [genres, setGenres] = useState<string[]>([]);
   const [season, setSeason] = useState("Зима 2025");
   const [ageRating, setAgeRating] = useState("16+");
-  const [status, setStatus] = useState("announced");
+  const [status, setStatus] = useState("finished");
   const [posterUrl, setPosterUrl] = useState("");
   const [seasons, setSeasons] = useState<SeasonDraft[]>([{ number: 1, episodes: 12, note: "" }]);
 
-  function generateSlug(title: string): string {
-    return title
-      .toLowerCase()
-      .replace(/[^a-z0-9а-я\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '');
-  }
+
 
   useEffect(() => {
     async function check() {
@@ -121,7 +115,7 @@ export default function AdminAddAnimePage() {
           <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
             Slug (адресная строка) <span className="text-gray-600 font-normal">— если пусто, сгенерируется из названия</span>
           </label>
-          <input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="naprimer-takoy-slug"
+          <input value={slug} onChange={(e) => setSlug(sanitizeSlugInput(e.target.value))} placeholder="naprimer-takoy-slug"
             className="w-full bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-sky-500/50 transition-colors" />
         </div>
 

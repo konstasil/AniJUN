@@ -22,17 +22,23 @@ export const ALL_GENRES = [
   "Триллер",
   "Сёнэн",
   "Сёдзё",
+  "Сэйнэн",
   "Игры",
   "Школа",
   "Суперсила",
   "Сверхъестественное",
   "Sci-Fi",
+  "Гарем",
+  "Реверс-Гарем",
+  "Исекай",
+  "Магия",
+  "Лгбт",
 ];
 
 export const AGE_RATINGS = ["0+", "6+", "12+", "16+", "18+", "21+"];
 
 export const ANIME_STATUSES: { value: string; label: string }[] = [
+  { value: "finished", label: "Завершено" },
   { value: "ongoing", label: "Онгоинг (выходит сейчас)" },
   { value: "announced", label: "Анонс (запланировано)" },
-  { value: "finished", label: "Завершено" },
 ];
