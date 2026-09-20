@@ -296,12 +296,12 @@ export default function ProfilePage() {
           const anime = animeList?.find((a) => a.id === r.anime_id);
           return {
             id: r.anime_id,
-            title: anime?.title || "Unknown",
-            image_url: anime?.image_url || "",
+            title: (anime as unknown as { title: string })?.title || "Unknown",
+            image_url: (anime as unknown as { image_url: string })?.image_url || "",
             rating: r.rating,
-            age_rating: anime?.age_rating || "",
-            genres: (anime?.genres as string[]) || [],
-            season_info: anime?.season_info || "",
+            age_rating: (anime as unknown as { age_rating: string })?.age_rating || "",
+            genres: ((anime as unknown as { genres: string[] })?.genres as string[]) || [],
+            season_info: (anime as unknown as { season_info: string })?.season_info || "",
           };
         });
 
