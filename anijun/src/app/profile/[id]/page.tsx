@@ -41,6 +41,9 @@ interface Favorite {
   title: string;
   image_url: string;
   rating: number;
+  age_rating?: string;
+  genres?: string[];
+  season_info?: string;
 }
 
 interface RareAnime {
@@ -118,12 +121,12 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
 
       const { data: animeList } = await supabase
         .from("anime")
-        .select("id, title, image_url, genres");
+        .select("id, title, image_url, genres, age_rating, season_info");
       if (cancelled) return;
 
-      const titleMap = new Map<number, { title: string; image_url: string }>();
-      (animeList || []).forEach((a) => titleMap.set(a.id, { title: a.title, image_url: a.image_url }));
-      setAnimeTitles(titleMap);
+      const titleMap = new Map<number, { title: string; image_url: string; age_rating: string; genres: string[]; season_info: string }>();
+      (animeList || []).forEach((a) => titleMap.set(a.id, { title: a.title, image_url: a.image_url, age_rating: a.age_rating || "", genres: a.genres || [], season_info: a.season_info || "" }));
+      setAnimeTitles(titleMap as unknown as Map<number, { title: string; image_url: string }>);
 
       const { data: userList } = await supabase
         .from("user_anime_list")
@@ -169,12 +172,15 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
       const favs: Favorite[] = (userRatings || [])
         .filter((r) => r.rating >= 9)
         .map((r) => {
-          const meta = titleMap.get(r.anime_id);
+          const meta = titleMap.get(r.anime_id) as unknown as { title: string; image_url: string; age_rating: string; genres: string[]; season_info: string } | undefined;
           return {
             id: r.anime_id,
             title: meta?.title || "Без названия",
             image_url: meta?.image_url || "",
             rating: r.rating,
+            age_rating: meta?.age_rating || "",
+            genres: meta?.genres || [],
+            season_info: meta?.season_info || "",
           };
         });
 
@@ -615,7 +621,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
           <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-4">
             {favorites.map((f) => (
               <AnimeCard key={f.id} id={f.id} title={f.title} image_url={f.image_url}
-                genres={[]} season_info="" age_rating="" weighted_rating={f.rating} />
+                genres={f.genres || []} season_info={f.season_info || ""} age_rating={f.age_rating || ""} weighted_rating={f.rating} />
             ))}
           </div>
         </div>

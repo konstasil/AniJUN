@@ -31,6 +31,9 @@ interface FavoriteAnime {
   title: string;
   image_url: string;
   rating: number;
+  age_rating?: string;
+  genres?: string[];
+  season_info?: string;
 }
 
 interface ProfileData {
@@ -296,6 +299,9 @@ export default function ProfilePage() {
             title: anime?.title || "Unknown",
             image_url: anime?.image_url || "",
             rating: r.rating,
+            age_rating: anime?.age_rating || "",
+            genres: (anime?.genres as string[]) || [],
+            season_info: anime?.season_info || "",
           };
         });
 
@@ -1040,9 +1046,9 @@ export default function ProfilePage() {
                 id={f.id}
                 title={f.title}
                 image_url={f.image_url}
-                genres={[]}
-                season_info=""
-                age_rating=""
+                genres={f.genres || []}
+                season_info={f.season_info || ""}
+                age_rating={f.age_rating || ""}
                 weighted_rating={f.rating}
               />
             ))}

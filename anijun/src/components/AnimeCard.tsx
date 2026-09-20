@@ -82,9 +82,11 @@ export default function AnimeCard({
         <div className="absolute top-2 left-2 bg-black/80 border border-[#222226] text-[10px] font-bold text-sky-400 px-1.5 py-0.5 rounded z-20">
           ★ {ratingDisplay}
         </div>
-        <div className="absolute top-2 right-2 bg-black/80 border border-[#222226] text-[10px] font-bold text-gray-300 px-1.5 py-0.5 rounded z-20">
-          {age_rating}
-        </div>
+        {age_rating ? (
+          <div className="absolute top-2 right-2 bg-black/80 border border-[#222226] text-[10px] font-bold text-gray-300 px-1.5 py-0.5 rounded z-20">
+            {age_rating}
+          </div>
+        ) : null}
         <Image
           src={image_url}
           alt={title}
