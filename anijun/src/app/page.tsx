@@ -189,7 +189,7 @@ export default function HomePage() {
         .slice(0, 5);
 
       const unratedList = ratedAnime
-        .filter((a) => !ratingsMap.has(a.id))
+        .filter((a) => listMap.get(a.id) === "completed" && !ratingsMap.has(a.id))
         .slice(0, 5);
 
       if (!cancelled) {
