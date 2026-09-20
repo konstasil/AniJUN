@@ -604,11 +604,6 @@ export default function AdminPage() {
                     newGenres.includes(g) ? "bg-sky-500/20 text-sky-400 border-sky-500/30" : "bg-[#121214] text-gray-500 border-[#222226] hover:text-gray-300"
                   }`}>{g}</button>
               ))}
-              <button onClick={() => { if (newGenreAdmin.trim()) handleAddGenreAdmin(); }} className="text-[10px] font-bold px-2.5 py-1 rounded border border-dashed border-sky-500/30 text-sky-400 hover:bg-sky-500/10">+</button>
-            </div>
-            <div className="flex gap-2 mt-2">
-              <input value={newGenreAdmin} onChange={(e) => setNewGenreAdmin(e.target.value)} placeholder="Новый жанр" className="flex-1 bg-[#121214] border border-[#222226] rounded px-2 py-1 text-xs text-white outline-none focus:border-sky-500/50" />
-              <button onClick={handleAddGenreAdmin} className="px-3 py-1 rounded bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold">Добавить</button>
             </div>
           </div>
 
@@ -1000,6 +995,15 @@ export default function AdminPage() {
 
       {tab === "tools" && (
         <div className="space-y-4">
+          <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-4">
+            <h4 className="text-[10px] font-bold text-sky-400 uppercase tracking-wider mb-3"><i className="fa-solid fa-tags mr-1"></i> Добавить жанр</h4>
+            <p className="text-[11px] text-gray-500 mb-3">Напиши название и нажми «Добавить» — жанр сразу появится в меню создания.</p>
+            <div className="flex gap-2">
+              <input value={newGenreAdmin} onChange={(e) => setNewGenreAdmin(e.target.value)} placeholder="Новый жанр" className="flex-1 bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-sky-500/50" />
+              <button onClick={handleAddGenreAdmin} className="bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold px-4 py-1.5 rounded">Добавить жанр</button>
+            </div>
+            <p className="text-[10px] text-gray-600 mt-2">Всего жанров: {allGenresAdmin.length}</p>
+          </div>
           <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-4">
             <h4 className="text-[10px] font-bold text-sky-400 uppercase tracking-wider mb-3"><i className="fa-solid fa-link mr-1"></i> Проверка ссылок аниме</h4>
             <p className="text-[11px] text-gray-500 mb-3">Проверяет ссылку на страницу каждого аниме (/anime/slug). Битые покажет ниже.</p>
