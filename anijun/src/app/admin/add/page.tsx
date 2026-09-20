@@ -26,6 +26,8 @@ export default function AdminAddAnimePage() {
   const [status, setStatus] = useState("finished");
   const [posterUrl, setPosterUrl] = useState("");
   const [seasons, setSeasons] = useState<SeasonDraft[]>([{ number: 1, episodes: 12, note: "" }]);
+  const [allGenres, setAllGenres] = useState<string[]>(ALL_GENRES);
+  const [newGenre, setNewGenre] = useState("");
 
 
 
@@ -42,6 +44,26 @@ export default function AdminAddAnimePage() {
     }
     check();
   }, [router, supabase]);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from("genres").select("name").order("name");
+      if (data && data.length > 0) {
+        const dbNames = data.map((r) => r.name);
+        setAllGenres([...new Set([...ALL_GENRES, ...dbNames])]);
+      }
+    })();
+  }, [supabase]);
+
+  async function handleAddGenre() {
+    const name = newGenre.trim();
+    if (!name || allGenres.includes(name)) return;
+    const { error } = await supabase.from("genres").insert({ name });
+    if (error) { setError(error.message); return; }
+    setAllGenres((prev) => [...prev, name]);
+    setGenres((prev) => [...prev, name]);
+    setNewGenre("");
+  }
 
   function toggleGenre(g: string) {
     setGenres((prev) =>
@@ -153,12 +175,17 @@ export default function AdminAddAnimePage() {
         <div>
           <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">Жанры</label>
           <div className="flex flex-wrap gap-1.5">
-            {ALL_GENRES.map((g) => (
+            {allGenres.map((g) => (
               <button key={g} onClick={() => toggleGenre(g)}
                 className={`text-[10px] font-bold px-2.5 py-1 rounded border transition-all ${
                   genres.includes(g) ? "bg-sky-500/20 text-sky-400 border-sky-500/30" : "bg-[#121214] text-gray-500 border-[#222226] hover:text-gray-300"
                 }`}>{g}</button>
             ))}
+            <button onClick={() => { const n = newGenre.trim(); if (n) handleAddGenre(); }} className="text-[10px] font-bold px-2.5 py-1 rounded border border-dashed border-sky-500/30 text-sky-400 hover:bg-sky-500/10">+</button>
+          </div>
+          <div className="flex gap-2 mt-2">
+            <input value={newGenre} onChange={(e) => setNewGenre(e.target.value)} placeholder="Новый жанр" className="flex-1 bg-[#121214] border border-[#222226] rounded px-2 py-1 text-xs text-white outline-none focus:border-sky-500/50" />
+            <button onClick={handleAddGenre} className="px-3 py-1 rounded bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold">Добавить</button>
           </div>
         </div>
 
