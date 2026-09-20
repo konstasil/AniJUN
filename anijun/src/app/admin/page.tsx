@@ -55,7 +55,7 @@ interface RatingRow {
   anime?: { title: string }[];
 }
 
-type Tab = "add-anime" | "anime-list" | "suggestions" | "users" | "ratings" | "bans" | "tools";
+type Tab = "add-anime" | "anime-list" | "suggestions" | "users" | "ratings" | "bans" | "tools" | "genres";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -429,6 +429,16 @@ export default function AdminPage() {
     setNewGenreAdmin("");
   }
 
+  async function handleDeleteGenreAdmin(name: string) {
+    if (!confirm(`Удалить жанр "${name}"?`)) return;
+    const { error } = await supabase.from("genres").delete().eq("name", name);
+    if (error) { alert(error.message); return; }
+    setAllGenresAdmin((prev) => prev.filter((g) => g !== name));
+    setNewGenres((prev) => prev.filter((g) => g !== name));
+    setEditGenres((prev) => prev.filter((g) => g !== name));
+    setEditSuggGenres((prev) => prev.filter((g) => g !== name));
+  }
+
   async function handleCheckLinks() {
     setCheckingLinks(true);
     setBrokenLinks([]);
@@ -485,6 +495,7 @@ export default function AdminPage() {
     ["ratings", "Рейтинги", "fa-star"],
     ["bans", "Баны / Муты", "fa-ban"],
     ["tools", "Инструменты", "fa-screwdriver-wrench"],
+    ["genres", "Жанры", "fa-tags"],
   ];
 
   return (
@@ -1023,6 +1034,28 @@ export default function AdminPage() {
               </div>
             )}
             {!checkingLinks && brokenLinks.length === 0 && <p className="text-[11px] text-gray-600 mt-3">Нажми кнопку чтобы проверить. Если всё ок — список останется пустым.</p>}
+          </div>
+        </div>
+      )}
+
+      {tab === "genres" && (
+        <div className="space-y-4">
+          <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-4">
+            <h4 className="text-[10px] font-bold text-sky-400 uppercase tracking-wider mb-3"><i className="fa-solid fa-tags mr-1"></i> Жанры</h4>
+            <p className="text-[11px] text-gray-500 mb-3">Добавляй и удаляй жанры. Добавление остаётся и в «Инструментах».</p>
+            <div className="flex gap-2 mb-4">
+              <input value={newGenreAdmin} onChange={(e) => setNewGenreAdmin(e.target.value)} placeholder="Новый жанр" className="flex-1 bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-sky-500/50" />
+              <button onClick={handleAddGenreAdmin} className="bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold px-4 py-1.5 rounded">Добавить</button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {allGenresAdmin.map((g) => (
+                <span key={g} className="inline-flex items-center gap-1.5 bg-[#121214] border border-[#222226] rounded px-2.5 py-1 text-[10px] font-bold text-gray-300">
+                  {g}
+                  <button onClick={() => handleDeleteGenreAdmin(g)} className="text-gray-500 hover:text-red-400"><i className="fa-solid fa-xmark text-[9px]"></i></button>
+                </span>
+              ))}
+            </div>
+            <p className="text-[10px] text-gray-600 mt-3">Всего: {allGenresAdmin.length}</p>
           </div>
         </div>
       )}
