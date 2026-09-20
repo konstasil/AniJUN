@@ -74,6 +74,8 @@ export default function AdminPage() {
   const [newPosterUrl, setNewPosterUrl] = useState("");
   const [seasons, setSeasons] = useState<SeasonDraft[]>([{ number: 1, episodes: 12, note: "" }]);
   const [addingAnime, setAddingAnime] = useState(false);
+  const [allGenresAdmin, setAllGenresAdmin] = useState<string[]>(ALL_GENRES);
+  const [newGenreAdmin, setNewGenreAdmin] = useState("");
 
   const [animeList, setAnimeList] = useState<AnimeRow[]>([]);
   const [animeSearch, setAnimeSearch] = useState("");
@@ -170,6 +172,12 @@ export default function AdminPage() {
 
     const { data: profiles } = await supabase.from("profiles").select("id, username, created_at, is_verified").order("created_at", { ascending: false });
     if (profiles) setUsers(profiles as (ProfileRow & { is_verified?: boolean })[]);
+
+    const { data: genresData } = await supabase.from("genres").select("name").order("name");
+    if (genresData && genresData.length > 0) {
+      const dbNames = genresData.map((r) => r.name);
+      setAllGenresAdmin([...new Set([...ALL_GENRES, ...dbNames])]);
+    }
 
     const { data: adminsData } = await supabase.from("admins").select("user_id");
     if (adminsData) setAdmins(adminsData.map((a) => a.user_id));
@@ -411,6 +419,16 @@ export default function AdminPage() {
     await loadAll();
   }
 
+  async function handleAddGenreAdmin() {
+    const name = newGenreAdmin.trim();
+    if (!name || allGenresAdmin.includes(name)) return;
+    const { error } = await supabase.from("genres").insert({ name });
+    if (error) { alert(error.message); return; }
+    setAllGenresAdmin((prev) => [...prev, name]);
+    setNewGenres((prev) => [...prev, name]);
+    setNewGenreAdmin("");
+  }
+
   async function handleCheckLinks() {
     setCheckingLinks(true);
     setBrokenLinks([]);
@@ -580,12 +598,17 @@ export default function AdminPage() {
           <div>
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">Жанры</label>
             <div className="flex flex-wrap gap-1.5">
-              {ALL_GENRES.map((g) => (
+              {allGenresAdmin.map((g) => (
                 <button key={g} onClick={() => toggleGenre(g, newGenres, setNewGenres)}
                   className={`text-[10px] font-bold px-2.5 py-1 rounded border transition-all ${
                     newGenres.includes(g) ? "bg-sky-500/20 text-sky-400 border-sky-500/30" : "bg-[#121214] text-gray-500 border-[#222226] hover:text-gray-300"
                   }`}>{g}</button>
               ))}
+              <button onClick={() => { if (newGenreAdmin.trim()) handleAddGenreAdmin(); }} className="text-[10px] font-bold px-2.5 py-1 rounded border border-dashed border-sky-500/30 text-sky-400 hover:bg-sky-500/10">+</button>
+            </div>
+            <div className="flex gap-2 mt-2">
+              <input value={newGenreAdmin} onChange={(e) => setNewGenreAdmin(e.target.value)} placeholder="Новый жанр" className="flex-1 bg-[#121214] border border-[#222226] rounded px-2 py-1 text-xs text-white outline-none focus:border-sky-500/50" />
+              <button onClick={handleAddGenreAdmin} className="px-3 py-1 rounded bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold">Добавить</button>
             </div>
           </div>
 
@@ -628,7 +651,7 @@ export default function AdminPage() {
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-1">
-                    {ALL_GENRES.map((g) => (
+                    {allGenresAdmin.map((g) => (
                       <button key={g} onClick={() => toggleGenre(g, editGenres, setEditGenres)}
                         className={`text-[9px] font-bold px-2 py-0.5 rounded border transition-all ${
                           editGenres.includes(g) ? "bg-sky-500/20 text-sky-400 border-sky-500/30" : "bg-[#121214] text-gray-500 border-[#222226]"
@@ -704,7 +727,7 @@ export default function AdminPage() {
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-1">
-                    {ALL_GENRES.map((g) => (
+                    {allGenresAdmin.map((g) => (
                       <button key={g} onClick={() => toggleGenre(g, editSuggGenres, setEditSuggGenres)}
                         className={`text-[9px] font-bold px-2 py-0.5 rounded border transition-all ${
                           editSuggGenres.includes(g) ? "bg-sky-500/20 text-sky-400 border-sky-500/30" : "bg-[#121214] text-gray-500 border-[#222226]"
