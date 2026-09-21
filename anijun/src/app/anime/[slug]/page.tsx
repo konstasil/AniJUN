@@ -20,6 +20,7 @@ interface Season {
   season_number: number;
   episodes_count: number;
   note?: string;
+  age_rating?: string;
 }
 
 interface AnimeDetail {
@@ -74,10 +75,12 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
   const [editingSeasonId, setEditingSeasonId] = useState<number | null>(null);
   const [editSeasonNote, setEditSeasonNote] = useState("");
   const [editSeasonEps, setEditSeasonEps] = useState("");
+  const [editSeasonAgeRating, setEditSeasonAgeRating] = useState("");
   const [addingSeason, setAddingSeason] = useState(false);
   const [newSeasonNumber, setNewSeasonNumber] = useState(0);
   const [newSeasonEps, setNewSeasonEps] = useState(12);
   const [newSeasonNote, setNewSeasonNote] = useState("");
+  const [newSeasonAgeRating, setNewSeasonAgeRating] = useState("");
   const [expandedSeasons, setExpandedSeasons] = useState<Set<number>>(new Set());
 
   const animeIdRef = useRef<number | null>(null);
@@ -335,9 +338,9 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
   async function handleSaveSeason(seasonId: number) {
     const safeEps = Math.max(1, parseInt(editSeasonEps) || 12);
     await supabase.from("anime_seasons").update({
-      episodes_count: safeEps, note: editSeasonNote,
+      episodes_count: safeEps, note: editSeasonNote, age_rating: editSeasonAgeRating || "",
     }).eq("id", seasonId);
-    setAnime((a) => a ? { ...a, anime_seasons: a.anime_seasons.map((s) => s.id === seasonId ? { ...s, episodes_count: safeEps, note: editSeasonNote } : s) } : a);
+    setAnime((a) => a ? { ...a, anime_seasons: a.anime_seasons.map((s) => s.id === seasonId ? { ...s, episodes_count: safeEps, note: editSeasonNote, age_rating: editSeasonAgeRating } : s) } : a);
     setEditingSeasonId(null);
   }
 
@@ -367,11 +370,11 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
     const safeNumber = Math.max(1, Math.floor(Number(newSeasonNumber) || 0) || ((anime?.anime_seasons.length || 0) + 1));
     const safeEps = Math.max(1, Math.floor(Number(newSeasonEps) || 12));
     const { data } = await supabase.from("anime_seasons").insert({
-      anime_id: animeId, season_number: safeNumber, episodes_count: safeEps, note: newSeasonNote,
+      anime_id: animeId, season_number: safeNumber, episodes_count: safeEps, note: newSeasonNote, age_rating: newSeasonAgeRating || "",
     }).select().single();
     if (data) setAnime((a) => a ? { ...a, anime_seasons: [...a.anime_seasons, data].sort((x, y) => x.season_number - y.season_number) } : a);
     setAddingSeason(false);
-    setNewSeasonNumber(0); setNewSeasonEps(12); setNewSeasonNote("");
+    setNewSeasonNumber(0); setNewSeasonEps(12); setNewSeasonNote(""); setNewSeasonAgeRating("");
   }
 
   // === СКЕЛЕТ (пока аниме не загружено) ===
@@ -462,6 +465,7 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
               <div className="flex gap-2">
                 <input value={editSeason} onChange={(e) => setEditSeason(e.target.value)} className="flex-1 bg-[#121214] border border-[#222226] rounded px-2 py-1 text-xs text-white outline-none focus:border-sky-500/50" placeholder="Сезон" />
                 <select value={editAgeRating} onChange={(e) => setEditAgeRating(e.target.value)} className="bg-[#121214] border border-[#222226] rounded px-2 py-1 text-xs text-white outline-none">
+                  <option value="">Без рейтинга</option>
                   {AGE_RATINGS.map((r) => <option key={r} value={r}>{r}</option>)}
                 </select>
                 <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)} className="bg-[#121214] border border-[#222226] rounded px-2 py-1 text-xs text-white outline-none">
@@ -495,7 +499,7 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
                 {anime.status === "finished" && <span className="text-gray-500 font-bold">● Завершено</span>}
               </div>
               <div>Сезон: <span className="text-sky-400 font-semibold ml-1">{anime.season_info}</span></div>
-              <div>Рейтинг: <span className="border border-[#3a3a42] px-1.5 py-0.5 rounded text-[10px] text-gray-300 font-bold ml-1">{anime.age_rating}</span></div>
+              {anime.age_rating && <div>Рейтинг: <span className="border border-[#3a3a42] px-1.5 py-0.5 rounded text-[10px] text-gray-300 font-bold ml-1">{anime.age_rating}</span></div>}
               <div className="w-full flex flex-wrap gap-1 items-center mt-1">
                 <span>Жанры:</span>
                 {anime.genres?.map((g) => (
@@ -508,7 +512,12 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
 
           {/* Рейтинг — показываем сразу как загрузится */}
           {ratingsLoaded && (
-            <div className="bg-[#121214] p-4 rounded-lg border border-[#222226] mb-6">
+            anime.status === "announced" ? (
+              <div className="bg-[#121214] p-4 rounded-lg border border-[#222226] mb-6 text-center py-8">
+                <p className="text-sm text-gray-400">В данный момент оценка аниме закрыта, дождитесь официального выхода аниме и выставьте ему оценку</p>
+              </div>
+            ) : (
+              <div className="bg-[#121214] p-4 rounded-lg border border-[#222226] mb-6">
               <div className="flex flex-wrap items-center justify-between gap-4 text-xs mb-4 border-b border-[#222226] pb-3">
                 <div>
                   <span className="text-gray-500 block text-[10px] uppercase">Рейтинг</span>
@@ -568,6 +577,7 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
                 )}
               </div>
             </div>
+            )
           )}
 
           {userDataLoaded && (
@@ -604,6 +614,15 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
                       className="w-20 bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-white outline-none focus:border-sky-500/50" />
                     <input value={newSeasonNote} onChange={(e) => setNewSeasonNote(e.target.value)} placeholder="Название (опционально)"
                       className="flex-1 bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-white outline-none focus:border-sky-500/50" />
+                    <select value={newSeasonAgeRating} onChange={(e) => setNewSeasonAgeRating(e.target.value)} className="w-24 bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none">
+                      <option value="">Без рейтинга</option>
+                      <option value="0+">0+</option>
+                      <option value="6+">6+</option>
+                      <option value="12+">12+</option>
+                      <option value="16+">16+</option>
+                      <option value="18+">18+</option>
+                      <option value="21+">21+</option>
+                    </select>
                   </div>
                   <div className="flex gap-2">
                     <button onClick={handleAddSeason} className="bg-sky-500 hover:bg-sky-600 text-white text-[10px] font-bold px-3 py-1 rounded transition-all">Добавить</button>
@@ -625,6 +644,15 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
                               className="w-20 bg-[#1a1a1e] border border-[#222226] rounded px-2 py-1 text-white outline-none focus:border-sky-500/50" />
                             <input value={editSeasonNote} onChange={(e) => setEditSeasonNote(e.target.value)} placeholder="Название"
                               className="flex-1 bg-[#1a1a1e] border border-[#222226] rounded px-2 py-1 text-white outline-none focus:border-sky-500/50" />
+                            <select value={editSeasonAgeRating} onChange={(e) => setEditSeasonAgeRating(e.target.value)} className="w-24 bg-[#1a1a1e] border border-[#222226] rounded px-2 py-1 text-xs text-white outline-none">
+                              <option value="">Без рейтинга</option>
+                              <option value="0+">0+</option>
+                              <option value="6+">6+</option>
+                              <option value="12+">12+</option>
+                              <option value="16+">16+</option>
+                              <option value="18+">18+</option>
+                              <option value="21+">21+</option>
+                            </select>
                           </div>
                           <div className="flex gap-2">
                             <button onClick={() => handleSaveSeason(season.id)} className="bg-sky-500 hover:bg-sky-600 text-white text-[10px] font-bold px-2 py-1 rounded transition-all">Сохранить</button>
@@ -639,6 +667,7 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
                               <i className={`fa-solid ${expandedSeasons.has(season.id) ? "fa-chevron-up" : "fa-chevron-down"} text-[9px] text-gray-500`}></i>
                               {season.season_number} Сезон ({season.episodes_count} сер.)
                               {season.note ? <span className="text-gray-500 font-normal ml-1 hidden sm:inline">— {season.note}</span> : null}
+                              {season.age_rating && <span className="ml-2 border border-[#3a3a42] px-1 py-0.5 rounded text-[10px] text-gray-300 font-bold">{season.age_rating}</span>}
                             </button>
                             <div className="flex items-center gap-2 shrink-0">
                               {isAdmin && (

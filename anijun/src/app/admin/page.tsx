@@ -21,7 +21,7 @@ interface AnimeRow {
   age_rating: string;
   status?: string;
   created_at: string;
-  anime_seasons?: { id: number; season_number: number; episodes_count: number; note?: string }[];
+  anime_seasons?: { id: number; season_number: number; episodes_count: number; note?: string; age_rating?: string }[];
 }
 
 interface SuggestionRow {
@@ -231,10 +231,11 @@ export default function AdminPage() {
           season_number: i + 1,
           episodes_count: s.episodes,
           note: s.note || "",
+          age_rating: s.age_rating || "",
         });
       }
     }
-    setNewTitle(""); setNewSlug(""); setNewGenres([]); setNewPosterUrl(""); setNewStatus("announced"); setSeasons([{ number: 1, episodes: 12, note: "" }]);
+    setNewTitle(""); setNewSlug(""); setNewGenres([]); setNewPosterUrl(""); setNewStatus("finished"); setSeasons([{ number: 1, episodes: 12, note: "" }]);
     setAddingAnime(false);
     await loadAll();
     setTab("anime-list");
@@ -268,6 +269,7 @@ export default function AdminPage() {
       number: s.season_number,
       episodes: s.episodes_count,
       note: s.note || "",
+      age_rating: s.age_rating || "",
     })));
   }
 
@@ -298,6 +300,7 @@ export default function AdminPage() {
           season_number: i + 1,
           episodes_count: s.episodes,
           note: s.note || "",
+          age_rating: s.age_rating || "",
         }).eq("id", s.id);
       } else {
         await supabase.from("anime_seasons").insert({
@@ -305,6 +308,7 @@ export default function AdminPage() {
           season_number: i + 1,
           episodes_count: s.episodes,
           note: s.note || "",
+          age_rating: s.age_rating || "",
         });
       }
     }
@@ -587,6 +591,7 @@ export default function AdminPage() {
                   <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Возраст</label>
                   <select value={newAgeRating} onChange={(e) => setNewAgeRating(e.target.value)}
                     className="bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-sky-500/50 transition-colors">
+                    <option value="">Без рейтинга</option>
                     {AGE_RATINGS.map((r) => <option key={r} value={r}>{r}</option>)}
                   </select>
                 </div>

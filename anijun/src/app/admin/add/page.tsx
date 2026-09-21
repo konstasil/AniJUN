@@ -93,6 +93,7 @@ export default function AdminAddAnimePage() {
         season_number: i + 1,
         episodes_count: s.episodes,
         note: s.note || "",
+        age_rating: s.age_rating || "",
       });
     }
 
@@ -140,6 +141,7 @@ export default function AdminAddAnimePage() {
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Возраст</label>
             <select value={ageRating} onChange={(e) => setAgeRating(e.target.value)}
               className="bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-sky-500/50 transition-colors">
+              <option value="">Без рейтинга</option>
               {AGE_RATINGS.map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
           </div>
