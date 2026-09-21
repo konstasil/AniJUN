@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState, useMemo, useRef, Suspense, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import AnimeCard from "@/components/AnimeCard";
 import { ALL_GENRES } from "@/lib/genres";
@@ -51,6 +51,7 @@ export default function CatalogPage() {
 
 function CatalogContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { getEffectiveUserId } = useSimulatedUser();
 
   const [allAnime, setAllAnime] = useState<Anime[]>([]);
@@ -62,6 +63,12 @@ function CatalogContent() {
     if (tab === "ongoing" || tab === "announcements") return tab;
     return "catalog";
   });
+
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab === "ongoing" || tab === "announcements") setSubTab(tab);
+    else setSubTab("catalog");
+  }, [searchParams]);
 
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedGenres, setSelectedGenres] = useState<string[]>(() => {
@@ -256,7 +263,10 @@ function CatalogContent() {
             ] as [SubTab, string][]).map(([key, label]) => (
               <button
                 key={key}
-                onClick={() => setSubTab(key)}
+                onClick={() => {
+                  setSubTab(key);
+                  router.push(key === "catalog" ? "/catalog" : `/catalog?tab=${key}`, { scroll: false });
+                }}
                 className={`text-left px-3 py-2 rounded text-xs font-semibold transition-colors ${
                   subTab === key
                     ? "bg-[#222226] text-white"
