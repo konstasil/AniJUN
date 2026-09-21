@@ -24,6 +24,7 @@ export default function AdminAddAnimePage() {
   const [season, setSeason] = useState("Зима 2025");
   const [ageRating, setAgeRating] = useState("16+");
   const [status, setStatus] = useState("finished");
+  const [releaseDate, setReleaseDate] = useState("");
   const [posterUrl, setPosterUrl] = useState("");
   const [seasons, setSeasons] = useState<SeasonDraft[]>([{ number: 1, episodes: 12, note: "" }]);
   const [allGenres, setAllGenres] = useState<string[]>(ALL_GENRES);
@@ -76,6 +77,7 @@ export default function AdminAddAnimePage() {
         season_info: season,
         age_rating: ageRating,
         status,
+        release_date: status === "announced" && releaseDate ? releaseDate : null,
       })
       .select()
       .single();
@@ -153,6 +155,12 @@ export default function AdminAddAnimePage() {
             </select>
           </div>
         </div>
+        {status === "announced" && (
+          <div>
+            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Дата выхода (когда откроется оценка)</label>
+            <input type="date" value={releaseDate} onChange={(e) => setReleaseDate(e.target.value)} className="w-full bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-sky-500/50" />
+          </div>
+        )}
 
         <div>
           <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">URL постера</label>

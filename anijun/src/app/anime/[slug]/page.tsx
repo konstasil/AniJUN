@@ -32,6 +32,7 @@ interface AnimeDetail {
   season_info: string;
   age_rating: string;
   status?: string;
+  release_date?: string | null;
   anime_seasons: Season[];
 }
 
@@ -68,6 +69,7 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
   const [editSeason, setEditSeason] = useState("");
   const [editAgeRating, setEditAgeRating] = useState("16+");
   const [editStatus, setEditStatus] = useState("announced");
+  const [editReleaseDate, setEditReleaseDate] = useState("");
   const [toast, setToast] = useState<ToastData | null>(null);
   const [prevWeighted, setPrevWeighted] = useState<number | null>(null);
   const [animeTitle, setAnimeTitle] = useState("");
@@ -451,7 +453,7 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
           <div className="flex items-center gap-3 mb-4 pr-8">
             <h2 className="text-xl font-bold text-white flex-1">{anime.title}</h2>
             {isAdmin && !editingAnime && (
-              <button onClick={() => { setEditTitle(anime.title); setEditSlug(anime.slug || ""); setEditGenres(anime.genres || []); setEditSeason(anime.season_info); setEditAgeRating(anime.age_rating); setEditStatus(anime.status || "finished"); setEditingAnime(true); }}
+              <button onClick={() => { setEditTitle(anime.title); setEditSlug(anime.slug || ""); setEditGenres(anime.genres || []); setEditSeason(anime.season_info); setEditAgeRating(anime.age_rating); setEditStatus(anime.status || "finished"); setEditReleaseDate(anime.release_date || ""); setEditingAnime(true); }}
                 className="text-[10px] font-bold text-gray-400 hover:text-sky-400 px-2.5 py-1 rounded bg-[#121214] border border-[#222226] transition-all flex items-center gap-1.5 shrink-0">
                 <i className="fa-solid fa-pen"></i> Редактировать
               </button>
@@ -472,6 +474,9 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
                   {ANIME_STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
                 </select>
               </div>
+              {editStatus === "announced" && (
+                <input type="date" value={editReleaseDate} onChange={(e) => setEditReleaseDate(e.target.value)} className="w-full bg-[#121214] border border-[#222226] rounded px-3 py-2 text-sm text-white outline-none focus:border-sky-500/50" />
+              )}
               <div className="flex flex-wrap gap-1">
                 {ALL_GENRES.map((g) => (
                   <button key={g} onClick={() => setEditGenres((prev) => prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g])}
@@ -483,7 +488,7 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
                   if (animeId !== null) {
                     const newSlug = editSlug.trim() || generateSlug(editTitle.trim());
                     await supabase.from("anime").update({ title: editTitle, slug: newSlug, genres: editGenres, season_info: editSeason, age_rating: editAgeRating, status: editStatus }).eq("id", animeId);
-                    setAnime((a) => a ? { ...a, title: editTitle, slug: newSlug, genres: editGenres, season_info: editSeason, age_rating: editAgeRating, status: editStatus } : a);
+                    setAnime((a) => a ? { ...a, title: editTitle, slug: newSlug, genres: editGenres, season_info: editSeason, age_rating: editAgeRating, status: editStatus, release_date: editStatus === "announced" && editReleaseDate ? editReleaseDate : null } : a);
                     setAnimeTitle(editTitle); setEditingAnime(false);
                     router.replace(`/anime/${newSlug}`);
                   }
@@ -512,9 +517,9 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
 
           {/* Рейтинг — показываем сразу как загрузится */}
           {ratingsLoaded && (
-            anime.status === "announced" ? (
+            anime.status === "announced" && (!anime.release_date || new Date(anime.release_date) > new Date()) ? (
               <div className="bg-[#121214] p-4 rounded-lg border border-[#222226] mb-6 text-center py-8">
-                <p className="text-sm text-gray-400">В данный момент оценка аниме закрыта, дождитесь официального выхода аниме и выставьте ему оценку</p>
+                <p className="text-sm text-gray-400">В данный момент оценка аниме закрыта, дождитесь официального выхода аниме и выставьте ему оценку{anime.release_date ? ` — ${new Date(anime.release_date).toLocaleDateString("ru-RU")}` : ""}</p>
               </div>
             ) : (
               <div className="bg-[#121214] p-4 rounded-lg border border-[#222226] mb-6">

@@ -20,6 +20,7 @@ interface AnimeRow {
   season_info: string;
   age_rating: string;
   status?: string;
+  release_date?: string | null;
   created_at: string;
   anime_seasons?: { id: number; season_number: number; episodes_count: number; note?: string; age_rating?: string }[];
 }
@@ -71,6 +72,7 @@ export default function AdminPage() {
   const [newSeason, setNewSeason] = useState("Зима 2025");
   const [newAgeRating, setNewAgeRating] = useState("16+");
   const [newStatus, setNewStatus] = useState("finished");
+  const [newReleaseDate, setNewReleaseDate] = useState("");
   const [newPosterUrl, setNewPosterUrl] = useState("");
   const [seasons, setSeasons] = useState<SeasonDraft[]>([{ number: 1, episodes: 12, note: "" }]);
   const [addingAnime, setAddingAnime] = useState(false);
@@ -87,6 +89,7 @@ export default function AdminPage() {
   const [editSeason, setEditSeason] = useState("");
   const [editAgeRating, setEditAgeRating] = useState("16+");
   const [editStatus, setEditStatus] = useState("announced");
+  const [editReleaseDate, setEditReleaseDate] = useState("");
   const [editSeasons, setEditSeasons] = useState<SeasonDraft[]>([]);
 
   const [suggestions, setSuggestions] = useState<SuggestionRow[]>([]);
@@ -221,6 +224,7 @@ export default function AdminPage() {
       season_info: newSeason,
       age_rating: newAgeRating,
       status: newStatus,
+      release_date: newStatus === "announced" && newReleaseDate ? newReleaseDate : null,
     }).select().single();
 
     if (anime) {
@@ -263,7 +267,8 @@ export default function AdminPage() {
     setEditGenres(a.genres || []);
     setEditSeason(a.season_info);
     setEditAgeRating(a.age_rating);
-    setEditStatus(a.status || "announced");
+    setEditStatus(a.status || "finished");
+    setEditReleaseDate(a.release_date || "");
     setEditSeasons((a.anime_seasons || []).map((s) => ({
       id: s.id,
       number: s.season_number,
@@ -284,6 +289,7 @@ export default function AdminPage() {
       season_info: editSeason,
       age_rating: editAgeRating,
       status: editStatus,
+      release_date: editStatus === "announced" && editReleaseDate ? editReleaseDate : null,
     }).eq("id", editingAnime);
 
     const original = animeList.find((a) => a.id === editingAnime)?.anime_seasons || [];
@@ -603,6 +609,13 @@ export default function AdminPage() {
                   </select>
                 </div>
               </div>
+              {newStatus === "announced" && (
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Дата выхода (когда откроется оценка)</label>
+                  <input type="date" value={newReleaseDate} onChange={(e) => setNewReleaseDate(e.target.value)} className="w-full bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-sky-500/50" />
+                </div>
+              )}
+
               <div>
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">URL постера (или загрузите)</label>
                 <input value={newPosterUrl} onChange={(e) => setNewPosterUrl(e.target.value)} placeholder="https://..."
@@ -659,6 +672,9 @@ export default function AdminPage() {
                         className="bg-[#121214] border border-[#222226] rounded px-2 py-1 text-xs text-white outline-none">
                         {ANIME_STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
                       </select>
+                      {editStatus === "announced" && (
+                        <input type="date" value={editReleaseDate} onChange={(e) => setEditReleaseDate(e.target.value)} className="bg-[#121214] border border-[#222226] rounded px-2 py-1 text-xs text-white outline-none" />
+                      )}
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-1">
