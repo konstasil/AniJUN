@@ -68,16 +68,16 @@ export default function TopPage() {
         <span className="text-[10px] text-gray-600">Рейтинг</span>
       </div>
       <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl overflow-hidden overflow-x-auto">
-        <table className="w-full text-left text-xs border-collapse min-w-[640px]">
+        <table className="w-full text-left text-xs border-collapse min-w-0 md:min-w-[640px]">
           <thead>
             <tr className="border-b border-[#222226] bg-[#121214] text-gray-500">
-              <th className="py-3 px-3 font-bold text-center w-10">№</th>
-              <th className="py-3 px-3 font-bold w-16"></th>
-              <th className="py-3 px-3 font-bold">Название</th>
-              <th className="py-3 px-3 font-bold">Жанры</th>
-              <th className="py-3 px-3 font-bold text-center">Сезон</th>
-              <th className="py-3 px-3 font-bold text-right">Оценившие</th>
-              <th className="py-3 px-3 font-bold text-center w-16">Оценка</th>
+              <th className="py-2.5 md:py-3 px-2 md:px-3 font-bold text-center w-8 md:w-10">№</th>
+              <th className="py-2.5 md:py-3 px-2 md:px-3 font-bold w-12 md:w-16"></th>
+              <th className="py-2.5 md:py-3 px-2 md:px-3 font-bold">Название</th>
+              <th className="py-2.5 md:py-3 px-2 md:px-3 font-bold hidden md:table-cell">Жанры</th>
+              <th className="py-2.5 md:py-3 px-2 md:px-3 font-bold text-center hidden sm:table-cell">Сезон</th>
+              <th className="py-2.5 md:py-3 px-2 md:px-3 font-bold text-right hidden lg:table-cell">Оценившие</th>
+              <th className="py-2.5 md:py-3 px-2 md:px-3 font-bold text-center w-14 md:w-16">Оценка</th>
             </tr>
           </thead>
           <tbody>
@@ -91,9 +91,9 @@ export default function TopPage() {
                     place % 2 === 0 ? "bg-[#17171a]" : ""
                   }`}
                 >
-                  <td className="py-2.5 px-3 text-center font-bold text-gray-500">
+                  <td className="py-2 md:py-2.5 px-2 md:px-3 text-center font-bold text-gray-500">
                     {place <= 3 ? (
-                      <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-white text-[10px] font-black ${
+                      <span className={`inline-flex items-center justify-center w-5 h-5 md:w-6 md:h-6 rounded-full text-white text-[9px] md:text-[10px] font-black ${
                         place === 1 ? "bg-gradient-to-br from-amber-400 to-yellow-600 shadow-lg shadow-amber-500/20" :
                         place === 2 ? "bg-gradient-to-br from-gray-300 to-gray-500" :
                         "bg-gradient-to-br from-amber-700 to-orange-900"
@@ -104,27 +104,28 @@ export default function TopPage() {
                       place
                     )}
                   </td>
-                  <td className="py-2.5 px-3">
-                    <Link href={animeUrl} className="block w-[50px] h-[70px] rounded overflow-hidden bg-[#121214] relative">
+                  <td className="py-2 md:py-2.5 px-2 md:px-3">
+                    <Link href={animeUrl} className="block w-[42px] h-[58px] md:w-[50px] md:h-[70px] rounded overflow-hidden bg-[#121214] relative">
                       <Image src={a.image_url} alt={a.title} fill unoptimized className="object-cover" sizes="50px" />
                     </Link>
                   </td>
-                  <td className="py-2.5 px-3 font-bold text-gray-200 max-w-[220px]">
-                    <Link href={animeUrl} className="hover:text-sky-400 transition-colors line-clamp-2">
+                  <td className="py-2 md:py-2.5 px-2 md:px-3 font-bold text-gray-200 max-w-[140px] md:max-w-[220px]">
+                    <Link href={animeUrl} className="hover:text-sky-400 transition-colors line-clamp-2 text-[11px] md:text-xs">
                       {a.title}
                     </Link>
                     <span className="text-[10px] text-gray-600 font-normal"> {a.age_rating}</span>
+                    <span className="text-[10px] text-gray-500 md:hidden line-clamp-1">{a.genres.slice(0, 2).join(", ")}</span>
                   </td>
-                  <td className="py-2.5 px-3 text-gray-400 text-[11px] max-w-[180px] truncate">
+                  <td className="py-2 md:py-2.5 px-2 md:px-3 text-gray-400 text-[11px] max-w-[180px] truncate hidden md:table-cell">
                     {a.genres.join(", ")}
                   </td>
-                  <td className="py-2.5 px-3 text-center text-gray-500 whitespace-nowrap">
+                  <td className="py-2 md:py-2.5 px-2 md:px-3 text-center text-gray-500 whitespace-nowrap hidden sm:table-cell text-[11px] md:text-xs">
                     {a.season_info}
                   </td>
-                  <td className="py-2.5 px-3 text-right text-gray-400">
+                  <td className="py-2 md:py-2.5 px-2 md:px-3 text-right text-gray-400 hidden lg:table-cell">
                     {a.viewers}
                   </td>
-                  <td className="py-2.5 px-3 text-center font-bold text-sky-400 whitespace-nowrap">
+                  <td className="py-2 md:py-2.5 px-2 md:px-3 text-center font-bold text-sky-400 whitespace-nowrap text-[11px] md:text-xs">
                     {typeof a.weighted_rating === "number"
                       ? a.weighted_rating.toFixed(2)
                       : a.weighted_rating}
