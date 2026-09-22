@@ -27,7 +27,13 @@ function formatToHtml(text: string) {
   h = h.replace(/__(.+?)__/g, "<i>$1</i>");
   h = h.replace(/~~(.+?)~~/g, "<s>$1</s>");
   h = h.replace(/`(.+?)`/g, '<code class="bg-[#222226] px-1 py-0.5 rounded text-[11px]">$1</code>');
-  h = h.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-sky-400 hover:underline">$1</a>');
+  h = h.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_m, p1, p2) => {
+    let url = p2;
+    if (!/^https?:\/\//i.test(url) && !/^mailto:/i.test(url) && !/^#/.test(url)) url = "https://" + url;
+    const safeUrl = url.replace(/"/g, "&quot;");
+    const safeText = p1;
+    return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="text-sky-400 hover:underline">${safeText}</a>`;
+  });
   h = h.replace(/(?<!href="|">)(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-sky-400 hover:underline">$1</a>');
   return h;
 }
@@ -165,8 +171,9 @@ export default function ReviewsSection({ animeId, isAuthed, userId }: { animeId:
 
   function voteCount(id: number, dir: number) { return votes.filter((x) => x.comment_id === id && x.vote === dir).length; }
   function myVote(id: number) { return votes.find((x) => x.comment_id === id && x.user_id === userId)?.vote || 0; }
-  const roots = comments.filter((c) => !c.parent_id);
-  const children = (pid: number) => comments.filter((c) => c.parent_id === pid);
+  const visibleComments = comments.filter((c) => c.status !== "rejected");
+  const roots = visibleComments.filter((c) => !c.parent_id);
+  const children = (pid: number) => visibleComments.filter((c) => c.parent_id === pid);
 
   const Toolbar = ({ forType }: { forType: "main" | "reply" }) => (
     <div className="flex items-center gap-1 p-1 bg-[#1a1a1e] border border-[#222226] rounded-lg shadow-xl">
