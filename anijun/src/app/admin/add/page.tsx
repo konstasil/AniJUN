@@ -135,24 +135,24 @@ export default function AdminAddAnimePage() {
             className="w-full bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-xs sm:text-sm text-white outline-none focus:border-sky-500/50 transition-colors" />
         </div>
 
-        <div className="flex gap-2 sm:gap-3">
-          <div className="flex-1">
+        <div className="flex flex-wrap gap-2 sm:gap-3">
+          <div className="flex-1 min-w-[110px]">
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Сезон</label>
             <input value={season} onChange={(e) => setSeason(e.target.value)}
               className="w-full bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-xs sm:text-sm text-white outline-none focus:border-sky-500/50 transition-colors" />
           </div>
-          <div>
+          <div className="min-w-[90px] flex-1 sm:flex-none">
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Возраст</label>
             <select value={ageRating} onChange={(e) => setAgeRating(e.target.value)}
-              className="bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-xs sm:text-sm text-white outline-none focus:border-sky-500/50 transition-colors">
+              className="w-full bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-xs sm:text-sm text-white outline-none focus:border-sky-500/50 transition-colors">
               <option value="">Без рейтинга</option>
               {AGE_RATINGS.map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
           </div>
-          <div>
+          <div className="min-w-[120px] flex-1 sm:flex-none">
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Статус</label>
             <select value={status} onChange={(e) => setStatus(e.target.value)}
-              className="bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-xs sm:text-sm text-white outline-none focus:border-sky-500/50 transition-colors">
+              className="w-full bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-xs sm:text-sm text-white outline-none focus:border-sky-500/50 transition-colors">
               {ANIME_STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
             </select>
           </div>
@@ -175,10 +175,10 @@ export default function AdminAddAnimePage() {
 
         <div>
           <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">Жанры</label>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-2 sm:gap-1.5">
             {allGenres.map((g) => (
               <button key={g} onClick={() => toggleGenre(g)}
-                className={`text-[10px] font-bold px-2.5 py-1 rounded border transition-all ${
+                className={`text-[11px] sm:text-[10px] font-bold px-3 sm:px-2.5 py-1.5 sm:py-1 rounded border transition-all ${
                   genres.includes(g) ? "bg-sky-500/20 text-sky-400 border-sky-500/30" : "bg-[#121214] text-gray-500 border-[#222226] hover:text-gray-300"
                 }`}>{g}</button>
             ))}
