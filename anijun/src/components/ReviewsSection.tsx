@@ -127,11 +127,17 @@ export default function ReviewsSection({ animeId, isAuthed, userId }: { animeId:
       const { data: banned } = await supabase.rpc("is_current_user_banned");
       if (banned) { setError("Вы забанены"); return; }
     } catch {}
+    let hasBadWord = false;
+    try {
+      const { data: filters } = await supabase.from("comment_filters").select("word");
+      const lowerBody = body.toLowerCase();
+      hasBadWord = !!filters?.some((f) => lowerBody.includes(f.word.toLowerCase()));
+    } catch {}
     let myIp = null;
     try { const r = await fetch("/api/track-ip"); const j = await r.json(); myIp = j.ip || null; } catch {}
     let myVerified = false;
     try { const { data: prof } = await supabase.from("profiles").select("is_verified").eq("id", userId).single(); myVerified = !!prof?.is_verified; } catch {}
-    const status = isAdmin ? "approved" : "pending";
+    const status = hasBadWord ? "pending" : isAdmin ? "approved" : "pending";
     const payload: Record<string, unknown> = { user_id: userId, anime_id: animeId, text: body, parent_id: parentId, status, ip: myIp, user_verified: myVerified };
     let { error } = await supabase.from("comments").insert(payload);
     if (error && error.message.includes("ip")) {

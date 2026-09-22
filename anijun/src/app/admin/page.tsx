@@ -119,7 +119,9 @@ export default function AdminPage() {
   const [muteReason, setMuteReason] = useState("");
   const [muteDays, setMuteDays] = useState("");
   const [userIps, setUserIps] = useState<{ user_id: string; ip: string; user_agent: string | null; last_seen: string }[]>([]);
-  const [pendingComments, setPendingComments] = useState<{ id: number; user_id: string; text: string; created_at: string; anime_id: number; ip?: string | null; user_verified?: boolean | null; profiles?: { username: string }[] }[]>([]);
+  const [pendingComments, setPendingComments] = useState<{ id: number; user_id: string; text: string; created_at: string; anime_id: number; ip?: string | null; user_verified?: boolean | null; profiles?: { username: string }[]; anime?: { title: string; slug: string | null } | null }[]>([]);
+  const [filterWords, setFilterWords] = useState<{ id: number; word: string }[]>([]);
+  const [newFilterWord, setNewFilterWord] = useState("");
   const [checkingLinks, setCheckingLinks] = useState(false);
   const [brokenLinks, setBrokenLinks] = useState<{ id: number; title: string; url: string; slug?: string }[]>([]);
 
@@ -192,8 +194,12 @@ export default function AdminPage() {
     if (mutesData) setMutes(mutesData);
     const { data: ipsData } = await supabase.from("user_ips").select("user_id, ip, user_agent, last_seen").order("last_seen", { ascending: false }).limit(100);
     if (ipsData) setUserIps(ipsData);
-    const { data: pendingData } = await supabase.from("comments").select("id, user_id, text, created_at, anime_id, ip, user_verified, profiles:user_id(username)").eq("status", "pending").order("created_at", { ascending: false }).limit(50);
+    const { data: pendingData } = await supabase.from("comments").select("id, user_id, text, created_at, anime_id, ip, user_verified, profiles:user_id(username), anime:anime_id(title, slug)").eq("status", "pending").order("created_at", { ascending: false }).limit(50);
     if (pendingData) setPendingComments(pendingData as unknown as typeof pendingComments);
+    try {
+      const { data: filtersData } = await supabase.from("comment_filters").select("id, word").order("created_at", { ascending: false });
+      if (filtersData) setFilterWords(filtersData);
+    } catch {}
 
     const { data: r } = await supabase
       .from("ratings")
@@ -433,12 +439,29 @@ export default function AdminPage() {
   }
 
   async function handleApproveComment(id: number) {
-    await supabase.from("comments").update({ status: "approved" }).eq("id", id);
+    const { error } = await supabase.from("comments").update({ status: "approved" }).eq("id", id);
+    if (error) { alert("Ошибка: " + error.message); return; }
+    setPendingComments((prev) => prev.filter((c) => c.id !== id));
     await loadAll();
   }
   async function handleRejectComment(id: number) {
-    await supabase.from("comments").update({ status: "rejected" }).eq("id", id);
+    const { error } = await supabase.from("comments").update({ status: "rejected" }).eq("id", id);
+    if (error) { alert("Ошибка: " + error.message); return; }
+    setPendingComments((prev) => prev.filter((c) => c.id !== id));
     await loadAll();
+  }
+  async function handleAddFilterWord() {
+    const w = newFilterWord.trim();
+    if (!w) return;
+    const { error } = await supabase.from("comment_filters").insert({ word: w });
+    if (error) { alert(error.message); return; }
+    setNewFilterWord("");
+    const { data } = await supabase.from("comment_filters").select("id, word").order("created_at", { ascending: false });
+    if (data) setFilterWords(data);
+  }
+  async function handleRemoveFilterWord(id: number) {
+    await supabase.from("comment_filters").delete().eq("id", id);
+    setFilterWords((prev) => prev.filter((x) => x.id !== id));
   }
 
   async function handleAddGenreAdmin() {
@@ -1042,18 +1065,17 @@ export default function AdminPage() {
         <div className="space-y-4">
           <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-4">
             <h4 className="text-[10px] font-bold text-sky-400 uppercase tracking-wider mb-3"><i className="fa-solid fa-comments mr-1"></i> Комментарии на проверку</h4>
-            <p className="text-[11px] text-gray-500 mb-3">Сюда попадают новые комментарии от обычных пользователей. Админы — сразу публикуются.</p>
             <div className="space-y-2">
               {pendingComments.length === 0 && <p className="text-[11px] text-gray-600 text-center py-4">На проверке пусто</p>}
               {pendingComments.map((c) => (
                 <div key={c.id} className="bg-[#121214] border border-[#222226] rounded-lg p-3 flex flex-col gap-2">
-                  <div className="flex items-center gap-2 text-xs">
+                  <div className="flex items-center gap-2 text-xs flex-wrap">
                     <span className="font-bold text-white">{c.profiles?.[0]?.username || c.user_id.slice(0, 8)}</span>
                     <span className="text-[10px] text-gray-500 font-mono">{c.user_id}</span>
                     {c.user_verified ? <span className="text-[9px] bg-sky-500/20 text-sky-400 px-1.5 py-0.5 rounded">вериф</span> : <span className="text-[9px] bg-gray-700 text-gray-400 px-1.5 py-0.5 rounded">не вериф</span>}
                     {c.ip && <span className="text-[10px] text-amber-400 font-mono">IP: {c.ip}</span>}
                     <span className="text-[10px] text-gray-600 ml-auto">{new Date(c.created_at).toLocaleString("ru-RU")}</span>
-                    <a href={`/anime/${c.anime_id}`} target="_blank" className="text-sky-400 hover:text-sky-300 text-[10px]">Аниме #{c.anime_id}</a>
+                    <a href={`/anime/${c.anime?.slug || c.anime_id}`} target="_blank" className="text-sky-400 hover:text-sky-300 text-[10px] truncate max-w-[160px]">{c.anime?.title || `Аниме #${c.anime_id}`}</a>
                   </div>
                   <p className="text-xs text-gray-300 bg-[#1a1a1e] rounded p-2 border border-[#222226]/50 whitespace-pre-wrap break-words">{c.text}</p>
                   <div className="flex gap-2">
@@ -1065,11 +1087,21 @@ export default function AdminPage() {
             </div>
           </div>
           <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-4">
-            <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Быстрый бан/мут для комментов</h4>
-            <p className="text-[11px] text-gray-600 mb-2">Добавь запретку — следующие комменты этого пользователя сразу уйдут на проверку/блок.</p>
-            <div className="grid grid-cols-2 gap-2 text-[10px] text-gray-500">
-              <span>Бан по нику/почте/IP/UID → блок</span>
-              <span>Мут → только блок комментов</span>
+            <h4 className="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-3"><i className="fa-solid fa-filter mr-1"></i> Запрещённые слова</h4>
+            <p className="text-[11px] text-gray-500 mb-3">Комментарии с этим словом попадут на проверку, без бана и без автомата.</p>
+            <div className="flex gap-2 mb-3">
+              <input value={newFilterWord} onChange={(e) => setNewFilterWord(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAddFilterWord()} placeholder="Введите слово..."
+                className="flex-1 bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-amber-500/50" />
+              <button onClick={handleAddFilterWord} className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-4 py-1.5 rounded transition-all">Добавить</button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {filterWords.length === 0 && <span className="text-[11px] text-gray-600">Слов пока нет</span>}
+              {filterWords.map((w) => (
+                <span key={w.id} className="inline-flex items-center gap-1.5 bg-[#121214] border border-[#222226] rounded px-2 py-1 text-xs text-gray-300">
+                  {w.word}
+                  <button onClick={() => handleRemoveFilterWord(w.id)} className="text-gray-500 hover:text-red-400"><i className="fa-solid fa-xmark text-[9px]"></i></button>
+                </span>
+              ))}
             </div>
           </div>
         </div>
