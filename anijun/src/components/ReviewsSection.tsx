@@ -11,6 +11,7 @@ interface Comment {
   text: string;
   created_at: string;
   parent_id: number | null;
+  status?: string;
   profiles?: { username: string; avatar_url: string; is_verified?: boolean }[];
 }
 
@@ -25,6 +26,7 @@ function formatToHtml(text: string) {
   h = h.replace(/~~(.+?)~~/g, "<s>$1</s>");
   h = h.replace(/`(.+?)`/g, '<code class="bg-[#222226] px-1 py-0.5 rounded text-[11px]">$1</code>');
   h = h.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-sky-400 hover:underline">$1</a>');
+  h = h.replace(/(?<!href="|">)(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-sky-400 hover:underline">$1</a>');
   return h;
 }
 
@@ -43,7 +45,7 @@ export default function ReviewsSection({ animeId, isAuthed, userId }: { animeId:
   const [toolbar, setToolbar] = useState<{ show: boolean; for: "main" | "reply" | null }>({ show: false, for: null });
 
   const load = useCallback(async () => {
-    const { data } = await supabase.from("comments").select("id, user_id, text, created_at, parent_id").eq("anime_id", animeId).order("created_at", { ascending: true });
+    const { data } = await supabase.from("comments").select("id, user_id, text, created_at, parent_id, status").eq("anime_id", animeId).order("created_at", { ascending: true });
     if (!data || data.length === 0) { setComments([]); setVotes([]); setRatingsMap(new Map()); return; }
     const ids = [...new Set(data.map((c) => c.user_id))];
     const { data: profs } = await supabase.from("profiles").select("id, username, avatar_url, is_verified").in("id", ids);
@@ -123,9 +125,10 @@ export default function ReviewsSection({ animeId, isAuthed, userId }: { animeId:
       const { data: banned } = await supabase.rpc("is_current_user_banned");
       if (banned) { setError("Вы забанены"); return; }
     } catch {}
-    const { error } = await supabase.from("comments").insert({ user_id: userId, anime_id: animeId, text: body, parent_id: parentId });
+    const status = isAdmin ? "approved" : "pending";
+    const { error } = await supabase.from("comments").insert({ user_id: userId, anime_id: animeId, text: body, parent_id: parentId, status });
     if (error) { setError(error.message); return; }
-    setText(""); setReplyText(""); setReplyTo(null); setError(""); setToolbar({ show: false, for: null }); await load();
+    setText(""); setReplyText(""); setReplyTo(null); setError(""); await load();
   }
 
   async function handleVote(commentId: number, v: number) {
@@ -196,6 +199,7 @@ export default function ReviewsSection({ animeId, isAuthed, userId }: { animeId:
               </Link>
               <Link href={`/profile/${c.user_id}`} className="text-xs font-bold text-white hover:text-sky-400 truncate flex-1 flex items-center gap-1">{c.profiles?.[0]?.username || "Пользователь"} {c.profiles?.[0]?.is_verified && <VerifiedBadge size={14} />}</Link>
               {ratingsMap.get(c.user_id) && <span className="text-[10px] font-bold text-amber-400 border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 rounded">{ratingsMap.get(c.user_id)}/10</span>}
+              {c.status === "pending" && <span className="text-[9px] font-bold text-amber-400 border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 rounded">на проверке</span>}
               <span className="text-[10px] text-gray-600">{new Date(c.created_at).toLocaleDateString("ru-RU")}</span>
               {(c.user_id === userId || isAdmin) && <button onClick={() => handleDelete(c.id, c.user_id)} className="text-[10px] text-red-400 hover:text-red-300"><i className="fa-solid fa-trash-can"></i></button>}
             </div>
@@ -227,6 +231,7 @@ export default function ReviewsSection({ animeId, isAuthed, userId }: { animeId:
                     </Link>
                     <Link href={`/profile/${ch.user_id}`} className="text-xs font-bold text-white hover:text-sky-400 truncate flex-1 flex items-center gap-1">{ch.profiles?.[0]?.username || "Пользователь"} {ch.profiles?.[0]?.is_verified && <VerifiedBadge size={12} />}</Link>
                     {ratingsMap.get(ch.user_id) && <span className="text-[9px] font-bold text-amber-400 border border-amber-400/30 bg-amber-400/10 px-1 py-0.5 rounded">{ratingsMap.get(ch.user_id)}/10</span>}
+                    {ch.status === "pending" && <span className="text-[8px] font-bold text-amber-400 border border-amber-400/30 bg-amber-400/10 px-1 py-0.5 rounded">на проверке</span>}
                     <span className="text-[10px] text-gray-600">{new Date(ch.created_at).toLocaleDateString("ru-RU")}</span>
                     {(ch.user_id === userId || isAdmin) && <button onClick={() => handleDelete(ch.id, ch.user_id)} className="text-[10px] text-red-400"><i className="fa-solid fa-trash-can"></i></button>}
                   </div>

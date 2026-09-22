@@ -119,6 +119,7 @@ export default function AdminPage() {
   const [muteReason, setMuteReason] = useState("");
   const [muteDays, setMuteDays] = useState("");
   const [userIps, setUserIps] = useState<{ user_id: string; ip: string; user_agent: string | null; last_seen: string }[]>([]);
+  const [pendingComments, setPendingComments] = useState<{ id: number; user_id: string; text: string; created_at: string; anime_id: number; profiles?: { username: string }[] }[]>([]);
   const [checkingLinks, setCheckingLinks] = useState(false);
   const [brokenLinks, setBrokenLinks] = useState<{ id: number; title: string; url: string; slug?: string }[]>([]);
 
@@ -191,6 +192,8 @@ export default function AdminPage() {
     if (mutesData) setMutes(mutesData);
     const { data: ipsData } = await supabase.from("user_ips").select("user_id, ip, user_agent, last_seen").order("last_seen", { ascending: false }).limit(100);
     if (ipsData) setUserIps(ipsData);
+    const { data: pendingData } = await supabase.from("comments").select("id, user_id, text, created_at, anime_id, profiles:user_id(username)").eq("status", "pending").order("created_at", { ascending: false }).limit(50);
+    if (pendingData) setPendingComments(pendingData as unknown as typeof pendingComments);
 
     const { data: r } = await supabase
       .from("ratings")
@@ -426,6 +429,15 @@ export default function AdminPage() {
   }
   async function handleRemoveMute(id: number) {
     await supabase.from("mutes").delete().eq("id", id);
+    await loadAll();
+  }
+
+  async function handleApproveComment(id: number) {
+    await supabase.from("comments").update({ status: "approved" }).eq("id", id);
+    await loadAll();
+  }
+  async function handleRejectComment(id: number) {
+    await supabase.from("comments").update({ status: "rejected" }).eq("id", id);
     await loadAll();
   }
 
@@ -1020,6 +1032,20 @@ export default function AdminPage() {
                 </div>
               ))}
               {mutes.length === 0 && <p className="text-[11px] text-gray-600 text-center py-2">Мут-лист пуст</p>}
+            </div>
+          </div>
+          <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-4">
+            <h4 className="text-[10px] font-bold text-sky-400 uppercase tracking-wider mb-3"><i className="fa-solid fa-comments mr-1"></i> Комментарии на проверку</h4>
+            <div className="space-y-1.5">
+              {pendingComments.length === 0 && <p className="text-[11px] text-gray-600 text-center py-2">На проверке пусто</p>}
+              {pendingComments.map((c) => (
+                <div key={c.id} className="bg-[#121214] border border-[#222226] rounded px-3 py-2 flex items-center gap-3 text-xs">
+                  <span className="text-white flex-1 truncate">{c.text.slice(0, 80)}</span>
+                  <span className="text-gray-500 text-[10px] truncate">{c.profiles?.[0]?.username || c.user_id.slice(0, 8)} · {new Date(c.created_at).toLocaleDateString("ru-RU")}</span>
+                  <button onClick={() => handleApproveComment(c.id)} className="text-green-400 hover:text-green-300 border border-green-500/20 px-2 py-1 rounded text-[10px]">Одобрить</button>
+                  <button onClick={() => handleRejectComment(c.id)} className="text-red-400 hover:text-red-300 border border-red-500/20 px-2 py-1 rounded text-[10px]">Отклонить</button>
+                </div>
+              ))}
             </div>
           </div>
         </div>
