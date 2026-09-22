@@ -142,3 +142,18 @@ body {
     opacity: 0.92;
   }
 }
+
+.spoiler {
+  background: #2a2a31;
+  color: transparent;
+  border-radius: 4px;
+  padding: 0 4px;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s;
+}
+.spoiler.revealed {
+  background: #3a3a4a;
+  color: #f4f4f5;
+  user-select: text;
+}

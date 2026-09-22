@@ -1,6 +1,6 @@
 "use client";
 import { createClient } from "@/lib/supabase/client";
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import VerifiedBadge from "@/components/VerifiedBadge";
@@ -14,6 +14,20 @@ interface Comment {
   profiles?: { username: string; avatar_url: string; is_verified?: boolean }[];
 }
 
+function escapeHtml(s: string) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+function formatToHtml(text: string) {
+  let h = escapeHtml(text);
+  h = h.replace(/\|\|(.+?)\|\|/g, '<span class="spoiler" onclick="this.classList.toggle(\'revealed\')">$1</span>');
+  h = h.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
+  h = h.replace(/__(.+?)__/g, "<i>$1</i>");
+  h = h.replace(/~~(.+?)~~/g, "<s>$1</s>");
+  h = h.replace(/`(.+?)`/g, '<code class="bg-[#222226] px-1 py-0.5 rounded text-[11px]">$1</code>');
+  h = h.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-sky-400 hover:underline">$1</a>');
+  return h;
+}
+
 export default function ReviewsSection({ animeId, isAuthed, userId }: { animeId: number; isAuthed: boolean; userId: string | null; defaultRating?: number | "-" }) {
   const supabase = useMemo(() => createClient(), []);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -24,6 +38,9 @@ export default function ReviewsSection({ animeId, isAuthed, userId }: { animeId:
   const [replyText, setReplyText] = useState("");
   const [error, setError] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
+  const mainRef = useRef<HTMLTextAreaElement>(null);
+  const replyRef = useRef<HTMLInputElement>(null);
+  const [toolbar, setToolbar] = useState<{ show: boolean; for: "main" | "reply" | null }>({ show: false, for: null });
 
   const load = useCallback(async () => {
     const { data } = await supabase.from("comments").select("id, user_id, text, created_at, parent_id").eq("anime_id", animeId).order("created_at", { ascending: true });
@@ -49,6 +66,53 @@ export default function ReviewsSection({ animeId, isAuthed, userId }: { animeId:
     supabase.rpc("is_admin").then(({ data }) => setIsAdmin(!!data));
   }, [userId, supabase]);
 
+  function checkSelection(forType: "main" | "reply") {
+    const el = forType === "main" ? mainRef.current : replyRef.current;
+    if (!el) { setToolbar({ show: false, for: null }); return; }
+    const start = el.selectionStart ?? 0;
+    const end = el.selectionEnd ?? 0;
+    if (end > start) setToolbar({ show: true, for: forType });
+    else setToolbar({ show: false, for: null });
+  }
+
+  function wrapSelection(forType: "main" | "reply", before: string, after: string) {
+    const el = forType === "main" ? mainRef.current : replyRef.current;
+    if (!el) return;
+    const start = el.selectionStart ?? 0;
+    const end = el.selectionEnd ?? 0;
+    const val = forType === "main" ? text : replyText;
+    const selected = val.substring(start, end);
+    if (!selected) return;
+    const next = val.substring(0, start) + before + selected + after + val.substring(end);
+    if (forType === "main") setText(next);
+    else setReplyText(next);
+    setTimeout(() => {
+      el.focus();
+      el.setSelectionRange(start + before.length, end + before.length);
+      checkSelection(forType);
+    }, 0);
+  }
+
+  function handleSpoiler(forType: "main" | "reply") { wrapSelection(forType, "||", "||"); }
+  function handleBold(forType: "main" | "reply") { wrapSelection(forType, "**", "**"); }
+  function handleItalic(forType: "main" | "reply") { wrapSelection(forType, "__", "__"); }
+  function handleStrike(forType: "main" | "reply") { wrapSelection(forType, "~~", "~~"); }
+  function handleMono(forType: "main" | "reply") { wrapSelection(forType, "`", "`"); }
+  function handleLink(forType: "main" | "reply") {
+    const el = forType === "main" ? mainRef.current : replyRef.current;
+    if (!el) return;
+    const start = el.selectionStart ?? 0;
+    const end = el.selectionEnd ?? 0;
+    const val = forType === "main" ? text : replyText;
+    const selected = val.substring(start, end);
+    if (!selected) return;
+    const url = prompt("Введите ссылку:");
+    if (!url) return;
+    const next = val.substring(0, start) + `[${selected}](${url})` + val.substring(end);
+    if (forType === "main") setText(next);
+    else setReplyText(next);
+  }
+
   async function handlePost(parentId: number | null) {
     if (!userId) return;
     const body = parentId ? replyText.trim() : text.trim();
@@ -61,7 +125,7 @@ export default function ReviewsSection({ animeId, isAuthed, userId }: { animeId:
     } catch {}
     const { error } = await supabase.from("comments").insert({ user_id: userId, anime_id: animeId, text: body, parent_id: parentId });
     if (error) { setError(error.message); return; }
-    setText(""); setReplyText(""); setReplyTo(null); setError(""); await load();
+    setText(""); setReplyText(""); setReplyTo(null); setError(""); setToolbar({ show: false, for: null }); await load();
   }
 
   async function handleVote(commentId: number, v: number) {
@@ -85,6 +149,18 @@ export default function ReviewsSection({ animeId, isAuthed, userId }: { animeId:
   const roots = comments.filter((c) => !c.parent_id);
   const children = (pid: number) => comments.filter((c) => c.parent_id === pid);
 
+  const Toolbar = ({ forType }: { forType: "main" | "reply" }) => (
+    <div className="flex items-center gap-1 p-1 bg-[#1a1a1e] border border-[#222226] rounded-lg shadow-xl">
+      <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => handleBold(forType)} className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#222226] text-gray-300 hover:text-white text-xs font-black">B</button>
+      <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => handleItalic(forType)} className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#222226] text-gray-300 hover:text-white text-xs italic">I</button>
+      <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => handleStrike(forType)} className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#222226] text-gray-300 hover:text-white text-xs line-through">S</button>
+      <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => handleMono(forType)} className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#222226] text-gray-300 hover:text-white text-[10px] font-mono">{"</>"}</button>
+      <div className="w-px h-5 bg-[#222226]" />
+      <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => handleSpoiler(forType)} className="px-2 h-7 flex items-center justify-center rounded hover:bg-[#222226] text-gray-300 hover:text-white text-[10px] font-bold gap-1"><i className="fa-solid fa-eye-slash text-[10px]"></i> Скрытый</button>
+      <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => handleLink(forType)} className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#222226] text-sky-400 hover:text-white"><i className="fa-solid fa-link text-[10px]"></i></button>
+    </div>
+  );
+
   return (
     <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-5">
       <div className="flex items-center gap-2 mb-4">
@@ -95,8 +171,15 @@ export default function ReviewsSection({ animeId, isAuthed, userId }: { animeId:
 
       {isAuthed && userId ? (
         <div className="mb-5 p-3 bg-[#121214] border border-[#222226] rounded-lg flex flex-col gap-2">
-          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={2} placeholder="Написать комментарий..."
-            className="w-full bg-[#1a1a1e] border border-[#222226] rounded px-3 py-2 text-xs text-white outline-none focus:border-sky-500/50 resize-none" />
+          <div className="relative">
+            {toolbar.show && toolbar.for === "main" && (
+              <div className="absolute -top-10 left-1/2 -translate-x-1/2 z-10">
+                <Toolbar forType="main" />
+              </div>
+            )}
+            <textarea ref={mainRef} value={text} onChange={(e) => setText(e.target.value)} onSelect={() => checkSelection("main")} onMouseUp={() => checkSelection("main")} onKeyUp={() => checkSelection("main")} onBlur={() => setTimeout(() => setToolbar({ show: false, for: null }), 150)} rows={2} placeholder="Написать комментарий... Выделите текст для форматирования" className="w-full bg-[#1a1a1e] border border-[#222226] rounded px-3 py-2 text-xs text-white outline-none focus:border-sky-500/50 resize-none" />
+          </div>
+          <p className="text-[10px] text-gray-600">Выделите текст → появится меню: жирный, курсив, скрытый || ||</p>
           {error && <p className="text-[10px] text-red-400">{error}</p>}
           <button onClick={() => handlePost(null)} className="self-start bg-sky-500 hover:bg-sky-600 text-white text-[10px] font-bold px-3 py-1.5 rounded transition-all">Отправить</button>
         </div>
@@ -117,16 +200,23 @@ export default function ReviewsSection({ animeId, isAuthed, userId }: { animeId:
               <span className="text-[10px] text-gray-600">{new Date(c.created_at).toLocaleDateString("ru-RU")}</span>
               {(c.user_id === userId || isAdmin) && <button onClick={() => handleDelete(c.id, c.user_id)} className="text-[10px] text-red-400 hover:text-red-300"><i className="fa-solid fa-trash-can"></i></button>}
             </div>
-            <p className="text-xs text-gray-300 whitespace-pre-wrap break-words">{c.text}</p>
+            <div className="text-xs text-gray-300 whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: formatToHtml(c.text) }} />
             <div className="flex items-center gap-2 mt-2">
               <button onClick={() => handleVote(c.id, 1)} className={`flex items-center gap-1 text-[11px] px-2 py-1 rounded border ${myVote(c.id) === 1 ? "bg-green-500/20 text-green-400 border-green-500/30" : "text-gray-500 border-[#222226] hover:text-green-400"}`}><i className="fa-solid fa-thumbs-up text-[10px]"></i> {voteCount(c.id, 1) || ""}</button>
               <button onClick={() => handleVote(c.id, -1)} className={`flex items-center gap-1 text-[11px] px-2 py-1 rounded border ${myVote(c.id) === -1 ? "bg-red-500/20 text-red-400 border-red-500/30" : "text-gray-500 border-[#222226] hover:text-red-400"}`}><i className="fa-solid fa-thumbs-down text-[10px]"></i> {voteCount(c.id, -1) || ""}</button>
               {isAuthed && <button onClick={() => setReplyTo(replyTo === c.id ? null : c.id)} className="text-[11px] text-sky-400 hover:text-sky-300 ml-2"><i className="fa-solid fa-reply mr-1"></i>Ответить</button>}
             </div>
             {replyTo === c.id && (
-              <div className="mt-3 flex gap-2">
-                <input value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Ответ..." className="flex-1 bg-[#1a1a1e] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none" />
-                <button onClick={() => handlePost(c.id)} className="bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold px-3 rounded">Отправить</button>
+              <div className="mt-3 flex flex-col gap-2">
+                <div className="relative">
+                  {toolbar.show && toolbar.for === "reply" && (
+                    <div className="absolute -top-10 left-1/2 -translate-x-1/2 z-10">
+                      <Toolbar forType="reply" />
+                    </div>
+                  )}
+                  <input ref={replyRef} value={replyText} onChange={(e) => setReplyText(e.target.value)} onSelect={() => checkSelection("reply")} onMouseUp={() => checkSelection("reply")} onKeyUp={() => checkSelection("reply")} onBlur={() => setTimeout(() => setToolbar({ show: false, for: null }), 150)} placeholder="Ответ..." className="w-full bg-[#1a1a1e] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none" />
+                </div>
+                <button onClick={() => handlePost(c.id)} className="self-start bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold px-3 py-1 rounded">Отправить</button>
               </div>
             )}
             <div className="mt-3 flex flex-col gap-2">
@@ -141,7 +231,7 @@ export default function ReviewsSection({ animeId, isAuthed, userId }: { animeId:
                     <span className="text-[10px] text-gray-600">{new Date(ch.created_at).toLocaleDateString("ru-RU")}</span>
                     {(ch.user_id === userId || isAdmin) && <button onClick={() => handleDelete(ch.id, ch.user_id)} className="text-[10px] text-red-400"><i className="fa-solid fa-trash-can"></i></button>}
                   </div>
-                  <p className="text-xs text-gray-300 whitespace-pre-wrap break-words">{ch.text}</p>
+                  <div className="text-xs text-gray-300 whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: formatToHtml(ch.text) }} />
                   <div className="flex items-center gap-2 mt-1.5">
                     <button onClick={() => handleVote(ch.id, 1)} className={`flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border ${myVote(ch.id) === 1 ? "bg-green-500/20 text-green-400 border-green-500/30" : "text-gray-500 border-[#222226]"}`}><i className="fa-solid fa-thumbs-up text-[10px]"></i> {voteCount(ch.id, 1) || ""}</button>
                     <button onClick={() => handleVote(ch.id, -1)} className={`flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border ${myVote(ch.id) === -1 ? "bg-red-500/20 text-red-400 border-red-500/30" : "text-gray-500 border-[#222226]"}`}><i className="fa-solid fa-thumbs-down text-[10px]"></i> {voteCount(ch.id, -1) || ""}</button>
