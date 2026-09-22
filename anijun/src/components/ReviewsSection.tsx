@@ -12,6 +12,8 @@ interface Comment {
   created_at: string;
   parent_id: number | null;
   status?: string;
+  ip?: string | null;
+  user_verified?: boolean;
   profiles?: { username: string; avatar_url: string; is_verified?: boolean }[];
 }
 
@@ -45,7 +47,7 @@ export default function ReviewsSection({ animeId, isAuthed, userId }: { animeId:
   const [toolbar, setToolbar] = useState<{ show: boolean; for: "main" | "reply" | null }>({ show: false, for: null });
 
   const load = useCallback(async () => {
-    const { data } = await supabase.from("comments").select("id, user_id, text, created_at, parent_id, status").eq("anime_id", animeId).order("created_at", { ascending: true });
+    const { data } = await supabase.from("comments").select("id, user_id, text, created_at, parent_id, status, ip, user_verified").eq("anime_id", animeId).order("created_at", { ascending: true });
     if (!data || data.length === 0) { setComments([]); setVotes([]); setRatingsMap(new Map()); return; }
     const ids = [...new Set(data.map((c) => c.user_id))];
     const { data: profs } = await supabase.from("profiles").select("id, username, avatar_url, is_verified").in("id", ids);
@@ -125,9 +127,17 @@ export default function ReviewsSection({ animeId, isAuthed, userId }: { animeId:
       const { data: banned } = await supabase.rpc("is_current_user_banned");
       if (banned) { setError("Вы забанены"); return; }
     } catch {}
+    let myIp = null;
+    try { const r = await fetch("/api/track-ip"); const j = await r.json(); myIp = j.ip || null; } catch {}
+    let myVerified = false;
+    try { const { data: prof } = await supabase.from("profiles").select("is_verified").eq("id", userId).single(); myVerified = !!prof?.is_verified; } catch {}
     const status = isAdmin ? "approved" : "pending";
-    const { error } = await supabase.from("comments").insert({ user_id: userId, anime_id: animeId, text: body, parent_id: parentId, status });
-    if (error) { setError(error.message); return; }
+    const payload: Record<string, unknown> = { user_id: userId, anime_id: animeId, text: body, parent_id: parentId, status, ip: myIp, user_verified: myVerified };
+    let { error } = await supabase.from("comments").insert(payload);
+    if (error && error.message.includes("ip")) {
+      const { error: e2 } = await supabase.from("comments").insert({ user_id: userId, anime_id: animeId, text: body, parent_id: parentId, status });
+      if (e2) { setError(e2.message); return; }
+    } else if (error) { setError(error.message); return; }
     setText(""); setReplyText(""); setReplyTo(null); setError(""); await load();
   }
 

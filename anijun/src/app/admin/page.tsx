@@ -56,7 +56,7 @@ interface RatingRow {
   anime?: { title: string }[];
 }
 
-type Tab = "add-anime" | "anime-list" | "suggestions" | "users" | "ratings" | "bans" | "tools" | "genres";
+type Tab = "add-anime" | "anime-list" | "suggestions" | "users" | "ratings" | "bans" | "tools" | "genres" | "comments";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -119,7 +119,7 @@ export default function AdminPage() {
   const [muteReason, setMuteReason] = useState("");
   const [muteDays, setMuteDays] = useState("");
   const [userIps, setUserIps] = useState<{ user_id: string; ip: string; user_agent: string | null; last_seen: string }[]>([]);
-  const [pendingComments, setPendingComments] = useState<{ id: number; user_id: string; text: string; created_at: string; anime_id: number; profiles?: { username: string }[] }[]>([]);
+  const [pendingComments, setPendingComments] = useState<{ id: number; user_id: string; text: string; created_at: string; anime_id: number; ip?: string | null; user_verified?: boolean | null; profiles?: { username: string }[] }[]>([]);
   const [checkingLinks, setCheckingLinks] = useState(false);
   const [brokenLinks, setBrokenLinks] = useState<{ id: number; title: string; url: string; slug?: string }[]>([]);
 
@@ -192,7 +192,7 @@ export default function AdminPage() {
     if (mutesData) setMutes(mutesData);
     const { data: ipsData } = await supabase.from("user_ips").select("user_id, ip, user_agent, last_seen").order("last_seen", { ascending: false }).limit(100);
     if (ipsData) setUserIps(ipsData);
-    const { data: pendingData } = await supabase.from("comments").select("id, user_id, text, created_at, anime_id, profiles:user_id(username)").eq("status", "pending").order("created_at", { ascending: false }).limit(50);
+    const { data: pendingData } = await supabase.from("comments").select("id, user_id, text, created_at, anime_id, ip, user_verified, profiles:user_id(username)").eq("status", "pending").order("created_at", { ascending: false }).limit(50);
     if (pendingData) setPendingComments(pendingData as unknown as typeof pendingComments);
 
     const { data: r } = await supabase
@@ -518,6 +518,7 @@ export default function AdminPage() {
     ["bans", "Баны / Муты", "fa-ban"],
     ["tools", "Инструменты", "fa-screwdriver-wrench"],
     ["genres", "Жанры", "fa-tags"],
+    ["comments", "Комментарии", "fa-comments"],
   ];
 
   return (
@@ -1034,18 +1035,41 @@ export default function AdminPage() {
               {mutes.length === 0 && <p className="text-[11px] text-gray-600 text-center py-2">Мут-лист пуст</p>}
             </div>
           </div>
+        </div>
+      )}
+
+      {tab === "comments" && (
+        <div className="space-y-4">
           <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-4">
             <h4 className="text-[10px] font-bold text-sky-400 uppercase tracking-wider mb-3"><i className="fa-solid fa-comments mr-1"></i> Комментарии на проверку</h4>
-            <div className="space-y-1.5">
-              {pendingComments.length === 0 && <p className="text-[11px] text-gray-600 text-center py-2">На проверке пусто</p>}
+            <p className="text-[11px] text-gray-500 mb-3">Сюда попадают новые комментарии от обычных пользователей. Админы — сразу публикуются.</p>
+            <div className="space-y-2">
+              {pendingComments.length === 0 && <p className="text-[11px] text-gray-600 text-center py-4">На проверке пусто</p>}
               {pendingComments.map((c) => (
-                <div key={c.id} className="bg-[#121214] border border-[#222226] rounded px-3 py-2 flex items-center gap-3 text-xs">
-                  <span className="text-white flex-1 truncate">{c.text.slice(0, 80)}</span>
-                  <span className="text-gray-500 text-[10px] truncate">{c.profiles?.[0]?.username || c.user_id.slice(0, 8)} · {new Date(c.created_at).toLocaleDateString("ru-RU")}</span>
-                  <button onClick={() => handleApproveComment(c.id)} className="text-green-400 hover:text-green-300 border border-green-500/20 px-2 py-1 rounded text-[10px]">Одобрить</button>
-                  <button onClick={() => handleRejectComment(c.id)} className="text-red-400 hover:text-red-300 border border-red-500/20 px-2 py-1 rounded text-[10px]">Отклонить</button>
+                <div key={c.id} className="bg-[#121214] border border-[#222226] rounded-lg p-3 flex flex-col gap-2">
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="font-bold text-white">{c.profiles?.[0]?.username || c.user_id.slice(0, 8)}</span>
+                    <span className="text-[10px] text-gray-500 font-mono">{c.user_id}</span>
+                    {c.user_verified ? <span className="text-[9px] bg-sky-500/20 text-sky-400 px-1.5 py-0.5 rounded">вериф</span> : <span className="text-[9px] bg-gray-700 text-gray-400 px-1.5 py-0.5 rounded">не вериф</span>}
+                    {c.ip && <span className="text-[10px] text-amber-400 font-mono">IP: {c.ip}</span>}
+                    <span className="text-[10px] text-gray-600 ml-auto">{new Date(c.created_at).toLocaleString("ru-RU")}</span>
+                    <a href={`/anime/${c.anime_id}`} target="_blank" className="text-sky-400 hover:text-sky-300 text-[10px]">Аниме #{c.anime_id}</a>
+                  </div>
+                  <p className="text-xs text-gray-300 bg-[#1a1a1e] rounded p-2 border border-[#222226]/50 whitespace-pre-wrap break-words">{c.text}</p>
+                  <div className="flex gap-2">
+                    <button onClick={() => handleApproveComment(c.id)} className="flex-1 bg-green-500/10 hover:bg-green-500/20 text-green-400 border border-green-500/20 text-xs font-bold py-1.5 rounded">Одобрить</button>
+                    <button onClick={() => handleRejectComment(c.id)} className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-xs font-bold py-1.5 rounded">Отклонить</button>
+                  </div>
                 </div>
               ))}
+            </div>
+          </div>
+          <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-4">
+            <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Быстрый бан/мут для комментов</h4>
+            <p className="text-[11px] text-gray-600 mb-2">Добавь запретку — следующие комменты этого пользователя сразу уйдут на проверку/блок.</p>
+            <div className="grid grid-cols-2 gap-2 text-[10px] text-gray-500">
+              <span>Бан по нику/почте/IP/UID → блок</span>
+              <span>Мут → только блок комментов</span>
             </div>
           </div>
         </div>
