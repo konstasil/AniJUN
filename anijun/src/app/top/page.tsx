@@ -21,6 +21,8 @@ interface AnimeTop {
 }
 
 export default function TopPage() {
+  useEffect(() => { document.title = "Топ 100 | AniJUN"; }, []);
+
   const [anime, setAnime] = useState<AnimeTop[]>([]);
   const [loaded, setLoaded] = useState(false);
   const supabase = useMemo(() => createClient(), []);

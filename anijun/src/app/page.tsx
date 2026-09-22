@@ -43,6 +43,7 @@ export default function HomePage() {
   const [userDataLoaded, setUserDataLoaded] = useState(false);
   const supabase = useMemo(() => createClient(), []);
   const { getEffectiveUserId } = useSimulatedUser();
+  useEffect(() => { document.title = "Главная | AniJUN"; }, []);
 
 
   useEffect(() => {

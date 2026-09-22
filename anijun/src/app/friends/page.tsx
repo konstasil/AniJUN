@@ -23,6 +23,8 @@ interface Request {
 }
 
 export default function FriendsPage() {
+  useEffect(() => { document.title = "Друзья | AniJUN"; }, []);
+
   const [friends, setFriends] = useState<Friend[]>([]);
   const [requests, setRequests] = useState<Request[]>([]);
   const [loading, setLoading] = useState(true);

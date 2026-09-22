@@ -1,4 +1,5 @@
 "use client";
+import { useEffect } from "react";
 
 import { createClient } from "@/lib/supabase/client";
 import { useState, useMemo } from "react";
@@ -7,6 +8,8 @@ import { ALL_GENRES, AGE_RATINGS } from "@/lib/genres";
 import SeasonEditor, { SeasonDraft } from "@/components/SeasonEditor";
 
 export default function SuggestPage() {
+  useEffect(() => { document.title = "Предложить аниме | AniJUN"; }, []);
+
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
 

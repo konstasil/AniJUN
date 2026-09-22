@@ -78,6 +78,8 @@ interface PublicCollection {
 type Relation = "self" | "friends" | "request_sent" | "request_received" | "none";
 
 export default function PublicProfilePage({ params }: { params: Promise<{ id: string }> }) {
+  useEffect(() => { document.title = "Профиль | AniJUN"; }, []);
+
   const { id } = use(params);
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);

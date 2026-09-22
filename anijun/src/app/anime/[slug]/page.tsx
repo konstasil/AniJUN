@@ -86,6 +86,7 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
   const [expandedSeasons, setExpandedSeasons] = useState<Set<number>>(new Set());
 
   const animeIdRef = useRef<number | null>(null);
+  useEffect(() => { if (anime?.title) document.title = `${anime.title} | AniJUN`; }, [anime?.title]);
 
   const loadTopPosition = useCallback(async (animeId: number): Promise<number | null> => {
     const { data: allAnime } = await supabase.from("anime").select("id").order("id");
@@ -449,9 +450,9 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
           )}
         </div>
 
-        <div className="p-6 md:p-8 flex-1 flex flex-col">
+        <div className="p-4 sm:p-6 md:p-8 flex-1 flex flex-col">
           <div className="flex items-center gap-3 mb-4 pr-8">
-            <h2 className="text-xl font-bold text-white flex-1">{anime.title}</h2>
+            <h2 className="text-lg sm:text-xl font-bold text-white flex-1">{anime.title}</h2>
             {isAdmin && !editingAnime && (
               <button onClick={() => { setEditTitle(anime.title); setEditSlug(anime.slug || ""); setEditGenres(anime.genres || []); setEditSeason(anime.season_info); setEditAgeRating(anime.age_rating); setEditStatus(anime.status || "finished"); setEditReleaseDate(anime.release_date || ""); setEditingAnime(true); }}
                 className="text-[10px] font-bold text-gray-400 hover:text-sky-400 px-2.5 py-1 rounded bg-[#121214] border border-[#222226] transition-all flex items-center gap-1.5 shrink-0">
@@ -556,7 +557,7 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
                   <div className="relative">
                     <div className="flex flex-wrap gap-1 opacity-40 pointer-events-none select-none">
                       {(["-", 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const).map((opt) => (
-                        <span key={String(opt)} className="w-6 h-6 text-[10px] font-bold rounded bg-zinc-900 border border-zinc-800 text-gray-500 flex items-center justify-center">{opt}</span>
+                        <span key={String(opt)} className="w-5 h-5 sm:w-6 sm:h-6 text-[9px] sm:text-[10px] font-bold rounded bg-zinc-900 border border-zinc-800 text-gray-500 flex items-center justify-center">{opt}</span>
                       ))}
                     </div>
                     <div className="absolute inset-0 bg-[#121214]/80 backdrop-blur-[1px] rounded-lg flex items-center justify-center">
@@ -573,7 +574,7 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
                       const optNum = opt === "-" ? 0 : opt;
                       return (
                         <button key={String(opt)} onClick={() => handleRate(opt === "-" ? "-" : Number(opt))}
-                          className={`w-6 h-6 text-[10px] font-bold rounded transition-all ${isSelected ? opt === "-" ? "bg-zinc-700 text-white border border-zinc-600" : optNum >= 1 && optNum <= 4 ? "bg-red-600 text-white border border-red-500" : optNum >= 5 && optNum <= 6 ? "bg-yellow-600 text-white border border-yellow-500" : "bg-green-600 text-white border border-green-500" : `bg-zinc-900 border border-zinc-800 text-gray-500 ${getRatingBtnHoverClass(opt)}`}`}>
+                          className={`w-5 h-5 sm:w-6 sm:h-6 text-[9px] sm:text-[10px] font-bold rounded transition-all ${isSelected ? opt === "-" ? "bg-zinc-700 text-white border border-zinc-600" : optNum >= 1 && optNum <= 4 ? "bg-red-600 text-white border border-red-500" : optNum >= 5 && optNum <= 6 ? "bg-yellow-600 text-white border border-yellow-500" : "bg-green-600 text-white border border-green-500" : `bg-zinc-900 border border-zinc-800 text-gray-500 ${getRatingBtnHoverClass(opt)}`}`}>
                           {opt}
                         </button>
                       );
@@ -588,12 +589,12 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
           {userDataLoaded && (
             <>
               <div className="flex items-center gap-1.5 sm:gap-2 mb-6 flex-wrap">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider w-full sm:w-auto mb-1 sm:mb-0">Статус:</span>
+                <span className="text-[9px] sm:text-[10px] font-bold text-gray-400 uppercase tracking-wider w-full sm:w-auto mb-1 sm:mb-0">Статус:</span>
                 {["", "planned", "watching", "completed", "on_hold", "dropped"].map((s) => {
                   const labels: Record<string, string> = { "": "Без статуса", planned: "Запланировано", watching: "Смотрю", completed: "Просмотрено", on_hold: "Отложено", dropped: "Брошено" };
                   return (
                     <button key={s || "none"} onClick={() => handleStatus(s)}
-                      className={`text-[10px] font-bold px-3 py-1.5 rounded transition-all ${userStatus === s ? "bg-sky-500/20 text-sky-400 border border-sky-500/30" : "bg-[#121214] text-gray-500 border border-[#222226] hover:text-gray-300"}`}>
+                      className={`text-[9px] sm:text-[10px] font-bold px-2.5 sm:px-3 py-1 sm:py-1.5 rounded transition-all ${userStatus === s ? "bg-sky-500/20 text-sky-400 border border-sky-500/30" : "bg-[#121214] text-gray-500 border border-[#222226] hover:text-gray-300"}`}>
                       {labels[s]}
                     </button>
                   );
@@ -692,7 +693,7 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
                           <div className={`flex flex-wrap gap-1 ${expandedSeasons.has(season.id) ? "flex" : "hidden"}`}>
                             {Array.from({ length: season.episodes_count }, (_, i) => i + 1).map((ep) => (
                               <button key={ep} onClick={() => toggleEpisode(season.id, ep)}
-                                className={`w-7 h-7 sm:w-6 sm:h-6 text-[10px] sm:text-[9px] font-bold rounded transition-all ${watched.has(ep) ? "bg-sky-500/20 text-sky-400 border border-sky-400/30" : "bg-[#1a1a1e] text-gray-500 border border-[#222226] hover:text-gray-300"}`}>
+                                className={`w-6 h-6 sm:w-6 sm:h-6 text-[9px] sm:text-[9px] font-bold rounded transition-all ${watched.has(ep) ? "bg-sky-500/20 text-sky-400 border border-sky-400/30" : "bg-[#1a1a1e] text-gray-500 border border-[#222226] hover:text-gray-300"}`}>
                                 {ep}
                               </button>
                             ))}

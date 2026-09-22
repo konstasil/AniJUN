@@ -42,6 +42,8 @@ interface SavedState {
 }
 
 export default function CatalogPage() {
+  useEffect(() => { document.title = "Каталог | AniJUN"; }, []);
+
   return (
     <Suspense fallback={<div className="text-center py-20 text-gray-500 text-xs">Загрузка...</div>}>
       <CatalogContent />

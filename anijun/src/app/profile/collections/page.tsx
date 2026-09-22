@@ -21,6 +21,8 @@ interface AnimeOption {
 }
 
 export default function CollectionsPage() {
+  useEffect(() => { document.title = "Коллекции | AniJUN"; }, []);
+
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
   const [collections, setCollections] = useState<OwnCollection[]>([]);

@@ -1,6 +1,9 @@
 "use client";
+import { useEffect } from "react";
 
 export default function SovaPage() {
+  useEffect(() => { document.title = "Сова | AniJUN"; }, []);
+
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
       <div className="text-center">

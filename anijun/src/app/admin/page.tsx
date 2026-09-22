@@ -63,8 +63,16 @@ export default function AdminPage() {
   const supabase = createClient();
 
   const [isAdmin, setIsAdmin] = useState(false);
-  const [tab, setTab] = useState<Tab>("add-anime");
+  const [tab, setTab] = useState<Tab>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("anijun_admin_tab") as Tab | null;
+      if (saved) return saved;
+    }
+    return "add-anime";
+  });
   const [loading, setLoading] = useState(true);
+  useEffect(() => { document.title = "Админ-панель | AniJUN"; }, []);
+  useEffect(() => { try { localStorage.setItem("anijun_admin_tab", tab); } catch {} }, [tab]);
 
   const [newTitle, setNewTitle] = useState("");
   const [newSlug, setNewSlug] = useState("");
@@ -548,7 +556,7 @@ export default function AdminPage() {
     <div className="max-w-5xl mx-auto">
       <div className="flex items-center gap-3 mb-8">
         <i className="fa-solid fa-shield text-sky-400 text-lg"></i>
-        <h1 className="text-lg font-bold text-white">Панель администратора</h1>
+        <h1 className="text-base sm:text-lg font-bold text-white">Панель администратора</h1>
         <div className="ml-auto">
           <button onClick={() => setShowSimulation(!showSimulation)}
             className="text-[10px] font-bold text-gray-400 hover:text-amber-400 px-3 py-1.5 rounded border border-[#222226] hover:border-amber-400/30 transition-all">
@@ -606,7 +614,7 @@ export default function AdminPage() {
 
       {/* ADD ANIME */}
       {tab === "add-anime" && (
-        <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-6 space-y-5">
+        <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-4 sm:p-6 space-y-4 sm:space-y-5">
           <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Новое аниме</h3>
           <div className="flex flex-col md:flex-row gap-6">
             <ImageUpload bucket="Anime" currentUrl={newPosterUrl || undefined} onUploaded={setNewPosterUrl} size={160} label="Загрузить постер" />

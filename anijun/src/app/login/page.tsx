@@ -1,4 +1,5 @@
 "use client";
+import { useEffect } from "react";
 
 import { createClient } from "@/lib/supabase/client";
 import { useState } from "react";
@@ -6,6 +7,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 export default function LoginPage() {
+  useEffect(() => { document.title = "Вход | AniJUN"; }, []);
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);

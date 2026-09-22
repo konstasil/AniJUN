@@ -10,6 +10,8 @@ import SeasonEditor, { SeasonDraft } from "@/components/SeasonEditor";
 import { generateSlug, sanitizeSlugInput } from "@/lib/slug";
 
 export default function AdminAddAnimePage() {
+  useEffect(() => { document.title = "Добавить аниме | AniJUN"; }, []);
+
   const router = useRouter();
   const supabase = createClient();
 
@@ -115,14 +117,14 @@ export default function AdminAddAnimePage() {
     <div className="max-w-2xl mx-auto">
       <div className="flex items-center gap-3 mb-8">
         <i className="fa-solid fa-plus text-sky-400 text-lg"></i>
-        <h1 className="text-lg font-bold text-white">Добавить аниме</h1>
+        <h1 className="text-base sm:text-lg font-bold text-white">Добавить аниме</h1>
       </div>
 
-      <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-6 space-y-5">
+      <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-4 sm:p-6 space-y-4 sm:space-y-5">
         <div>
           <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Название *</label>
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Название аниме..."
-            className="w-full bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-sky-500/50 transition-colors" />
+            className="w-full bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-xs sm:text-sm text-white outline-none focus:border-sky-500/50 transition-colors" />
         </div>
 
         <div>
@@ -130,19 +132,19 @@ export default function AdminAddAnimePage() {
             Slug (адресная строка) <span className="text-gray-600 font-normal">— если пусто, сгенерируется из названия</span>
           </label>
           <input value={slug} onChange={(e) => setSlug(sanitizeSlugInput(e.target.value))} placeholder="naprimer-takoy-slug"
-            className="w-full bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-sky-500/50 transition-colors" />
+            className="w-full bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-xs sm:text-sm text-white outline-none focus:border-sky-500/50 transition-colors" />
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex gap-2 sm:gap-3">
           <div className="flex-1">
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Сезон</label>
             <input value={season} onChange={(e) => setSeason(e.target.value)}
-              className="w-full bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-sky-500/50 transition-colors" />
+              className="w-full bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-xs sm:text-sm text-white outline-none focus:border-sky-500/50 transition-colors" />
           </div>
           <div>
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Возраст</label>
             <select value={ageRating} onChange={(e) => setAgeRating(e.target.value)}
-              className="bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-sky-500/50 transition-colors">
+              className="bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-xs sm:text-sm text-white outline-none focus:border-sky-500/50 transition-colors">
               <option value="">Без рейтинга</option>
               {AGE_RATINGS.map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
@@ -150,7 +152,7 @@ export default function AdminAddAnimePage() {
           <div>
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Статус</label>
             <select value={status} onChange={(e) => setStatus(e.target.value)}
-              className="bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-sky-500/50 transition-colors">
+              className="bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-xs sm:text-sm text-white outline-none focus:border-sky-500/50 transition-colors">
               {ANIME_STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
             </select>
           </div>
@@ -158,14 +160,14 @@ export default function AdminAddAnimePage() {
         {status === "announced" && (
           <div>
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Дата выхода</label>
-            <input type="date" value={releaseDate} onChange={(e) => setReleaseDate(e.target.value)} className="w-full bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-sky-500/50" />
+            <input type="date" value={releaseDate} onChange={(e) => setReleaseDate(e.target.value)} className="w-full bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-xs sm:text-sm text-white outline-none focus:border-sky-500/50" />
           </div>
         )}
 
         <div>
           <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">URL постера</label>
           <input value={posterUrl} onChange={(e) => setPosterUrl(e.target.value)} placeholder="https://..."
-            className="w-full bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-sky-500/50 transition-colors" />
+            className="w-full bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-xs sm:text-sm text-white outline-none focus:border-sky-500/50 transition-colors" />
           <div className="mt-2">
             <ImageUpload bucket="Anime" currentUrl={posterUrl || undefined} onUploaded={setPosterUrl} size={160} label="Загрузить постер" />
           </div>
@@ -192,7 +194,7 @@ export default function AdminAddAnimePage() {
         )}
 
         <button onClick={handleSubmit} disabled={saving || !title.trim()}
-          className="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs px-5 py-2.5 rounded-lg transition-all disabled:opacity-50 shadow-lg shadow-sky-500/10">
+          className="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold text-[11px] sm:text-xs px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg transition-all disabled:opacity-50 shadow-lg shadow-sky-500/10">
           {saving ? "Добавление..." : "Добавить аниме"}
         </button>
       </div>

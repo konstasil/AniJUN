@@ -15,7 +15,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "AniJUN",
+  title: { default: "AniJUN", template: "%s | AniJUN" },
   description: "Твой аниме-дневник",
 };
 

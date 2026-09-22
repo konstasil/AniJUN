@@ -81,6 +81,8 @@ interface FriendRecommendation {
 }
 
 export default function ProfilePage() {
+  useEffect(() => { document.title = "Профиль | AniJUN"; }, []);
+
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
