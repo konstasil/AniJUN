@@ -61,9 +61,9 @@ export default function SeasonEditor({ seasons, onChange }: SeasonEditorProps) {
               <span className="text-[10px] text-gray-500">серий</span>
               <input value={s.note || ""} placeholder="Название (опционально)"
                 onChange={(e) => update(i, { note: e.target.value })}
-                className="flex-1 min-w-[120px] bg-[#121214] border border-[#222226] rounded px-2 py-1 text-xs text-white outline-none focus:border-sky-500/50" />
+                className="w-full sm:flex-1 sm:min-w-[120px] bg-[#121214] border border-[#222226] rounded px-2 py-1 text-xs text-white outline-none focus:border-sky-500/50" />
               <select value={s.age_rating || ""} onChange={(e) => update(i, { age_rating: e.target.value })}
-                className="w-20 bg-[#121214] border border-[#222226] rounded px-2 py-1 text-xs text-white outline-none focus:border-sky-500/50">
+                className="flex-1 sm:flex-none sm:w-20 bg-[#121214] border border-[#222226] rounded px-2 py-1 text-xs text-white outline-none focus:border-sky-500/50">
                 <option value="">Без рейтинга</option>
                 <option value="0+">0+</option>
                 <option value="6+">6+</option>
@@ -72,7 +72,7 @@ export default function SeasonEditor({ seasons, onChange }: SeasonEditorProps) {
                 <option value="18+">18+</option>
                 <option value="21+">21+</option>
               </select>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 ml-auto sm:ml-0">
                 <button type="button" onClick={() => move(i, -1)} disabled={i === 0} title="Вверх"
                   className="text-[10px] text-gray-500 hover:text-white disabled:opacity-30 px-1">
                   <i className="fa-solid fa-chevron-up"></i>
