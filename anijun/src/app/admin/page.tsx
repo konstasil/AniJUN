@@ -1088,7 +1088,7 @@ export default function AdminPage() {
           </div>
           <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-4">
             <h4 className="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-3"><i className="fa-solid fa-filter mr-1"></i> Запрещённые слова</h4>
-            <p className="text-[11px] text-gray-500 mb-3">Комментарии с этим словом попадут на проверку, без бана и без автомата.</p>
+            <p className="text-[11px] text-gray-500 mb-3">Комментарии с этим словом попадут на проверку.</p>
             <div className="flex gap-2 mb-3">
               <input value={newFilterWord} onChange={(e) => setNewFilterWord(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAddFilterWord()} placeholder="Введите слово..."
                 className="flex-1 bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-amber-500/50" />
