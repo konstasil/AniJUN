@@ -98,7 +98,10 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
     enriched.sort((a, b) => {
       const valA = typeof a.weighted_rating === "number" ? a.weighted_rating : -1;
       const valB = typeof b.weighted_rating === "number" ? b.weighted_rating : -1;
-      return valB - valA;
+      if (valB !== valA) return valB - valA;
+      const vA = viewersByAnime.get(a.id)?.size || 0;
+      const vB = viewersByAnime.get(b.id)?.size || 0;
+      return vB - vA;
     });
     const idx = enriched.findIndex((e) => e.id === animeId);
     return (idx >= 0 && idx < 100) ? idx + 1 : null;
