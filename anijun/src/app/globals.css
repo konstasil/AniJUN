@@ -144,16 +144,25 @@ body {
 }
 
 .spoiler {
-  background: #2a2a31;
+  background-color: #2a2a31;
+  background-image: radial-gradient(circle, rgba(255,255,255,0.18) 1.2px, transparent 1.2px);
+  background-size: 10px 10px;
   color: transparent;
   border-radius: 4px;
   padding: 0 4px;
   cursor: pointer;
   user-select: none;
-  transition: all 0.2s;
+  transition: color 0.2s;
+  animation: spoiler-dots 1.8s linear infinite;
 }
 .spoiler.revealed {
-  background: #3a3a4a;
+  background-color: transparent;
+  background-image: none;
   color: #f4f4f5;
   user-select: text;
+  animation: none;
+}
+@keyframes spoiler-dots {
+  0% { background-position: 0 0; }
+  100% { background-position: 10px 10px; }
 }

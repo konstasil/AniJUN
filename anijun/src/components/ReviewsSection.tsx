@@ -156,7 +156,7 @@ export default function ReviewsSection({ animeId, isAuthed, userId }: { animeId:
       <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => handleStrike(forType)} className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#222226] text-gray-300 hover:text-white text-xs line-through">S</button>
       <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => handleMono(forType)} className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#222226] text-gray-300 hover:text-white text-[10px] font-mono">{"</>"}</button>
       <div className="w-px h-5 bg-[#222226]" />
-      <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => handleSpoiler(forType)} className="px-2 h-7 flex items-center justify-center rounded hover:bg-[#222226] text-gray-300 hover:text-white text-[10px] font-bold gap-1"><i className="fa-solid fa-eye-slash text-[10px]"></i> Скрытый</button>
+      <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => handleSpoiler(forType)} title="Скрытый текст" className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#222226] text-gray-300 hover:text-white"><i className="fa-solid fa-eye-slash text-[10px]"></i></button>
       <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => handleLink(forType)} className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#222226] text-sky-400 hover:text-white"><i className="fa-solid fa-link text-[10px]"></i></button>
     </div>
   );
