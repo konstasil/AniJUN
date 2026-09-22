@@ -177,9 +177,8 @@ export default function ReviewsSection({ animeId, isAuthed, userId }: { animeId:
                 <Toolbar forType="main" />
               </div>
             )}
-            <textarea ref={mainRef} value={text} onChange={(e) => setText(e.target.value)} onSelect={() => checkSelection("main")} onMouseUp={() => checkSelection("main")} onKeyUp={() => checkSelection("main")} onBlur={() => setTimeout(() => setToolbar({ show: false, for: null }), 150)} rows={2} placeholder="Написать комментарий... Выделите текст для форматирования" className="w-full bg-[#1a1a1e] border border-[#222226] rounded px-3 py-2 text-xs text-white outline-none focus:border-sky-500/50 resize-none" />
+            <textarea ref={mainRef} value={text} onChange={(e) => setText(e.target.value)} onSelect={() => checkSelection("main")} onMouseUp={() => checkSelection("main")} onKeyUp={() => checkSelection("main")} onBlur={() => setTimeout(() => setToolbar({ show: false, for: null }), 150)} rows={2} placeholder="Написать комментарий..." className="w-full bg-[#1a1a1e] border border-[#222226] rounded px-3 py-2 text-xs text-white outline-none focus:border-sky-500/50 resize-none" />
           </div>
-          <p className="text-[10px] text-gray-600">Выделите текст → появится меню: жирный, курсив, скрытый || ||</p>
           {error && <p className="text-[10px] text-red-400">{error}</p>}
           <button onClick={() => handlePost(null)} className="self-start bg-sky-500 hover:bg-sky-600 text-white text-[10px] font-bold px-3 py-1.5 rounded transition-all">Отправить</button>
         </div>
