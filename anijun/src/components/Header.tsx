@@ -191,6 +191,11 @@ export default function Header() {
         )}
 
         {user ? (
+          <div className="flex items-center gap-2">
+            <button onClick={() => router.push("/feed")} title="Уведомления" className="w-9 h-9 flex items-center justify-center rounded-lg bg-[#121214] border border-[#222226] text-gray-400 hover:text-white transition-all relative">
+              <i className="fa-solid fa-bell text-sm"></i>
+              <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full hidden"></span>
+            </button>
           <div className="relative">
             <button
               onClick={() => setMenuOpen(!menuOpen)}
@@ -254,6 +259,7 @@ export default function Header() {
                 </div>
               </>
             )}
+            </div>
           </div>
         ) : (
           <div className="flex items-center gap-2">
