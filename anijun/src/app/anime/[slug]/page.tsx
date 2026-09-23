@@ -21,6 +21,7 @@ interface Season {
   episodes_count: number;
   note?: string;
   age_rating?: string;
+  aired_episodes?: number | null;
 }
 
 interface AnimeDetail {
@@ -77,10 +78,12 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
   const [editingSeasonId, setEditingSeasonId] = useState<number | null>(null);
   const [editSeasonNote, setEditSeasonNote] = useState("");
   const [editSeasonEps, setEditSeasonEps] = useState("");
+  const [editSeasonAired, setEditSeasonAired] = useState("");
   const [editSeasonAgeRating, setEditSeasonAgeRating] = useState("");
   const [addingSeason, setAddingSeason] = useState(false);
   const [newSeasonNumber, setNewSeasonNumber] = useState(0);
   const [newSeasonEps, setNewSeasonEps] = useState(12);
+  const [newSeasonAired, setNewSeasonAired] = useState(12);
   const [newSeasonNote, setNewSeasonNote] = useState("");
   const [newSeasonAgeRating, setNewSeasonAgeRating] = useState("");
   const [expandedSeasons, setExpandedSeasons] = useState<Set<number>>(new Set());
@@ -259,8 +262,9 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
     }
   }
 
-  async function toggleEpisode(seasonId: number, epNumber: number) {
+  async function toggleEpisode(seasonId: number, epNumber: number, aired?: number | null) {
     if (!userId) return;
+    if (aired != null && epNumber > aired) return;
     const current = episodeProgress.get(seasonId) || new Set<number>();
     const isWatched = current.has(epNumber);
     if (isWatched) {
@@ -287,15 +291,16 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
     }
   }
 
-  async function toggleWholeSeason(seasonId: number, episodesCount: number) {
+  async function toggleWholeSeason(seasonId: number, episodesCount: number, aired?: number | null) {
     if (!userId) return;
+    const avail = aired != null ? Math.min(episodesCount, aired) : episodesCount;
     const current = episodeProgress.get(seasonId) || new Set<number>();
-    const allWatched = current.size >= episodesCount;
+    const allWatched = current.size >= avail;
     if (allWatched) {
       await supabase.from("episode_progress").delete().eq("user_id", userId).eq("season_id", seasonId);
       current.clear();
     } else {
-      const eps = Array.from({ length: episodesCount }, (_, i) => i + 1);
+      const eps = Array.from({ length: avail }, (_, i) => i + 1);
       await supabase.from("episode_progress").upsert(
         eps.map((ep) => ({ user_id: userId, season_id: seasonId, episode_number: ep, watched: true })),
         { onConflict: "user_id,season_id,episode_number" }
@@ -343,10 +348,11 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
 
   async function handleSaveSeason(seasonId: number) {
     const safeEps = Math.max(1, parseInt(editSeasonEps) || 12);
+    const safeAired = Math.max(0, Math.min(safeEps, parseInt(editSeasonAired) || 0));
     await supabase.from("anime_seasons").update({
-      episodes_count: safeEps, note: editSeasonNote, age_rating: editSeasonAgeRating || "",
+      episodes_count: safeEps, aired_episodes: safeAired, note: editSeasonNote, age_rating: editSeasonAgeRating || "",
     }).eq("id", seasonId);
-    setAnime((a) => a ? { ...a, anime_seasons: a.anime_seasons.map((s) => s.id === seasonId ? { ...s, episodes_count: safeEps, note: editSeasonNote, age_rating: editSeasonAgeRating } : s) } : a);
+    setAnime((a) => a ? { ...a, anime_seasons: a.anime_seasons.map((s) => s.id === seasonId ? { ...s, episodes_count: safeEps, aired_episodes: safeAired, note: editSeasonNote, age_rating: editSeasonAgeRating } : s) } : a);
     setEditingSeasonId(null);
   }
 
@@ -375,12 +381,13 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
     if (animeId === null) return;
     const safeNumber = Math.max(1, Math.floor(Number(newSeasonNumber) || 0) || ((anime?.anime_seasons.length || 0) + 1));
     const safeEps = Math.max(1, Math.floor(Number(newSeasonEps) || 12));
+    const safeAired = Math.max(0, Math.min(safeEps, Math.floor(Number(newSeasonAired) || safeEps)));
     const { data } = await supabase.from("anime_seasons").insert({
-      anime_id: animeId, season_number: safeNumber, episodes_count: safeEps, note: newSeasonNote, age_rating: newSeasonAgeRating || "",
+      anime_id: animeId, season_number: safeNumber, episodes_count: safeEps, aired_episodes: safeAired, note: newSeasonNote, age_rating: newSeasonAgeRating || "",
     }).select().single();
     if (data) setAnime((a) => a ? { ...a, anime_seasons: [...a.anime_seasons, data].sort((x, y) => x.season_number - y.season_number) } : a);
     setAddingSeason(false);
-    setNewSeasonNumber(0); setNewSeasonEps(12); setNewSeasonNote(""); setNewSeasonAgeRating("");
+    setNewSeasonNumber(0); setNewSeasonEps(12); setNewSeasonAired(12); setNewSeasonNote(""); setNewSeasonAgeRating("");
   }
 
   // === СКЕЛЕТ (пока аниме не загружено) ===
@@ -616,13 +623,15 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
 
               {addingSeason && (
                 <div className="mb-3 p-3 bg-[#1a1a1e] border border-[#222226] rounded-lg flex flex-col gap-2">
-                  <div className="flex gap-2 text-xs">
+                  <div className="flex gap-2 text-xs flex-wrap">
                     <input type="number" min={1} value={newSeasonNumber} onChange={(e) => setNewSeasonNumber(Math.max(1, Number(e.target.value) || 1))} placeholder="№ сезона"
                       className="w-20 bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-white outline-none focus:border-sky-500/50" />
-                    <input type="number" min={1} value={newSeasonEps} onChange={(e) => setNewSeasonEps(Math.max(1, Number(e.target.value) || 1))} placeholder="Серий"
+                    <input type="number" min={1} value={newSeasonEps} onChange={(e) => { const v=Math.max(1,Number(e.target.value)||1); setNewSeasonEps(v); if(newSeasonAired>v) setNewSeasonAired(v); }} placeholder="Всего"
+                      className="w-20 bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-white outline-none focus:border-sky-500/50" />
+                    <input type="number" min={0} max={newSeasonEps} value={newSeasonAired} onChange={(e) => setNewSeasonAired(Math.max(0,Math.min(newSeasonEps,Number(e.target.value)||0)))} placeholder="Вышло"
                       className="w-20 bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-white outline-none focus:border-sky-500/50" />
                     <input value={newSeasonNote} onChange={(e) => setNewSeasonNote(e.target.value)} placeholder="Название (опционально)"
-                      className="flex-1 bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-white outline-none focus:border-sky-500/50" />
+                      className="flex-1 min-w-[120px] bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-white outline-none focus:border-sky-500/50" />
                     <select value={newSeasonAgeRating} onChange={(e) => setNewSeasonAgeRating(e.target.value)} className="w-24 bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none">
                       <option value="">Без рейтинга</option>
                       <option value="0+">0+</option>
@@ -642,17 +651,20 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
 
               <div className="flex flex-col gap-3 flex-1">
                 {anime.anime_seasons?.sort((a, b) => a.season_number - b.season_number).map((season) => {
+                  const aired = season.aired_episodes ?? season.episodes_count;
                   const watched = episodeProgress.get(season.id) || new Set<number>();
-                  const allEpsWatched = watched.size >= season.episodes_count;
+                  const allEpsWatched = watched.size >= aired;
                   return (
                     <div key={season.id} className="p-3 bg-[#121214] rounded-lg border border-[#222226] flex flex-col gap-2">
                       {editingSeasonId === season.id ? (
                         <div className="flex flex-col gap-2">
-                          <div className="flex gap-2 text-xs">
-                            <input type="number" min={1} value={editSeasonEps} onChange={(e) => setEditSeasonEps(String(Math.max(1, Number(e.target.value) || 1)))} placeholder="Серий"
+                          <div className="flex gap-2 text-xs flex-wrap">
+                            <input type="number" min={1} value={editSeasonEps} onChange={(e) => setEditSeasonEps(String(Math.max(1, Number(e.target.value) || 1)))} placeholder="Всего"
+                              className="w-20 bg-[#1a1a1e] border border-[#222226] rounded px-2 py-1 text-white outline-none focus:border-sky-500/50" />
+                            <input type="number" min={0} value={editSeasonAired} onChange={(e) => setEditSeasonAired(String(Math.max(0, Number(e.target.value) || 0)))} placeholder="Вышло"
                               className="w-20 bg-[#1a1a1e] border border-[#222226] rounded px-2 py-1 text-white outline-none focus:border-sky-500/50" />
                             <input value={editSeasonNote} onChange={(e) => setEditSeasonNote(e.target.value)} placeholder="Название"
-                              className="flex-1 bg-[#1a1a1e] border border-[#222226] rounded px-2 py-1 text-white outline-none focus:border-sky-500/50" />
+                              className="flex-1 min-w-[100px] bg-[#1a1a1e] border border-[#222226] rounded px-2 py-1 text-white outline-none focus:border-sky-500/50" />
                             <select value={editSeasonAgeRating} onChange={(e) => setEditSeasonAgeRating(e.target.value)} className="w-24 bg-[#1a1a1e] border border-[#222226] rounded px-2 py-1 text-xs text-white outline-none">
                               <option value="">Без рейтинга</option>
                               <option value="0+">0+</option>
@@ -674,7 +686,7 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
                             <button onClick={() => setExpandedSeasons((prev) => { const n = new Set(prev); if (n.has(season.id)) n.delete(season.id); else n.add(season.id); return n; })}
                               className="flex items-center gap-1.5 font-bold text-gray-300 hover:text-white text-left">
                               <i className={`fa-solid ${expandedSeasons.has(season.id) ? "fa-chevron-up" : "fa-chevron-down"} text-[9px] text-gray-500`}></i>
-                              {season.season_number} Сезон ({season.episodes_count} сер.)
+                              {season.season_number} Сезон ({aired < season.episodes_count ? `вышло ${aired}/${season.episodes_count}` : `${season.episodes_count} сер.`})
                               {season.note ? <span className="text-gray-500 font-normal ml-1 hidden sm:inline">— {season.note}</span> : null}
                               {season.age_rating && <span className="ml-2 border border-[#3a3a42] px-1 py-0.5 rounded text-[10px] text-gray-300 font-bold">{season.age_rating}</span>}
                             </button>
@@ -683,24 +695,26 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
                                 <>
                                   <button onClick={() => handleReorderSeason(season.id, -1)} className="text-[10px] text-gray-500 hover:text-white disabled:opacity-30"><i className="fa-solid fa-chevron-up"></i></button>
                                   <button onClick={() => handleReorderSeason(season.id, 1)} className="text-[10px] text-gray-500 hover:text-white disabled:opacity-30"><i className="fa-solid fa-chevron-down"></i></button>
-                                  <button onClick={() => { setEditingSeasonId(season.id); setEditSeasonEps(String(season.episodes_count)); setEditSeasonNote(season.note || ""); }}
+                                  <button onClick={() => { setEditingSeasonId(season.id); setEditSeasonEps(String(season.episodes_count)); setEditSeasonAired(String(season.aired_episodes ?? season.episodes_count)); setEditSeasonNote(season.note || ""); setEditSeasonAgeRating(season.age_rating || ""); }}
                                     className="text-[10px] text-gray-500 hover:text-sky-400 transition-colors"><i className="fa-solid fa-pen"></i></button>
                                   <button onClick={() => handleDeleteSeason(season.id)} className="text-[10px] text-gray-500 hover:text-red-400 transition-colors"><i className="fa-solid fa-trash-can"></i></button>
                                 </>
                               )}
-                              <button onClick={() => toggleWholeSeason(season.id, season.episodes_count)}
+                              <button onClick={() => toggleWholeSeason(season.id, season.episodes_count, aired)}
                                 className="hidden sm:block text-[10px] text-sky-400 hover:underline">{allEpsWatched ? "Сбросить сезон" : "Посмотрел весь"}</button>
                             </div>
                           </div>
                           {season.note && <p className="text-[11px] text-gray-500 sm:hidden -mt-1">{season.note}</p>}
                           <div className={`flex flex-wrap gap-1 ${expandedSeasons.has(season.id) ? "flex" : "hidden"}`}>
-                            {Array.from({ length: season.episodes_count }, (_, i) => i + 1).map((ep) => (
-                              <button key={ep} onClick={() => toggleEpisode(season.id, ep)}
-                                className={`w-6 h-6 sm:w-6 sm:h-6 text-[9px] sm:text-[9px] font-bold rounded transition-all ${watched.has(ep) ? "bg-sky-500/20 text-sky-400 border border-sky-400/30" : "bg-[#1a1a1e] text-gray-500 border border-[#222226] hover:text-gray-300"}`}>
+                            {Array.from({ length: season.episodes_count }, (_, i) => i + 1).map((ep) => {
+                              const notAired = ep > aired;
+                              return (
+                              <button key={ep} onClick={() => toggleEpisode(season.id, ep, aired)} disabled={notAired}
+                                className={`w-6 h-6 sm:w-6 sm:h-6 text-[9px] sm:text-[9px] font-bold rounded transition-all ${notAired ? "bg-[#1a1a1e] text-gray-600 border border-[#222226] opacity-40 cursor-not-allowed" : watched.has(ep) ? "bg-sky-500/20 text-sky-400 border border-sky-400/30" : "bg-[#1a1a1e] text-gray-500 border border-[#222226] hover:text-gray-300"}`}>
                                 {ep}
                               </button>
-                            ))}
-                            <button onClick={() => toggleWholeSeason(season.id, season.episodes_count)}
+                            );})}
+                            <button onClick={() => toggleWholeSeason(season.id, season.episodes_count, aired)}
                               className="sm:hidden w-full mt-1 text-[10px] text-sky-400 hover:underline py-1">{allEpsWatched ? "Сбросить сезон" : "Посмотрел весь"}</button>
                           </div>
                         </>

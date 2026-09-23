@@ -96,6 +96,7 @@ export default function AdminAddAnimePage() {
         anime_id: anime.id,
         season_number: i + 1,
         episodes_count: s.episodes,
+        aired_episodes: s.aired_episodes ?? s.episodes,
         note: s.note || "",
         age_rating: s.age_rating || "",
       });

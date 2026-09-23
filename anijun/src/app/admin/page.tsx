@@ -22,7 +22,7 @@ interface AnimeRow {
   status?: string;
   release_date?: string | null;
   created_at: string;
-  anime_seasons?: { id: number; season_number: number; episodes_count: number; note?: string; age_rating?: string }[];
+  anime_seasons?: { id: number; season_number: number; episodes_count: number; note?: string; age_rating?: string; aired_episodes?: number | null }[];
 }
 
 interface SuggestionRow {
@@ -251,6 +251,7 @@ export default function AdminPage() {
           anime_id: anime.id,
           season_number: i + 1,
           episodes_count: s.episodes,
+          aired_episodes: s.aired_episodes ?? s.episodes,
           note: s.note || "",
           age_rating: s.age_rating || "",
         });
@@ -290,6 +291,7 @@ export default function AdminPage() {
       id: s.id,
       number: s.season_number,
       episodes: s.episodes_count,
+      aired_episodes: s.aired_episodes ?? s.episodes_count,
       note: s.note || "",
       age_rating: s.age_rating || "",
     })));
@@ -322,6 +324,7 @@ export default function AdminPage() {
         await supabase.from("anime_seasons").update({
           season_number: i + 1,
           episodes_count: s.episodes,
+          aired_episodes: s.aired_episodes ?? s.episodes,
           note: s.note || "",
           age_rating: s.age_rating || "",
         }).eq("id", s.id);
@@ -330,6 +333,7 @@ export default function AdminPage() {
           anime_id: editingAnime,
           season_number: i + 1,
           episodes_count: s.episodes,
+          aired_episodes: s.aired_episodes ?? s.episodes,
           note: s.note || "",
           age_rating: s.age_rating || "",
         });
