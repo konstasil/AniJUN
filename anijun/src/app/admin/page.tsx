@@ -130,6 +130,7 @@ export default function AdminPage() {
   const [pendingComments, setPendingComments] = useState<{ id: number; user_id: string; text: string; created_at: string; anime_id: number; ip?: string | null; user_verified?: boolean | null; profiles?: { username: string }[]; anime?: { title: string; slug: string | null } | null }[]>([]);
   const [filterWords, setFilterWords] = useState<{ id: number; word: string }[]>([]);
   const [newFilterWord, setNewFilterWord] = useState("");
+  const [reports, setReports] = useState<{ id: number; comment_id: number | null; post_id: number | null; reporter_id: string; reason: string; created_at: string; status: string }[]>([]);
   const [checkingLinks, setCheckingLinks] = useState(false);
   const [brokenLinks, setBrokenLinks] = useState<{ id: number; title: string; url: string; slug?: string }[]>([]);
 
@@ -207,6 +208,15 @@ export default function AdminPage() {
     try {
       const { data: filtersData } = await supabase.from("comment_filters").select("id, word").order("created_at", { ascending: false });
       if (filtersData) setFilterWords(filtersData);
+    } catch {}
+    try {
+      const { data: rep1 } = await supabase.from("comment_reports").select("id, comment_id, reporter_id, reason, created_at, status").eq("status", "pending").order("created_at", { ascending: false }).limit(50);
+      const { data: rep2 } = await supabase.from("post_reports").select("id, reporter_id, reason, created_at, status, post_id").eq("status", "pending").order("created_at", { ascending: false }).limit(50);
+      const merged: typeof reports = [];
+      rep1?.forEach((r) => merged.push({ ...r, post_id: null }));
+      rep2?.forEach((r) => merged.push({ comment_id: null, id: r.id, reporter_id: r.reporter_id, reason: r.reason, created_at: r.created_at, status: r.status, post_id: r.post_id } as typeof reports[0]));
+      merged.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      setReports(merged);
     } catch {}
 
     const { data: r } = await supabase
@@ -554,6 +564,7 @@ export default function AdminPage() {
     ["tools", "Инструменты", "fa-screwdriver-wrench"],
     ["genres", "Жанры", "fa-tags"],
     ["comments", "Комментарии", "fa-comments"],
+    ["reports", "Жалобы", "fa-flag"],
   ];
 
   return (
@@ -1141,6 +1152,26 @@ export default function AdminPage() {
             )}
             {!checkingLinks && brokenLinks.length === 0 && <p className="text-[11px] text-gray-600 mt-3">Нажми кнопку чтобы проверить. Если всё ок — список останется пустым.</p>}
           </div>
+        </div>
+      )}
+
+      {tab === "reports" && (
+        <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-4">
+          <h4 className="text-[10px] font-bold text-red-400 uppercase tracking-wider mb-3"><i className="fa-solid fa-flag mr-1"></i> Жалобы</h4>
+          {reports.length === 0 ? <p className="text-xs text-gray-600 text-center py-8">Жалоб нет</p> : reports.map((r) => (
+            <div key={`${r.comment_id || r.post_id}-${r.id}`} className="bg-[#121214] border border-[#222226] rounded-lg p-3 mb-2 flex flex-col gap-2">
+              <div className="flex items-center gap-2 text-xs">
+                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${r.comment_id ? "bg-amber-500/20 text-amber-400" : "bg-sky-500/20 text-sky-400"}`}>{r.comment_id ? "коммент" : "пост"} #{r.comment_id || r.post_id}</span>
+                <span className="text-gray-400 truncate flex-1">{r.reason}</span>
+                <span className="text-[10px] text-gray-600">{new Date(r.created_at).toLocaleString("ru-RU")}</span>
+              </div>
+              <div className="flex gap-2">
+                {r.comment_id && <button onClick={async () => { await supabase.from("comments").delete().eq("id", r.comment_id); await supabase.from("comment_reports").update({ status: "reviewed" }).eq("id", r.id); await loadAll(); }} className="text-xs bg-red-500/10 text-red-400 border border-red-500/20 px-3 py-1 rounded">Удалить</button>}
+                {r.post_id && <button onClick={async () => { await supabase.from("posts").delete().eq("id", r.post_id); await supabase.from("post_reports").update({ status: "reviewed" }).eq("id", r.id); await loadAll(); }} className="text-xs bg-red-500/10 text-red-400 border border-red-500/20 px-3 py-1 rounded">Удалить</button>}
+                <button onClick={async () => { if (r.comment_id) await supabase.from("comment_reports").update({ status: "rejected" }).eq("id", r.id); else await supabase.from("post_reports").update({ status: "rejected" }).eq("id", r.id); await loadAll(); }} className="text-xs bg-[#121214] text-gray-400 border border-[#222226] px-3 py-1 rounded">Отклонить</button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
