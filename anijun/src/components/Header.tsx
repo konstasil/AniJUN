@@ -16,6 +16,7 @@ export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [animeDropdown, setAnimeDropdown] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
@@ -192,10 +193,31 @@ export default function Header() {
 
         {user ? (
           <div className="flex items-center gap-2">
-            <button onClick={() => router.push("/feed")} title="Уведомления" className="w-9 h-9 flex items-center justify-center rounded-lg bg-[#121214] border border-[#222226] text-gray-400 hover:text-white transition-all relative">
-              <i className="fa-solid fa-bell text-sm"></i>
-              <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full hidden"></span>
-            </button>
+            <div className="relative">
+              <button onClick={() => setNotifOpen(!notifOpen)} title="Уведомления" className="w-9 h-9 flex items-center justify-center rounded-lg bg-[#121214] border border-[#222226] text-gray-400 hover:text-white transition-all relative">
+                <i className="fa-solid fa-bell text-sm"></i>
+              </button>
+              {notifOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setNotifOpen(false)} />
+                  <div className="absolute right-0 top-full mt-2 bg-[#1a1a1e] border border-[#222226] rounded-xl shadow-2xl w-80 z-50 overflow-hidden">
+                    <div className="px-4 py-3 border-b border-[#222226] flex items-center justify-between">
+                      <span className="text-xs font-bold text-white">Уведомления</span>
+                      <button onClick={() => setNotifOpen(false)} className="text-gray-500 hover:text-white"><i className="fa-solid fa-xmark text-xs"></i></button>
+                    </div>
+                    <div className="max-h-96 overflow-y-auto">
+                      <div className="px-4 py-2 text-[11px] font-bold text-gray-500 uppercase">Ответы</div>
+                      <p className="px-4 py-3 text-xs text-gray-600">Пока нет</p>
+                      <div className="px-4 py-2 text-[11px] font-bold text-gray-500 uppercase">Упоминания</div>
+                      <p className="px-4 py-3 text-xs text-gray-600">Пока нет</p>
+                      <div className="px-4 py-2 text-[11px] font-bold text-gray-500 uppercase">Подписки</div>
+                      <p className="px-4 py-3 text-xs text-gray-600">Пока нет постов</p>
+                    </div>
+                    <Link href="/feed" onClick={() => setNotifOpen(false)} className="block text-center text-xs text-sky-400 hover:text-sky-300 py-2.5 border-t border-[#222226]">Перейти в ленту</Link>
+                  </div>
+                </>
+              )}
+            </div>
           <div className="relative">
             <button
               onClick={() => setMenuOpen(!menuOpen)}
