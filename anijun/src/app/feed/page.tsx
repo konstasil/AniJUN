@@ -475,7 +475,7 @@ export default function FeedPage() {
             <div className="flex gap-2">
               <button onClick={(e) => { e.stopPropagation(); setViewerScale((s) => Math.min(3, s + 0.25)); }} className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center"><i className="fa-solid fa-magnifying-glass-plus"></i></button>
               <button onClick={(e) => { e.stopPropagation(); setViewerScale((s) => Math.max(0.5, s - 0.25)); }} className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center"><i className="fa-solid fa-magnifying-glass-minus"></i></button>
-              <a href={viewerUrl} download onClick={(e) => e.stopPropagation()} className="w-9 h-9 rounded-full bg-sky-500 hover:bg-sky-600 text-white flex items-center justify-center"><i className="fa-solid fa-download"></i></a>
+              <button onClick={async (e) => { e.stopPropagation(); try { const res = await fetch(viewerUrl); const blob = await res.blob(); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = viewerUrl.split("/").pop()?.split("?")[0] || "image.jpg"; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); } catch { window.open(viewerUrl, "_blank"); } }} className="w-9 h-9 rounded-full bg-sky-500 hover:bg-sky-600 text-white flex items-center justify-center"><i className="fa-solid fa-download"></i></button>
             </div>
           </div>
           <div className="flex-1 flex items-center justify-center p-4 overflow-hidden" onClick={(e) => e.stopPropagation()}>
