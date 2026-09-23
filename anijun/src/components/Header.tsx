@@ -138,12 +138,12 @@ function NotifDropdown({ onClose }: { onClose: () => void }) {
   return (
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} />
-      <div className="absolute right-0 top-full mt-2 bg-[#1a1a1e] border border-[#222226] rounded-xl shadow-2xl w-80 z-50 overflow-hidden">
+      <div className="absolute right-0 top-full mt-2 bg-[#1a1a1e] border border-[#222226] rounded-xl shadow-2xl w-[calc(100vw-24px)] sm:w-80 max-w-[calc(100vw-16px)] z-50 overflow-hidden -mr-2 sm:mr-0">
         <div className="px-4 py-3 border-b border-[#222226] flex items-center justify-between">
           <span className="text-xs font-bold text-white">Уведомления</span>
           <button onClick={onClose} className="text-gray-500 hover:text-white"><i className="fa-solid fa-xmark text-xs"></i></button>
         </div>
-        <div className="max-h-96 overflow-y-auto">
+        <div className="max-h-[60vh] sm:max-h-96 overflow-y-auto">
           {items.length === 0 ? (
             <p className="px-4 py-8 text-center text-xs text-gray-600">Пока ничего нет</p>
           ) : (

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import VerifiedBadge from "@/components/VerifiedBadge";
 
 interface Post {
   id: number;
@@ -21,7 +22,7 @@ interface PostComment {
   text: string;
   created_at: string;
   parent_id?: number | null;
-  profiles?: { username: string }[];
+  profiles?: { username: string; avatar_url: string; is_verified?: boolean }[];
 }
 
 function escapeHtml(s: string) {
@@ -196,10 +197,13 @@ export default function FeedPage() {
     const { data } = await supabase.from("post_comments").select("id, post_id, user_id, text, created_at, parent_id").eq("post_id", postId).order("created_at", { ascending: true });
     if (!data) return;
     const ids = [...new Set(data.map((c) => c.user_id))];
-    const { data: profs } = await supabase.from("profiles").select("id, username").in("id", ids);
-    const map = new Map<string, string>();
-    profs?.forEach((p) => map.set(p.id, p.username));
-    const enriched = data.map((c) => ({ ...c, profiles: [{ username: map.get(c.user_id) || "?" }] })) as PostComment[];
+    const { data: profs } = await supabase.from("profiles").select("id, username, avatar_url, is_verified").in("id", ids);
+    const map = new Map<string, { username: string; avatar_url: string; is_verified?: boolean }>();
+    profs?.forEach((p) => map.set(p.id, { username: p.username, avatar_url: p.avatar_url || "", is_verified: p.is_verified }));
+    const enriched = data.map((c) => {
+      const pr = map.get(c.user_id);
+      return { ...c, profiles: [{ username: pr?.username || "?", avatar_url: pr?.avatar_url || "", is_verified: pr?.is_verified }] };
+    }) as (PostComment & { profiles: { username: string; avatar_url: string; is_verified?: boolean }[] })[];
     setPostComments((prev) => new Map(prev).set(postId, enriched));
     const cids = data.map((c) => c.id);
     if (cids.length > 0) {
@@ -267,7 +271,7 @@ export default function FeedPage() {
     if (!uid) return;
     const reason = prompt("Причина жалобы:");
     if (!reason || !reason.trim()) return;
-    const { error } = await supabase.from("comment_reports").insert({ comment_id: commentId, reporter_id: uid, reason: reason.trim() });
+    const { error } = await supabase.from("post_comment_reports").insert({ comment_id: commentId, reporter_id: uid, reason: reason.trim() });
     if (error) alert(error.message); else alert("Жалоба отправлена");
   }
 
@@ -385,12 +389,12 @@ export default function FeedPage() {
                         <div key={c.id} className={`${depth > 0 ? "ml-4 pl-3 border-l border-[#222226]" : ""} p-3 bg-[#121214] border border-[#222226] rounded-lg space-y-2`}>
                           <div className="flex items-center gap-2">
                             <Link href={`/profile/${c.user_id}`} className="w-6 h-6 rounded-full bg-gradient-to-tr from-sky-400 to-blue-600 flex items-center justify-center text-white text-[10px] font-black overflow-hidden relative shrink-0">
-                              {(c.profiles?.[0]?.username || "?").slice(0, 1).toUpperCase()}
+                              {c.profiles?.[0]?.avatar_url ? <Image src={c.profiles[0].avatar_url} alt="" fill unoptimized className="object-cover" sizes="24px" /> : (c.profiles?.[0]?.username || "?").slice(0, 1).toUpperCase()}
                             </Link>
-                            <Link href={`/profile/${c.user_id}`} className="text-xs font-bold text-white hover:text-sky-400">{c.profiles?.[0]?.username || "?"}</Link>
+                            <Link href={`/profile/${c.user_id}`} className="text-xs font-bold text-white hover:text-sky-400 flex items-center gap-1">{c.profiles?.[0]?.username || "?"} {c.profiles?.[0]?.is_verified && <VerifiedBadge size={12} />}</Link>
                             <span className="text-[10px] text-gray-600 ml-auto">{new Date(c.created_at).toLocaleString("ru-RU")}</span>
                             {(c.user_id === userId || isAdminUser) && <button onClick={() => handlePcDelete(c.id, c.user_id, p.id)} className="text-[10px] text-red-400 hover:text-red-300"><i className="fa-solid fa-trash-can"></i></button>}
-                            {c.user_id !== userId && <button onClick={() => handlePcReport(c.id)} className="text-[10px] text-gray-500 hover:text-amber-400" title="Пожаловаться"><i className="fa-solid fa-flag"></i></button>}
+                            <button onClick={() => handlePcReport(c.id)} className="text-[10px] text-gray-500 hover:text-amber-400" title="Пожаловаться"><i className="fa-solid fa-flag"></i></button>
                           </div>
                           <div className="text-xs text-gray-300 whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: renderText(c.text) }} />
                           <div className="flex gap-2">
