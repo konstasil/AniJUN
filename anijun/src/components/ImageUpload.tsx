@@ -110,6 +110,8 @@ export default function ImageUpload({
   }
 
   const displayUrl = preview || currentUrl;
+  const isVideo = displayUrl ? /\.(mp4|mov|webm|mkv|avi)$/i.test(displayUrl.split("?")[0]) || preview?.startsWith("data:video") : false;
+  const isAudio = displayUrl ? /\.(mp3|ogg|wav|flac)$/i.test(displayUrl.split("?")[0]) || preview?.startsWith("data:audio") : false;
 
   return (
     <div className={`flex flex-col items-center gap-2 ${className}`}>
@@ -119,12 +121,14 @@ export default function ImageUpload({
         style={{ width: size, height: size }}
       >
         {displayUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element -- превью может быть blob: URL (object URL), next/image его не поддерживает
-          <img
-            src={displayUrl}
-            alt="Preview"
-            className="w-full h-full object-cover"
-          />
+          isVideo ? (
+            <video src={displayUrl} className="w-full h-full object-cover" muted playsInline />
+          ) : isAudio ? (
+            <div className="w-full h-full bg-[#121214] flex items-center justify-center"><i className="fa-solid fa-music text-sky-400 text-xl"></i></div>
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={displayUrl} alt="Preview" className="w-full h-full object-cover" />
+          )
         ) : (
           <div className="w-full h-full bg-[#121214] flex items-center justify-center">
             <i className="fa-solid fa-camera text-gray-600 text-xl"></i>

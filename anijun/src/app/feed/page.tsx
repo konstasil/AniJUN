@@ -348,7 +348,6 @@ export default function FeedPage() {
       {showComposer && (
         <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-4 flex flex-col gap-3">
           <ImageUpload bucket="posts" currentUrl={imageUrl || undefined} onUploaded={setImageUrl} size={120} label="Добавить медиа" />
-          {imageUrl && <div className="relative w-full h-40 rounded-lg overflow-hidden bg-[#121214]"><Image src={imageUrl} alt="" fill unoptimized className="object-cover" /></div>}
           <div className="relative">
             {toolbar.show && (
               <div className="absolute -top-10 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 p-1 bg-[#1a1a1e] border border-[#222226] rounded-lg shadow-xl">
@@ -401,7 +400,15 @@ export default function FeedPage() {
                 <button onClick={() => handleReport(p.id)} className="text-gray-500 hover:text-amber-400 text-xs" title="Пожаловаться"><i className="fa-solid fa-flag"></i></button>
               </div>
               <div className="text-sm text-gray-200 whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: formatToHtml(p.text, usernameToId) }} />
-              {p.image_url && <div className="mt-3 rounded-lg overflow-hidden bg-[#121214] relative aspect-[16/9]"><Image src={p.image_url} alt="" fill unoptimized className="object-cover" sizes="600px" /></div>}
+              {p.image_url && (
+                /\.mp4|\.mov|\.webm|\.mkv|\.avi/i.test(p.image_url) ? (
+                  <video src={p.image_url} controls className="mt-3 w-full rounded-lg bg-black max-h-80" />
+                ) : /\.mp3|\.ogg|\.wav|\.flac/i.test(p.image_url) ? (
+                  <audio src={p.image_url} controls className="mt-3 w-full" />
+                ) : (
+                  <div className="mt-3 rounded-lg overflow-hidden bg-[#121214] relative aspect-[16/9]"><Image src={p.image_url} alt="" fill unoptimized className="object-cover" sizes="600px" /></div>
+                )
+              )}
               <div className="flex gap-2 mt-3 flex-wrap">
                 <button onClick={() => toggleLike(p.id)} className={`text-[11px] px-3 py-1 rounded-lg border ${myLikes.has(p.id) ? "bg-sky-500/20 text-sky-400 border-sky-500/30" : "text-gray-400 border-[#222226] hover:text-white"}`}>
                   <i className="fa-solid fa-heart mr-1"></i> {likes.get(p.id) || 0}
