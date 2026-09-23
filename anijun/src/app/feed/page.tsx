@@ -368,7 +368,7 @@ export default function FeedPage() {
                 <Link href={`/profile/${p.user_id}`} className="text-xs font-bold text-white hover:text-sky-400">{p.profiles?.[0]?.username || "Пользователь"}</Link>
                 <span className="text-[10px] text-gray-600 ml-auto">{new Date(p.created_at).toLocaleString("ru-RU")}</span>
                 {(isOwner || isAdminUser) && <button onClick={() => handleDelete(p.id, p.user_id)} className="text-gray-500 hover:text-red-400 text-xs"><i className="fa-solid fa-trash-can"></i></button>}
-                {!isOwner && <button onClick={() => handleReport(p.id)} className="text-gray-500 hover:text-amber-400 text-xs" title="Пожаловаться"><i className="fa-solid fa-flag"></i></button>}
+                <button onClick={() => handleReport(p.id)} className="text-gray-500 hover:text-amber-400 text-xs" title="Пожаловаться"><i className="fa-solid fa-flag"></i></button>
               </div>
               <div className="text-sm text-gray-200 whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: renderText(p.text) }} />
               <div className="flex gap-2 mt-3 flex-wrap">
