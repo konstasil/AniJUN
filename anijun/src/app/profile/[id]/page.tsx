@@ -93,6 +93,9 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
   const [friends, setFriends] = useState<FriendItem[]>([]);
   const [viewerFriendIds, setViewerFriendIds] = useState<Set<string>>(new Set());
   const [viewerPendingIds, setViewerPendingIds] = useState<Set<string>>(new Set());
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [reviews, setReviews] = useState<UserReview[]>([]);
   const [collections, setCollections] = useState<PublicCollection[]>([]);
@@ -340,12 +343,53 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
     return () => { cancelled = true; };
   }, [id, getEffectiveUserId, supabase]);
 
+
+  useEffect(() => {
+    if (!id || !viewerId || viewerId === id) return;
+    (async () => {
+      const { count: f1 } = await supabase.from("follows").select("follower_id", { count: "exact", head: true }).eq("following_id", id);
+      const { count: f2 } = await supabase.from("follows").select("following_id", { count: "exact", head: true }).eq("follower_id", id);
+      setFollowersCount(f1 || 0);
+      setFollowingCount(f2 || 0);
+      const { data } = await supabase.from("follows").select("follower_id").eq("follower_id", viewerId).eq("following_id", id).maybeSingle();
+      setIsFollowing(!!data);
+    })();
+  }, [id, viewerId, supabase]);
+
+  useEffect(() => {
+    if (!id) return;
+    (async () => {
+      const { count: f1 } = await supabase.from("follows").select("follower_id", { count: "exact", head: true }).eq("following_id", id);
+      const { count: f2 } = await supabase.from("follows").select("following_id", { count: "exact", head: true }).eq("follower_id", id);
+      if (!viewerId || viewerId === id) {
+        setFollowersCount(f1 || 0);
+        setFollowingCount(f2 || 0);
+      }
+    })();
+  }, [id, supabase, viewerId]);
+
+  async function handleFollow() {
+    if (!viewerId) { router.push("/login"); return; }
+    if (isFollowing) {
+      await supabase.from("follows").delete().eq("follower_id", viewerId).eq("following_id", id);
+      setIsFollowing(false);
+      setFollowersCount((c) => Math.max(0, c - 1));
+    } else {
+      await supabase.from("follows").insert({ follower_id: viewerId, following_id: id });
+      setIsFollowing(true);
+      setFollowersCount((c) => c + 1);
+    }
+  }
+
   async function handleAddProfileFriend() {
     if (!viewerId) { router.push("/login"); return; }
     const { error: err } = await supabase
       .from("friends")
       .insert({ user_id: viewerId, friend_id: id, status: "pending" });
-    if (!err) setRelation("request_sent");
+    if (!err) {
+      setRelation("request_sent");
+      await supabase.from("notifications").insert({ user_id: id, actor_id: viewerId, type: "friend_request", target_id: null });
+    }
   }
 
   async function handleAcceptProfileFriend() {
@@ -402,8 +446,20 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
               <span className="text-[11px] text-gray-500 flex items-center gap-1 justify-center sm:justify-start">@{profile.username} {profile.is_verified && <VerifiedBadge size={14} />}</span>
             )}
             <p className="text-xs text-gray-400 mt-1.5 line-clamp-2">{profile.bio || "Пока без описания"}</p>
+            <div className="flex gap-3 mt-2 text-xs">
+              <span className="text-gray-400"><span className="font-bold text-white">{followersCount}</span> подписчиков</span>
+              <span className="text-gray-400"><span className="font-bold text-white">{followingCount}</span> подписок</span>
+            </div>
           </div>
 
+          <div className="flex gap-2">
+          {relation !== "self" && (
+            <button onClick={handleFollow}
+              className={`shrink-0 px-4 py-2 rounded-lg text-xs font-bold border transition-all group ${isFollowing ? "bg-[#1a1a1e] border-[#222226] text-gray-400 hover:border-red-500/30 hover:text-red-400" : "bg-sky-500 hover:bg-sky-600 border-sky-500 text-white"}`}>
+              <span className={isFollowing ? "group-hover:hidden" : ""}>{isFollowing ? "Подписан" : "Подписаться"}</span>
+              {isFollowing && <span className="hidden group-hover:inline">Отписаться</span>}
+            </button>
+          )}
           {relation === "self" ? (
             <Link href="/profile"
               className="shrink-0 px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 border bg-[#1a1a1e] border-[#222226] text-gray-300 hover:text-white">
@@ -447,6 +503,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
               <i className="fa-solid fa-flag text-[10px]"></i>
             </button>
           )}
+          </div>
         </div>
       </div>
 

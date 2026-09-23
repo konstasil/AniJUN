@@ -117,6 +117,7 @@ function NotifDropdown({ onClose }: { onClose: () => void }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
   const [items, setItems] = useState<{ id: number; actor_id: string; type: string; target_id: number | null; is_read: boolean; created_at: string; actor?: { username: string } }[]>([]);
+  const [friendReqs, setFriendReqs] = useState<{ id: number; user_id: string; username: string }[]>([]);
   useEffect(() => {
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -128,6 +129,8 @@ function NotifDropdown({ onClose }: { onClose: () => void }) {
       const map = new Map<string, string>();
       profs?.forEach((p) => map.set(p.id, p.username));
       setItems(data.map((d) => ({ ...d, actor: { username: map.get(d.actor_id) || "Кто-то" } })));
+      const { data: fr } = await supabase.from("friends").select("id, user_id, profiles:user_id(username)").eq("friend_id", session.user.id).eq("status", "pending").limit(5);
+      if (fr) setFriendReqs(fr.map((r: any) => ({ id: r.id, user_id: r.user_id, username: r.profiles?.username || "Кто-то" })));
     })();
   }, [supabase]);
   async function openNotif(n: typeof items[0]) {
@@ -144,6 +147,17 @@ function NotifDropdown({ onClose }: { onClose: () => void }) {
           <button onClick={onClose} className="text-gray-500 hover:text-white"><i className="fa-solid fa-xmark text-xs"></i></button>
         </div>
         <div className="max-h-[60vh] sm:max-h-96 overflow-y-auto">
+          {friendReqs.length > 0 && (
+            <div className="border-b border-[#222226]">
+              {friendReqs.map((fr) => (
+                <div key={fr.id} className="px-4 py-3 flex items-center gap-2">
+                  <span className="text-xs text-gray-200 flex-1"><span className="font-bold text-white">{fr.username}</span> отправил запрос в друзья</span>
+                  <button onClick={async () => { await supabase.from("friends").update({ status: "accepted" }).eq("id", fr.id); setFriendReqs((prev) => prev.filter((x) => x.id !== fr.id)); }} className="text-[11px] bg-sky-500 text-white px-2 py-1 rounded">Принять</button>
+                  <button onClick={async () => { await supabase.from("friends").update({ status: "rejected" }).eq("id", fr.id); setFriendReqs((prev) => prev.filter((x) => x.id !== fr.id)); }} className="text-[11px] bg-[#222226] text-gray-400 px-2 py-1 rounded">Отклонить</button>
+                </div>
+              ))}
+            </div>
+          )}
           {items.length === 0 ? (
             <p className="px-4 py-8 text-center text-xs text-gray-600">Пока ничего нет</p>
           ) : (
