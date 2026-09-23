@@ -333,7 +333,7 @@ export default function FeedPage() {
         <h1 className="text-sm font-bold text-white">Лента</h1>
       </div>
       <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-4 flex flex-col gap-3">
-        <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} placeholder="Что нового? @упоминание" className="w-full bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-sky-500/50 resize-none" />
+        <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} placeholder="Что нового?" className="w-full bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-sky-500/50 resize-none" />
         <button onClick={handlePost} disabled={sending || !text.trim()} className="self-end bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-xs font-bold px-5 py-2 rounded-lg transition-all">Опубликовать</button>
       </div>
       <div className="space-y-3">
