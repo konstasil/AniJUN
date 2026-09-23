@@ -116,7 +116,7 @@ function NotifBadge() {
 function NotifDropdown({ onClose }: { onClose: () => void }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
-  const [items, setItems] = useState<{ id: number; actor_id: string; type: string; target_id: number | null; is_read: boolean; created_at: string; actor?: { username: string } }[]>([]);
+  const [items, setItems] = useState<{ id: number; actor_id: string; type: string; target_id: number | null; is_read: boolean; created_at: string; actor?: { username: string; avatar_url: string } }[]>([]);
   const [friendReqs, setFriendReqs] = useState<{ id: number; user_id: string; username: string }[]>([]);
   useEffect(() => {
     (async () => {
@@ -125,10 +125,13 @@ function NotifDropdown({ onClose }: { onClose: () => void }) {
       const { data } = await supabase.from("notifications").select("id, actor_id, type, target_id, is_read, created_at").eq("user_id", session.user.id).order("created_at", { ascending: false }).limit(20);
       if (!data) return;
       const aids = [...new Set(data.map((d) => d.actor_id))];
-      const { data: profs } = await supabase.from("profiles").select("id, username").in("id", aids);
-      const map = new Map<string, string>();
-      profs?.forEach((p) => map.set(p.id, p.username));
-      setItems(data.map((d) => ({ ...d, actor: { username: map.get(d.actor_id) || "Кто-то" } })));
+      const { data: profs } = await supabase.from("profiles").select("id, username, avatar_url").in("id", aids);
+      const map = new Map<string, { username: string; avatar_url: string }>();
+      profs?.forEach((p) => map.set(p.id, { username: p.username, avatar_url: p.avatar_url || "" }));
+      setItems(data.map((d) => {
+        const pr = map.get(d.actor_id);
+        return { ...d, actor: { username: pr?.username || "Кто-то", avatar_url: pr?.avatar_url || "" } };
+      }));
       const { data: fr } = await supabase.from("friends").select("id, user_id, profiles:user_id(username)").eq("friend_id", session.user.id).eq("status", "pending").limit(5);
       if (fr) setFriendReqs(fr.map((r: any) => ({ id: r.id, user_id: r.user_id, username: r.profiles?.username || "Кто-то" })));
     })();
@@ -136,6 +139,8 @@ function NotifDropdown({ onClose }: { onClose: () => void }) {
   async function openNotif(n: typeof items[0]) {
     if (!n.is_read) await supabase.from("notifications").update({ is_read: true }).eq("id", n.id);
     onClose();
+    if (n.type === "friend_request") { router.push(`/profile/${n.actor_id}`); return; }
+    if (n.target_id) { router.push(`/feed#post-${n.target_id}`); return; }
     router.push(`/profile/${n.actor_id}`);
   }
   return (
@@ -162,9 +167,13 @@ function NotifDropdown({ onClose }: { onClose: () => void }) {
             <p className="px-4 py-8 text-center text-xs text-gray-600">Пока ничего нет</p>
           ) : (
             items.map((n) => (
-              <button key={n.id} onClick={() => openNotif(n)} className={`w-full text-left px-4 py-3 hover:bg-[#222226] transition-colors border-b border-[#222226]/50 ${!n.is_read ? "bg-sky-500/5" : ""}`}>
-                <p className="text-xs text-gray-200"><span className="font-bold text-white">{n.actor?.username}</span> {n.type === "mention" ? "упомянул Вас" : n.type === "reply" ? "ответил Вам" : "опубликовал пост"}</p>
-                <p className="text-[11px] text-gray-500">{new Date(n.created_at).toLocaleString("ru-RU")}</p>
+              <button key={n.id} onClick={() => openNotif(n)} className={`w-full text-left px-4 py-3 hover:bg-[#222226] transition-colors border-b border-[#222226]/50 flex gap-3 items-center ${!n.is_read ? "bg-sky-500/5" : ""}`}>
+                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-sky-400 to-blue-600 flex items-center justify-center text-white text-[11px] font-black overflow-hidden relative shrink-0">
+                  {n.actor?.avatar_url ? <Image src={n.actor.avatar_url} alt="" fill unoptimized className="object-cover" sizes="32px" /> : (n.actor?.username || "?").slice(0, 1).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-gray-200"><span className="font-bold text-white">{n.actor?.username}</span> {n.type === "mention" ? "упомянул(а) Вас" : n.type === "reply" ? "ответил(а) Вам" : n.type === "friend_request" ? "отправил(а) запрос в друзья" : "опубликовал(а) пост"} <span className="text-gray-500 font-normal">{new Date(n.created_at).toLocaleString("ru-RU")}</span></p>
+                </div>
               </button>
             ))
           )}
