@@ -402,6 +402,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
       setRelation("friends");
       setViewerFriendIds((prev) => new Set(prev).add(id));
       setProfile((prev) => prev ? { ...prev, friends_count: prev.friends_count + 1 } : prev);
+      await supabase.from("notifications").insert({ user_id: id, actor_id: viewerId, type: "friend_accept", target_id: null });
     }
   }
 

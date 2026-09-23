@@ -1,16 +1,18 @@
 "use client";
 import { createClient } from "@/lib/supabase/client";
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import VerifiedBadge from "@/components/VerifiedBadge";
+import ImageUpload from "@/components/ImageUpload";
 
 interface Post {
   id: number;
   user_id: string;
   text: string;
+  image_url?: string | null;
   created_at: string;
-  profiles?: { username: string; avatar_url: string }[];
+  profiles?: { username: string; avatar_url: string; is_verified?: boolean }[];
 }
 
 interface AnimeRec { id: number; slug?: string; title: string; image_url: string; genres: string[] }
@@ -28,19 +30,26 @@ interface PostComment {
 function escapeHtml(s: string) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
-
-function useUserMap() {
-  const [map, setMap] = useState<Map<string, string>>(new Map());
-  const supabase = useMemo(() => createClient(), []);
-  const fetchUsernames = useCallback(async (ids: string[]) => {
-    if (ids.length === 0) return map;
-    const { data } = await supabase.from("profiles").select("id, username").in("id", ids);
-    const m = new Map(map);
-    data?.forEach((p) => m.set(p.id, p.username));
-    setMap(m);
+function formatToHtml(text: string, usernameToId: Map<string, string>) {
+  let h = escapeHtml(text);
+  h = h.replace(/\|\|(.+?)\|\|/g, '<span class="spoiler" onclick="this.classList.toggle(\'revealed\')">$1</span>');
+  h = h.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
+  h = h.replace(/__(.+?)__/g, "<i>$1</i>");
+  h = h.replace(/~~(.+?)~~/g, "<s>$1</s>");
+  h = h.replace(/`(.+?)`/g, '<code class="bg-[#222226] px-1 py-0.5 rounded text-[11px]">$1</code>');
+  h = h.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_m, p1, p2) => {
+    let url = p2;
+    if (!/^https?:\/\//i.test(url) && !/^mailto:/i.test(url) && !/^#/.test(url)) url = "https://" + url;
+    const safeUrl = url.replace(/"/g, "&quot;");
+    return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="text-sky-400 hover:underline">${p1}</a>`;
+  });
+  h = h.replace(/(?<!href="|">)(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-sky-400 hover:underline">$1</a>');
+  h = h.replace(/@([a-zA-Z0-9_]+)/g, (m, uname) => {
+    const id = usernameToId.get(uname.toLowerCase());
+    if (id) return `<a href="/profile/${id}" class="text-sky-400 hover:underline">@${uname}</a>`;
     return m;
-  }, [supabase, map]);
-  return { map, fetchUsernames };
+  });
+  return h;
 }
 
 export default function FeedPage() {
@@ -48,6 +57,8 @@ export default function FeedPage() {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [text, setText] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [showComposer, setShowComposer] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [likes, setLikes] = useState<Map<number, number>>(new Map());
@@ -56,7 +67,6 @@ export default function FeedPage() {
   const [following, setFollowing] = useState<Set<string>>(new Set());
   const [recs, setRecs] = useState<AnimeRec[]>([]);
   const [usernameToId, setUsernameToId] = useState<Map<string, string>>(new Map());
-  const [idToUsername, setIdToUsername] = useState<Map<string, string>>(new Map());
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [postComments, setPostComments] = useState<Map<number, PostComment[]>>(new Map());
   const [replyText, setReplyText] = useState<Map<number, string>>(new Map());
@@ -64,6 +74,8 @@ export default function FeedPage() {
   const [pcLikes, setPcLikes] = useState<Map<number, number>>(new Map());
   const [myPcLikes, setMyPcLikes] = useState<Set<number>>(new Set());
   const [isAdminUser, setIsAdminUser] = useState(false);
+  const mainRef = useRef<HTMLTextAreaElement>(null);
+  const [toolbar, setToolbar] = useState<{ show: boolean }>({ show: false });
 
   useEffect(() => { document.title = "Лента | AniJUN"; }, []);
 
@@ -80,20 +92,18 @@ export default function FeedPage() {
       } catch { setIsAdmin(false); }
       const { data: profs } = await supabase.from("profiles").select("id, username");
       const u2i = new Map<string, string>();
-      const i2u = new Map<string, string>();
-      profs?.forEach((p) => { u2i.set(p.username.toLowerCase(), p.id); i2u.set(p.id, p.username); });
+      profs?.forEach((p) => { u2i.set(p.username.toLowerCase(), p.id); });
       setUsernameToId(u2i);
-      setIdToUsername(i2u);
     })();
   }, [supabase]);
 
   const load = useCallback(async () => {
-    const { data } = await supabase.from("posts").select("id, user_id, text, created_at").order("created_at", { ascending: false }).limit(100);
+    const { data } = await supabase.from("posts").select("id, user_id, text, image_url, created_at").order("created_at", { ascending: false }).limit(100);
     if (!data) { setPosts([]); return; }
     const ids = [...new Set(data.map((p) => p.user_id))];
-    const { data: profs } = await supabase.from("profiles").select("id, username, avatar_url").in("id", ids);
-    const map = new Map<string, { username: string; avatar_url: string }>();
-    profs?.forEach((p) => map.set(p.id, { username: p.username, avatar_url: p.avatar_url }));
+    const { data: profs } = await supabase.from("profiles").select("id, username, avatar_url, is_verified").in("id", ids);
+    const map = new Map<string, { username: string; avatar_url: string; is_verified?: boolean }>();
+    profs?.forEach((p) => map.set(p.id, { username: p.username, avatar_url: p.avatar_url || "", is_verified: p.is_verified }));
     setPosts(data.map((p) => ({ ...p, profiles: map.has(p.user_id) ? [map.get(p.user_id)!] : [] })) as Post[]);
 
     const pids = data.map((p) => p.id);
@@ -113,8 +123,10 @@ export default function FeedPage() {
       commentRows?.forEach((r) => cm.set(r.post_id, (cm.get(r.post_id) || 0) + 1));
       setCommentsCount(cm);
     }
-    if (userId) {
-      const { data: follows } = await supabase.from("follows").select("following_id").eq("follower_id", userId);
+    const { data: { session } } = await supabase.auth.getSession();
+    const uid2 = session?.user.id;
+    if (uid2) {
+      const { data: follows } = await supabase.from("follows").select("following_id").eq("follower_id", uid2);
       setFollowing(new Set((follows || []).map((f) => f.following_id)));
     }
     const { data: animeList } = await supabase.from("anime").select("id, slug, title, image_url, genres").limit(50);
@@ -122,14 +134,50 @@ export default function FeedPage() {
       const shuffled = [...animeList].sort(() => Math.random() - 0.5).slice(0, 10);
       setRecs(shuffled);
     }
-  }, [supabase, userId]);
+  }, [supabase]);
 
   useEffect(() => { if (isAdmin) load(); }, [isAdmin, load]);
+
+  function checkSelection() {
+    const el = mainRef.current;
+    if (!el) { setToolbar({ show: false }); return; }
+    const start = el.selectionStart ?? 0;
+    const end = el.selectionEnd ?? 0;
+    setToolbar({ show: end > start });
+  }
+  function wrapSelection(before: string, after: string) {
+    const el = mainRef.current;
+    if (!el) return;
+    const start = el.selectionStart ?? 0;
+    const end = el.selectionEnd ?? 0;
+    const selected = text.substring(start, end);
+    if (!selected) return;
+    const next = text.substring(0, start) + before + selected + after + text.substring(end);
+    setText(next);
+    setTimeout(() => { el.focus(); el.setSelectionRange(start + before.length, end + before.length); checkSelection(); }, 0);
+  }
+  function handleSpoiler() { wrapSelection("||", "||"); }
+  function handleBold() { wrapSelection("**", "**"); }
+  function handleItalic() { wrapSelection("__", "__"); }
+  function handleStrike() { wrapSelection("~~", "~~"); }
+  function handleMono() { wrapSelection("`", "`"); }
+  function handleLink() {
+    const el = mainRef.current;
+    if (!el) return;
+    const start = el.selectionStart ?? 0;
+    const end = el.selectionEnd ?? 0;
+    const selected = text.substring(start, end);
+    if (!selected) return;
+    const url = prompt("Введите ссылку:");
+    if (!url) return;
+    const next = text.substring(0, start) + `[${selected}](${url})` + text.substring(end);
+    setText(next);
+  }
 
   async function handlePost() {
     if (!userId || !text.trim()) return;
     setSending(true);
-    const { data: inserted, error } = await supabase.from("posts").insert({ user_id: userId, text: text.trim() }).select("id").single();
+    const { data: inserted, error } = await supabase.from("posts").insert({ user_id: userId, text: text.trim(), image_url: imageUrl || null }).select("id").single();
     if (!error && inserted) {
       const mentions = [...text.matchAll(/@([a-zA-Z0-9_]+)/g)].map((m) => m[1].toLowerCase());
       for (const uname of [...new Set(mentions)]) {
@@ -142,6 +190,8 @@ export default function FeedPage() {
     setSending(false);
     if (error) return;
     setText("");
+    setImageUrl("");
+    setShowComposer(false);
     await load();
   }
 
@@ -149,30 +199,16 @@ export default function FeedPage() {
     const { data: { session } } = await supabase.auth.getSession();
     const uid = session?.user.id;
     if (!uid) return;
-    if (myLikes.has(postId)) {
-      await supabase.from("post_likes").delete().eq("post_id", postId).eq("user_id", uid);
-    } else {
-      await supabase.from("post_likes").insert({ post_id: postId, user_id: uid });
-    }
+    if (myLikes.has(postId)) await supabase.from("post_likes").delete().eq("post_id", postId).eq("user_id", uid);
+    else await supabase.from("post_likes").insert({ post_id: postId, user_id: uid });
     await load();
   }
-
   async function copyLink(id: number) {
     const url = `${window.location.origin}/feed#post-${id}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      alert("Ссылка скопирована");
-    } catch {
-      const ta = document.createElement("textarea");
-      ta.value = url;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand("copy");
-      document.body.removeChild(ta);
-      alert("Ссылка скопирована");
+    try { await navigator.clipboard.writeText(url); alert("Ссылка скопирована"); } catch {
+      const ta = document.createElement("textarea"); ta.value = url; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); alert("Ссылка скопирована");
     }
   }
-
   async function handleDelete(postId: number, ownerId: string) {
     const { data: { session } } = await supabase.auth.getSession();
     const uid = session?.user.id;
@@ -181,7 +217,6 @@ export default function FeedPage() {
     await supabase.from("posts").delete().eq("id", postId);
     await load();
   }
-
   async function handleReport(postId: number) {
     const { data: { session } } = await supabase.auth.getSession();
     const uid = session?.user.id;
@@ -189,10 +224,8 @@ export default function FeedPage() {
     const reason = prompt("Причина жалобы:");
     if (!reason || !reason.trim()) return;
     const { error } = await supabase.from("post_reports").insert({ post_id: postId, reporter_id: uid, reason: reason.trim() });
-    if (error) alert(error.message);
-    else alert("Жалоба отправлена");
+    if (error) alert(error.message); else alert("Жалоба отправлена");
   }
-
   async function loadComments(postId: number) {
     const { data } = await supabase.from("post_comments").select("id, post_id, user_id, text, created_at, parent_id").eq("post_id", postId).order("created_at", { ascending: true });
     if (!data) return;
@@ -216,7 +249,6 @@ export default function FeedPage() {
       setMyPcLikes((prev) => { const n = new Set(prev); cids.forEach((id) => n.delete(id)); my.forEach((id) => n.add(id)); return n; });
     }
   }
-
   async function handleReply(postId: number) {
     const { data: { session } } = await supabase.auth.getSession();
     const uid = session?.user.id;
@@ -224,30 +256,23 @@ export default function FeedPage() {
     const body = (replyText.get(postId) || "").trim();
     if (!body) return;
     const parentId = replyTo.get(postId) || null;
-    const { data: inserted } = await supabase.from("post_comments").insert({ post_id: postId, user_id: uid, text: body, parent_id: parentId }).select("id").single();
+    await supabase.from("post_comments").insert({ post_id: postId, user_id: uid, text: body, parent_id: parentId });
     const mentions = [...body.matchAll(/@([a-zA-Z0-9_]+)/g)].map((m) => m[1].toLowerCase());
     for (const uname of [...new Set(mentions)]) {
       const targetId = usernameToId.get(uname);
-      if (targetId && targetId !== uid) {
-        await supabase.from("notifications").insert({ user_id: targetId, actor_id: uid, type: "mention", target_id: postId });
-      }
+      if (targetId && targetId !== uid) await supabase.from("notifications").insert({ user_id: targetId, actor_id: uid, type: "mention", target_id: postId });
     }
     const { data: post } = await supabase.from("posts").select("user_id").eq("id", postId).single();
-    if (post && post.user_id !== uid) {
-      await supabase.from("notifications").insert({ user_id: post.user_id, actor_id: uid, type: "reply", target_id: postId });
-    }
+    if (post && post.user_id !== uid) await supabase.from("notifications").insert({ user_id: post.user_id, actor_id: uid, type: "reply", target_id: postId });
     if (parentId) {
       const { data: parent } = await supabase.from("post_comments").select("user_id").eq("id", parentId).single();
-      if (parent && parent.user_id !== uid && parent.user_id !== post?.user_id) {
-        await supabase.from("notifications").insert({ user_id: parent.user_id, actor_id: uid, type: "reply", target_id: postId });
-      }
+      if (parent && parent.user_id !== uid && parent.user_id !== post?.user_id) await supabase.from("notifications").insert({ user_id: parent.user_id, actor_id: uid, type: "reply", target_id: postId });
     }
     setReplyText((prev) => { const m = new Map(prev); m.set(postId, ""); return m; });
     setReplyTo((prev) => { const m = new Map(prev); m.set(postId, null); return m; });
     await loadComments(postId);
     await load();
   }
-
   async function togglePcLike(commentId: number, postId: number) {
     const { data: { session } } = await supabase.auth.getSession();
     const uid = session?.user.id;
@@ -274,7 +299,6 @@ export default function FeedPage() {
     const { error } = await supabase.from("post_comment_reports").insert({ comment_id: commentId, reporter_id: uid, reason: reason.trim() });
     if (error) alert(error.message); else alert("Жалоба отправлена");
   }
-
   function toggleExpand(postId: number) {
     setExpanded((prev) => {
       const n = new Set(prev);
@@ -283,17 +307,6 @@ export default function FeedPage() {
       return n;
     });
   }
-
-  function renderText(t: string) {
-    let h = escapeHtml(t);
-    h = h.replace(/@([a-zA-Z0-9_]+)/g, (m, uname) => {
-      const id = usernameToId.get(uname.toLowerCase());
-      if (id) return `<a href="/profile/${id}" class="text-sky-400 hover:underline">@${uname}</a>`;
-      return m;
-    });
-    return h;
-  }
-
   function score(post: Post): number {
     const hours = (Date.now() - new Date(post.created_at).getTime()) / 3600000;
     const timeDecay = Math.exp(-hours / 36);
@@ -301,11 +314,7 @@ export default function FeedPage() {
     const affinity = following.has(post.user_id) ? 1.8 : 1.0;
     return affinity * w * timeDecay;
   }
-
-  const sorted = useMemo(() => {
-    return [...posts].sort((a, b) => score(b) - score(a));
-  }, [posts, likes, commentsCount, following]);
-
+  const sorted = useMemo(() => [...posts].sort((a, b) => score(b) - score(a)), [posts, likes, commentsCount, following]);
   if (isAdmin === null) return <div className="text-center py-20 text-gray-500 text-xs">Загрузка...</div>;
   if (!isAdmin) {
     return (
@@ -316,7 +325,6 @@ export default function FeedPage() {
       </div>
     );
   }
-
   const feedItems: (Post | { rec: AnimeRec })[] = [];
   sorted.forEach((p, idx) => {
     feedItems.push(p);
@@ -328,14 +336,36 @@ export default function FeedPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-4">
-      <div className="flex items-center gap-2 mb-2">
-        <i className="fa-solid fa-rss text-sky-400"></i>
-        <h1 className="text-sm font-bold text-white">Лента</h1>
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <i className="fa-solid fa-rss text-sky-400"></i>
+          <h1 className="text-sm font-bold text-white">Лента</h1>
+        </div>
+        <button onClick={() => setShowComposer(!showComposer)} className="w-9 h-9 rounded-full bg-sky-500 hover:bg-sky-600 text-white flex items-center justify-center shadow-lg shadow-sky-500/20 transition-all">
+          <i className={`fa-solid ${showComposer ? "fa-xmark" : "fa-plus"} text-sm`}></i>
+        </button>
       </div>
-      <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-4 flex flex-col gap-3">
-        <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} placeholder="Что нового?" className="w-full bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-sky-500/50 resize-none" />
-        <button onClick={handlePost} disabled={sending || !text.trim()} className="self-end bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-xs font-bold px-5 py-2 rounded-lg transition-all">Опубликовать</button>
-      </div>
+      {showComposer && (
+        <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-4 flex flex-col gap-3">
+          <div className="relative">
+            {toolbar.show && (
+              <div className="absolute -top-10 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 p-1 bg-[#1a1a1e] border border-[#222226] rounded-lg shadow-xl">
+                <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={handleBold} className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#222226] text-gray-300 hover:text-white text-xs font-black">B</button>
+                <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={handleItalic} className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#222226] text-gray-300 hover:text-white text-xs italic">I</button>
+                <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={handleStrike} className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#222226] text-gray-300 hover:text-white text-xs line-through">S</button>
+                <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={handleMono} className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#222226] text-gray-300 hover:text-white text-[10px] font-mono">{"</>"}</button>
+                <div className="w-px h-5 bg-[#222226]" />
+                <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={handleSpoiler} className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#222226] text-gray-300 hover:text-white"><i className="fa-solid fa-eye-slash text-[10px]"></i></button>
+                <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={handleLink} className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#222226] text-sky-400 hover:text-white"><i className="fa-solid fa-link text-[10px]"></i></button>
+              </div>
+            )}
+            <textarea ref={mainRef} value={text} onChange={(e) => setText(e.target.value)} onSelect={checkSelection} onMouseUp={checkSelection} onKeyUp={checkSelection} onBlur={() => setTimeout(() => setToolbar({ show: false }), 150)} rows={3} placeholder="Что нового?" className="w-full bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-sky-500/50 resize-none" />
+          </div>
+          <ImageUpload bucket="posts" currentUrl={imageUrl || undefined} onUploaded={setImageUrl} size={120} label="Добавить изображение" />
+          {imageUrl && <div className="relative w-full h-40 rounded-lg overflow-hidden bg-[#121214]"><Image src={imageUrl} alt="" fill unoptimized className="object-cover" /></div>}
+          <button onClick={handlePost} disabled={sending || !text.trim()} className="self-end bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-xs font-bold px-5 py-2 rounded-lg transition-all">Опубликовать</button>
+        </div>
+      )}
       <div className="space-y-3">
         {feedItems.length === 0 && <p className="text-center text-gray-600 text-xs py-10">Пока пусто</p>}
         {feedItems.map((item, i) => {
@@ -365,12 +395,13 @@ export default function FeedPage() {
                 <Link href={`/profile/${p.user_id}`} className="w-7 h-7 rounded-full bg-gradient-to-tr from-sky-400 to-blue-600 flex items-center justify-center text-white text-[10px] font-black overflow-hidden relative">
                   {p.profiles?.[0]?.avatar_url ? <Image src={p.profiles[0].avatar_url} alt="" fill unoptimized className="object-cover" /> : (p.profiles?.[0]?.username || "?").slice(0, 1).toUpperCase()}
                 </Link>
-                <Link href={`/profile/${p.user_id}`} className="text-xs font-bold text-white hover:text-sky-400">{p.profiles?.[0]?.username || "Пользователь"}</Link>
+                <Link href={`/profile/${p.user_id}`} className="text-xs font-bold text-white hover:text-sky-400 flex items-center gap-1">{p.profiles?.[0]?.username || "Пользователь"} {p.profiles?.[0]?.is_verified && <VerifiedBadge size={12} />}</Link>
                 <span className="text-[10px] text-gray-600 ml-auto">{new Date(p.created_at).toLocaleString("ru-RU")}</span>
                 {(isOwner || isAdminUser) && <button onClick={() => handleDelete(p.id, p.user_id)} className="text-gray-500 hover:text-red-400 text-xs"><i className="fa-solid fa-trash-can"></i></button>}
                 <button onClick={() => handleReport(p.id)} className="text-gray-500 hover:text-amber-400 text-xs" title="Пожаловаться"><i className="fa-solid fa-flag"></i></button>
               </div>
-              <div className="text-sm text-gray-200 whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: renderText(p.text) }} />
+              <div className="text-sm text-gray-200 whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: formatToHtml(p.text, usernameToId) }} />
+              {p.image_url && <div className="mt-3 rounded-lg overflow-hidden bg-[#121214] relative aspect-[16/9]"><Image src={p.image_url} alt="" fill unoptimized className="object-cover" sizes="600px" /></div>}
               <div className="flex gap-2 mt-3 flex-wrap">
                 <button onClick={() => toggleLike(p.id)} className={`text-[11px] px-3 py-1 rounded-lg border ${myLikes.has(p.id) ? "bg-sky-500/20 text-sky-400 border-sky-500/30" : "text-gray-400 border-[#222226] hover:text-white"}`}>
                   <i className="fa-solid fa-heart mr-1"></i> {likes.get(p.id) || 0}
@@ -381,7 +412,6 @@ export default function FeedPage() {
               {isExpanded && (
                 <div className="mt-3 pt-3 border-t border-[#222226] space-y-3">
                   {(() => {
-                    const replyingTo = replyTo.get(p.id);
                     const renderTree = (parentId: number | null, depth: number): React.ReactNode => {
                       const nodes = comments.filter((c) => (c.parent_id || null) === parentId);
                       if (nodes.length === 0 && depth === 0) return <p className="text-xs text-gray-600">Пока нет комментариев</p>;
@@ -391,17 +421,17 @@ export default function FeedPage() {
                             <Link href={`/profile/${c.user_id}`} className="w-6 h-6 rounded-full bg-gradient-to-tr from-sky-400 to-blue-600 flex items-center justify-center text-white text-[10px] font-black overflow-hidden relative shrink-0">
                               {c.profiles?.[0]?.avatar_url ? <Image src={c.profiles[0].avatar_url} alt="" fill unoptimized className="object-cover" sizes="24px" /> : (c.profiles?.[0]?.username || "?").slice(0, 1).toUpperCase()}
                             </Link>
-                            <Link href={`/profile/${c.user_id}`} className="text-xs font-bold text-white hover:text-sky-400 flex items-center gap-1">{c.profiles?.[0]?.username || "?"} {c.profiles?.[0]?.is_verified && <VerifiedBadge size={12} />}</Link>
+                            <Link href={`/profile/${c.user_id}`} className="text-xs font-bold text-white hover:text-sky-400 flex items-center gap-1">{c.profiles?.[0]?.username || "?"} {c.profiles?.[0]?.is_verified && <VerifiedBadge size={10} />}</Link>
                             <span className="text-[10px] text-gray-600 ml-auto">{new Date(c.created_at).toLocaleString("ru-RU")}</span>
                             {(c.user_id === userId || isAdminUser) && <button onClick={() => handlePcDelete(c.id, c.user_id, p.id)} className="text-[10px] text-red-400 hover:text-red-300"><i className="fa-solid fa-trash-can"></i></button>}
                             <button onClick={() => handlePcReport(c.id)} className="text-[10px] text-gray-500 hover:text-amber-400" title="Пожаловаться"><i className="fa-solid fa-flag"></i></button>
                           </div>
-                          <div className="text-xs text-gray-300 whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: renderText(c.text) }} />
+                          <div className="text-xs text-gray-300 whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: formatToHtml(c.text, usernameToId) }} />
                           <div className="flex gap-2">
                             <button onClick={() => togglePcLike(c.id, p.id)} className={`text-[11px] px-2 py-1 rounded border ${myPcLikes.has(c.id) ? "bg-sky-500/20 text-sky-400 border-sky-500/30" : "text-gray-500 border-[#222226] hover:text-sky-400"}`}><i className="fa-solid fa-heart text-[10px]"></i> {pcLikes.get(c.id) || ""}</button>
                             <button onClick={() => setReplyTo((prev) => { const m = new Map(prev); m.set(p.id, m.get(p.id) === c.id ? null : c.id); return m; })} className="text-[11px] text-sky-400 hover:text-sky-300"><i className="fa-solid fa-reply mr-1"></i>Ответить</button>
                           </div>
-                          {replyingTo === c.id && (
+                          {replyTo.get(p.id) === c.id && (
                             <div className="flex gap-2">
                               <input value={replyText.get(p.id) || ""} onChange={(e) => setReplyText((prev) => new Map(prev).set(p.id, e.target.value))} placeholder={`Ответ ${c.profiles?.[0]?.username || ""}...`} className="flex-1 bg-[#1a1a1e] border border-[#222226] rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-sky-500/50" />
                               <button onClick={() => handleReply(p.id)} className="bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">Отправить</button>
@@ -414,7 +444,7 @@ export default function FeedPage() {
                     return (
                       <>
                         <div className="space-y-2">{renderTree(null, 0)}</div>
-                        {replyingTo == null && (
+                        {replyTo.get(p.id) == null && (
                           <div className="flex gap-2">
                             <input value={replyText.get(p.id) || ""} onChange={(e) => setReplyText((prev) => new Map(prev).set(p.id, e.target.value))} placeholder="Ответить..." className="flex-1 bg-[#121214] border border-[#222226] rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-sky-500/50" />
                             <button onClick={() => handleReply(p.id)} className="bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">Отправить</button>

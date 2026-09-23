@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRef, useState } from "react";
 
 interface ImageUploadProps {
-  bucket: "users" | "Anime";
+  bucket: "users" | "Anime" | "posts";
   currentUrl?: string;
   onUploaded: (url: string) => void;
   size?: number;

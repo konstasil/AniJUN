@@ -157,7 +157,7 @@ function NotifDropdown({ onClose }: { onClose: () => void }) {
               {friendReqs.map((fr) => (
                 <div key={fr.id} className="px-4 py-3 flex items-center gap-2">
                   <span className="text-xs text-gray-200 flex-1"><span className="font-bold text-white">{fr.username}</span> отправил запрос в друзья</span>
-                  <button onClick={async () => { await supabase.from("friends").update({ status: "accepted" }).eq("id", fr.id); setFriendReqs((prev) => prev.filter((x) => x.id !== fr.id)); }} className="text-[11px] bg-sky-500 text-white px-2 py-1 rounded">Принять</button>
+                  <button onClick={async () => { await supabase.from("friends").update({ status: "accepted" }).eq("id", fr.id); const { data: { session } } = await supabase.auth.getSession(); if (session?.user) await supabase.from("notifications").insert({ user_id: fr.user_id, actor_id: session.user.id, type: "friend_accept", target_id: null }); setFriendReqs((prev) => prev.filter((x) => x.id !== fr.id)); }} className="text-[11px] bg-sky-500 text-white px-2 py-1 rounded">Принять</button>
                   <button onClick={async () => { await supabase.from("friends").update({ status: "rejected" }).eq("id", fr.id); setFriendReqs((prev) => prev.filter((x) => x.id !== fr.id)); }} className="text-[11px] bg-[#222226] text-gray-400 px-2 py-1 rounded">Отклонить</button>
                 </div>
               ))}
@@ -172,7 +172,7 @@ function NotifDropdown({ onClose }: { onClose: () => void }) {
                   {n.actor?.avatar_url ? <Image src={n.actor.avatar_url} alt="" fill unoptimized className="object-cover" sizes="32px" /> : (n.actor?.username || "?").slice(0, 1).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-gray-200"><span className="font-bold text-white">{n.actor?.username}</span> {n.type === "mention" ? "упомянул(а) Вас" : n.type === "reply" ? "ответил(а) Вам" : n.type === "friend_request" ? "отправил(а) запрос в друзья" : "опубликовал(а) пост"} <span className="text-gray-500 font-normal">{new Date(n.created_at).toLocaleString("ru-RU")}</span></p>
+                  <p className="text-xs text-gray-200"><span className="font-bold text-white">{n.actor?.username}</span> {n.type === "mention" ? "упомянул(а) Вас" : n.type === "reply" ? "ответил(а) Вам" : n.type === "friend_request" ? "отправил(а) запрос в друзья" : n.type === "friend_accept" ? "принял(а) запрос в друзья" : "опубликовал(а) пост"} <span className="text-gray-500 font-normal">{new Date(n.created_at).toLocaleString("ru-RU")}</span></p>
                 </div>
               </button>
             ))
