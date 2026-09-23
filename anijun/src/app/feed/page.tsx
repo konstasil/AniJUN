@@ -377,46 +377,39 @@ export default function FeedPage() {
               {isExpanded && (
                 <div className="mt-3 pt-3 border-t border-[#222226] space-y-3">
                   {(() => {
-                    const roots = comments.filter((c) => !c.parent_id);
-                    const childrenOf = (pid: number) => comments.filter((c) => c.parent_id === pid);
                     const replyingTo = replyTo.get(p.id);
+                    const renderTree = (parentId: number | null, depth: number): React.ReactNode => {
+                      const nodes = comments.filter((c) => (c.parent_id || null) === parentId);
+                      if (nodes.length === 0 && depth === 0) return <p className="text-xs text-gray-600">Пока нет комментариев</p>;
+                      return nodes.map((c) => (
+                        <div key={c.id} className={`${depth > 0 ? "ml-4 pl-3 border-l border-[#222226]" : ""} p-3 bg-[#121214] border border-[#222226] rounded-lg space-y-2`}>
+                          <div className="flex items-center gap-2">
+                            <Link href={`/profile/${c.user_id}`} className="w-6 h-6 rounded-full bg-gradient-to-tr from-sky-400 to-blue-600 flex items-center justify-center text-white text-[10px] font-black overflow-hidden relative shrink-0">
+                              {(c.profiles?.[0]?.username || "?").slice(0, 1).toUpperCase()}
+                            </Link>
+                            <Link href={`/profile/${c.user_id}`} className="text-xs font-bold text-white hover:text-sky-400">{c.profiles?.[0]?.username || "?"}</Link>
+                            <span className="text-[10px] text-gray-600 ml-auto">{new Date(c.created_at).toLocaleString("ru-RU")}</span>
+                            {(c.user_id === userId || isAdminUser) && <button onClick={() => handlePcDelete(c.id, c.user_id, p.id)} className="text-[10px] text-red-400 hover:text-red-300"><i className="fa-solid fa-trash-can"></i></button>}
+                            {c.user_id !== userId && <button onClick={() => handlePcReport(c.id)} className="text-[10px] text-gray-500 hover:text-amber-400" title="Пожаловаться"><i className="fa-solid fa-flag"></i></button>}
+                          </div>
+                          <div className="text-xs text-gray-300 whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: renderText(c.text) }} />
+                          <div className="flex gap-2">
+                            <button onClick={() => togglePcLike(c.id, p.id)} className={`text-[11px] px-2 py-1 rounded border ${myPcLikes.has(c.id) ? "bg-sky-500/20 text-sky-400 border-sky-500/30" : "text-gray-500 border-[#222226] hover:text-sky-400"}`}><i className="fa-solid fa-heart text-[10px]"></i> {pcLikes.get(c.id) || ""}</button>
+                            <button onClick={() => setReplyTo((prev) => { const m = new Map(prev); m.set(p.id, m.get(p.id) === c.id ? null : c.id); return m; })} className="text-[11px] text-sky-400 hover:text-sky-300"><i className="fa-solid fa-reply mr-1"></i>Ответить</button>
+                          </div>
+                          {replyingTo === c.id && (
+                            <div className="flex gap-2">
+                              <input value={replyText.get(p.id) || ""} onChange={(e) => setReplyText((prev) => new Map(prev).set(p.id, e.target.value))} placeholder={`Ответ ${c.profiles?.[0]?.username || ""}...`} className="flex-1 bg-[#1a1a1e] border border-[#222226] rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-sky-500/50" />
+                              <button onClick={() => handleReply(p.id)} className="bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">Отправить</button>
+                            </div>
+                          )}
+                          <div className="space-y-2">{renderTree(c.id, depth + 1)}</div>
+                        </div>
+                      ));
+                    };
                     return (
                       <>
-                        {roots.map((c) => (
-                          <div key={c.id} className="space-y-2">
-                            <div className="flex gap-2 text-xs items-start">
-                              <Link href={`/profile/${c.user_id}`} className="font-bold text-sky-400 hover:underline shrink-0">{c.profiles?.[0]?.username || "?"}</Link>
-                              <span className="text-gray-300 break-words flex-1" dangerouslySetInnerHTML={{ __html: renderText(c.text) }} />
-                              <span className="text-[10px] text-gray-600 shrink-0">{new Date(c.created_at).toLocaleDateString("ru-RU")}</span>
-                            </div>
-                            <div className="flex gap-2 ml-2">
-                              <button onClick={() => togglePcLike(c.id, p.id)} className={`text-[11px] px-2 py-0.5 rounded border ${myPcLikes.has(c.id) ? "bg-sky-500/20 text-sky-400 border-sky-500/30" : "text-gray-500 border-[#222226]"}`}><i className="fa-solid fa-heart text-[10px]"></i> {pcLikes.get(c.id) || ""}</button>
-                              <button onClick={() => setReplyTo((prev) => { const m = new Map(prev); m.set(p.id, m.get(p.id) === c.id ? null : c.id); return m; })} className="text-[11px] text-sky-400 hover:underline">Ответить</button>
-                              {(c.user_id === userId || isAdminUser) && <button onClick={() => handlePcDelete(c.id, c.user_id, p.id)} className="text-[11px] text-gray-500 hover:text-red-400"><i className="fa-solid fa-trash-can text-[10px]"></i></button>}
-                              {c.user_id !== userId && <button onClick={() => handlePcReport(c.id)} className="text-[11px] text-gray-500 hover:text-amber-400"><i className="fa-solid fa-flag text-[10px]"></i></button>}
-                            </div>
-                            {childrenOf(c.id).map((ch) => (
-                              <div key={ch.id} className="ml-4 pl-3 border-l border-[#222226] space-y-1">
-                                <div className="flex gap-2 text-xs items-start">
-                                  <Link href={`/profile/${ch.user_id}`} className="font-bold text-sky-400 hover:underline shrink-0">{ch.profiles?.[0]?.username || "?"}</Link>
-                                  <span className="text-gray-300 break-words flex-1" dangerouslySetInnerHTML={{ __html: renderText(ch.text) }} />
-                                </div>
-                                <div className="flex gap-2">
-                                  <button onClick={() => togglePcLike(ch.id, p.id)} className={`text-[11px] px-2 py-0.5 rounded border ${myPcLikes.has(ch.id) ? "bg-sky-500/20 text-sky-400 border-sky-500/30" : "text-gray-500 border-[#222226]"}`}><i className="fa-solid fa-heart text-[10px]"></i> {pcLikes.get(ch.id) || ""}</button>
-                                  {(ch.user_id === userId || isAdminUser) && <button onClick={() => handlePcDelete(ch.id, ch.user_id, p.id)} className="text-[11px] text-gray-500 hover:text-red-400"><i className="fa-solid fa-trash-can text-[10px]"></i></button>}
-                                  {ch.user_id !== userId && <button onClick={() => handlePcReport(ch.id)} className="text-[11px] text-gray-500 hover:text-amber-400"><i className="fa-solid fa-flag text-[10px]"></i></button>}
-                                </div>
-                              </div>
-                            ))}
-                            {replyingTo === c.id && (
-                              <div className="ml-4 flex gap-2">
-                                <input value={replyText.get(p.id) || ""} onChange={(e) => setReplyText((prev) => new Map(prev).set(p.id, e.target.value))} placeholder={`Ответ ${c.profiles?.[0]?.username || ""}...`} className="flex-1 bg-[#121214] border border-[#222226] rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-sky-500/50" />
-                                <button onClick={() => handleReply(p.id)} className="bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">Отправить</button>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                        {roots.length === 0 && <p className="text-xs text-gray-600">Пока нет комментариев</p>}
+                        <div className="space-y-2">{renderTree(null, 0)}</div>
                         {replyingTo == null && (
                           <div className="flex gap-2">
                             <input value={replyText.get(p.id) || ""} onChange={(e) => setReplyText((prev) => new Map(prev).set(p.id, e.target.value))} placeholder="Ответить..." className="flex-1 bg-[#121214] border border-[#222226] rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-sky-500/50" />
