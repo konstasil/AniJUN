@@ -20,6 +20,7 @@ interface PostComment {
   user_id: string;
   text: string;
   created_at: string;
+  parent_id?: number | null;
   profiles?: { username: string }[];
 }
 
@@ -58,6 +59,9 @@ export default function FeedPage() {
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [postComments, setPostComments] = useState<Map<number, PostComment[]>>(new Map());
   const [replyText, setReplyText] = useState<Map<number, string>>(new Map());
+  const [replyTo, setReplyTo] = useState<Map<number, number | null>>(new Map());
+  const [pcLikes, setPcLikes] = useState<Map<number, number>>(new Map());
+  const [myPcLikes, setMyPcLikes] = useState<Set<number>>(new Set());
   const [isAdminUser, setIsAdminUser] = useState(false);
 
   useEffect(() => { document.title = "Лента | AniJUN"; }, []);
@@ -189,7 +193,7 @@ export default function FeedPage() {
   }
 
   async function loadComments(postId: number) {
-    const { data } = await supabase.from("post_comments").select("id, post_id, user_id, text, created_at").eq("post_id", postId).order("created_at", { ascending: true });
+    const { data } = await supabase.from("post_comments").select("id, post_id, user_id, text, created_at, parent_id").eq("post_id", postId).order("created_at", { ascending: true });
     if (!data) return;
     const ids = [...new Set(data.map((c) => c.user_id))];
     const { data: profs } = await supabase.from("profiles").select("id, username").in("id", ids);
@@ -197,6 +201,16 @@ export default function FeedPage() {
     profs?.forEach((p) => map.set(p.id, p.username));
     const enriched = data.map((c) => ({ ...c, profiles: [{ username: map.get(c.user_id) || "?" }] })) as PostComment[];
     setPostComments((prev) => new Map(prev).set(postId, enriched));
+    const cids = data.map((c) => c.id);
+    if (cids.length > 0) {
+      const { data: likeRows } = await supabase.from("post_comment_likes").select("comment_id, user_id").in("comment_id", cids);
+      const lm = new Map<number, number>();
+      const my = new Set<number>();
+      const uid = (await supabase.auth.getSession()).data.session?.user.id;
+      likeRows?.forEach((r) => { lm.set(r.comment_id, (lm.get(r.comment_id) || 0) + 1); if (r.user_id === uid) my.add(r.comment_id); });
+      setPcLikes((prev) => { const m = new Map(prev); cids.forEach((id) => m.delete(id)); likeRows?.forEach((r) => m.set(r.comment_id, lm.get(r.comment_id) || 0)); return m; });
+      setMyPcLikes((prev) => { const n = new Set(prev); cids.forEach((id) => n.delete(id)); my.forEach((id) => n.add(id)); return n; });
+    }
   }
 
   async function handleReply(postId: number) {
@@ -205,7 +219,8 @@ export default function FeedPage() {
     if (!uid) return;
     const body = (replyText.get(postId) || "").trim();
     if (!body) return;
-    const { data: inserted } = await supabase.from("post_comments").insert({ post_id: postId, user_id: uid, text: body }).select("id").single();
+    const parentId = replyTo.get(postId) || null;
+    const { data: inserted } = await supabase.from("post_comments").insert({ post_id: postId, user_id: uid, text: body, parent_id: parentId }).select("id").single();
     const mentions = [...body.matchAll(/@([a-zA-Z0-9_]+)/g)].map((m) => m[1].toLowerCase());
     for (const uname of [...new Set(mentions)]) {
       const targetId = usernameToId.get(uname);
@@ -217,9 +232,43 @@ export default function FeedPage() {
     if (post && post.user_id !== uid) {
       await supabase.from("notifications").insert({ user_id: post.user_id, actor_id: uid, type: "reply", target_id: postId });
     }
+    if (parentId) {
+      const { data: parent } = await supabase.from("post_comments").select("user_id").eq("id", parentId).single();
+      if (parent && parent.user_id !== uid && parent.user_id !== post?.user_id) {
+        await supabase.from("notifications").insert({ user_id: parent.user_id, actor_id: uid, type: "reply", target_id: postId });
+      }
+    }
     setReplyText((prev) => { const m = new Map(prev); m.set(postId, ""); return m; });
+    setReplyTo((prev) => { const m = new Map(prev); m.set(postId, null); return m; });
     await loadComments(postId);
     await load();
+  }
+
+  async function togglePcLike(commentId: number, postId: number) {
+    const { data: { session } } = await supabase.auth.getSession();
+    const uid = session?.user.id;
+    if (!uid) return;
+    if (myPcLikes.has(commentId)) await supabase.from("post_comment_likes").delete().eq("comment_id", commentId).eq("user_id", uid);
+    else await supabase.from("post_comment_likes").insert({ comment_id: commentId, user_id: uid });
+    await loadComments(postId);
+  }
+  async function handlePcDelete(commentId: number, ownerId: string, postId: number) {
+    const { data: { session } } = await supabase.auth.getSession();
+    const uid = session?.user.id;
+    if (!uid || (ownerId !== uid && !isAdminUser)) return;
+    if (!confirm("Удалить?")) return;
+    await supabase.from("post_comments").delete().eq("id", commentId);
+    await loadComments(postId);
+    await load();
+  }
+  async function handlePcReport(commentId: number) {
+    const { data: { session } } = await supabase.auth.getSession();
+    const uid = session?.user.id;
+    if (!uid) return;
+    const reason = prompt("Причина жалобы:");
+    if (!reason || !reason.trim()) return;
+    const { error } = await supabase.from("comment_reports").insert({ comment_id: commentId, reporter_id: uid, reason: reason.trim() });
+    if (error) alert(error.message); else alert("Жалоба отправлена");
   }
 
   function toggleExpand(postId: number) {
@@ -327,16 +376,56 @@ export default function FeedPage() {
               </div>
               {isExpanded && (
                 <div className="mt-3 pt-3 border-t border-[#222226] space-y-3">
-                  {comments.map((c) => (
-                    <div key={c.id} className="flex gap-2 text-xs">
-                      <Link href={`/profile/${c.user_id}`} className="font-bold text-sky-400 hover:underline shrink-0">{c.profiles?.[0]?.username || "?"}</Link>
-                      <span className="text-gray-300 break-words" dangerouslySetInnerHTML={{ __html: renderText(c.text) }} />
-                    </div>
-                  ))}
-                  <div className="flex gap-2">
-                    <input value={replyText.get(p.id) || ""} onChange={(e) => setReplyText((prev) => new Map(prev).set(p.id, e.target.value))} placeholder="Ответить..." className="flex-1 bg-[#121214] border border-[#222226] rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-sky-500/50" />
-                    <button onClick={() => handleReply(p.id)} className="bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">Отправить</button>
-                  </div>
+                  {(() => {
+                    const roots = comments.filter((c) => !c.parent_id);
+                    const childrenOf = (pid: number) => comments.filter((c) => c.parent_id === pid);
+                    const replyingTo = replyTo.get(p.id);
+                    return (
+                      <>
+                        {roots.map((c) => (
+                          <div key={c.id} className="space-y-2">
+                            <div className="flex gap-2 text-xs items-start">
+                              <Link href={`/profile/${c.user_id}`} className="font-bold text-sky-400 hover:underline shrink-0">{c.profiles?.[0]?.username || "?"}</Link>
+                              <span className="text-gray-300 break-words flex-1" dangerouslySetInnerHTML={{ __html: renderText(c.text) }} />
+                              <span className="text-[10px] text-gray-600 shrink-0">{new Date(c.created_at).toLocaleDateString("ru-RU")}</span>
+                            </div>
+                            <div className="flex gap-2 ml-2">
+                              <button onClick={() => togglePcLike(c.id, p.id)} className={`text-[11px] px-2 py-0.5 rounded border ${myPcLikes.has(c.id) ? "bg-sky-500/20 text-sky-400 border-sky-500/30" : "text-gray-500 border-[#222226]"}`}><i className="fa-solid fa-heart text-[10px]"></i> {pcLikes.get(c.id) || ""}</button>
+                              <button onClick={() => setReplyTo((prev) => { const m = new Map(prev); m.set(p.id, m.get(p.id) === c.id ? null : c.id); return m; })} className="text-[11px] text-sky-400 hover:underline">Ответить</button>
+                              {(c.user_id === userId || isAdminUser) && <button onClick={() => handlePcDelete(c.id, c.user_id, p.id)} className="text-[11px] text-gray-500 hover:text-red-400"><i className="fa-solid fa-trash-can text-[10px]"></i></button>}
+                              {c.user_id !== userId && <button onClick={() => handlePcReport(c.id)} className="text-[11px] text-gray-500 hover:text-amber-400"><i className="fa-solid fa-flag text-[10px]"></i></button>}
+                            </div>
+                            {childrenOf(c.id).map((ch) => (
+                              <div key={ch.id} className="ml-4 pl-3 border-l border-[#222226] space-y-1">
+                                <div className="flex gap-2 text-xs items-start">
+                                  <Link href={`/profile/${ch.user_id}`} className="font-bold text-sky-400 hover:underline shrink-0">{ch.profiles?.[0]?.username || "?"}</Link>
+                                  <span className="text-gray-300 break-words flex-1" dangerouslySetInnerHTML={{ __html: renderText(ch.text) }} />
+                                </div>
+                                <div className="flex gap-2">
+                                  <button onClick={() => togglePcLike(ch.id, p.id)} className={`text-[11px] px-2 py-0.5 rounded border ${myPcLikes.has(ch.id) ? "bg-sky-500/20 text-sky-400 border-sky-500/30" : "text-gray-500 border-[#222226]"}`}><i className="fa-solid fa-heart text-[10px]"></i> {pcLikes.get(ch.id) || ""}</button>
+                                  {(ch.user_id === userId || isAdminUser) && <button onClick={() => handlePcDelete(ch.id, ch.user_id, p.id)} className="text-[11px] text-gray-500 hover:text-red-400"><i className="fa-solid fa-trash-can text-[10px]"></i></button>}
+                                  {ch.user_id !== userId && <button onClick={() => handlePcReport(ch.id)} className="text-[11px] text-gray-500 hover:text-amber-400"><i className="fa-solid fa-flag text-[10px]"></i></button>}
+                                </div>
+                              </div>
+                            ))}
+                            {replyingTo === c.id && (
+                              <div className="ml-4 flex gap-2">
+                                <input value={replyText.get(p.id) || ""} onChange={(e) => setReplyText((prev) => new Map(prev).set(p.id, e.target.value))} placeholder={`Ответ ${c.profiles?.[0]?.username || ""}...`} className="flex-1 bg-[#121214] border border-[#222226] rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-sky-500/50" />
+                                <button onClick={() => handleReply(p.id)} className="bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">Отправить</button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                        {roots.length === 0 && <p className="text-xs text-gray-600">Пока нет комментариев</p>}
+                        {replyingTo == null && (
+                          <div className="flex gap-2">
+                            <input value={replyText.get(p.id) || ""} onChange={(e) => setReplyText((prev) => new Map(prev).set(p.id, e.target.value))} placeholder="Ответить..." className="flex-1 bg-[#121214] border border-[#222226] rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-sky-500/50" />
+                            <button onClick={() => handleReply(p.id)} className="bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">Отправить</button>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               )}
             </div>
