@@ -76,6 +76,8 @@ export default function FeedPage() {
   const [isAdminUser, setIsAdminUser] = useState(false);
   const mainRef = useRef<HTMLTextAreaElement>(null);
   const [toolbar, setToolbar] = useState<{ show: boolean }>({ show: false });
+  const [viewerUrl, setViewerUrl] = useState<string | null>(null);
+  const [viewerScale, setViewerScale] = useState(1);
 
   useEffect(() => { document.title = "Лента | AniJUN"; }, []);
 
@@ -406,7 +408,7 @@ export default function FeedPage() {
                 ) : /\.mp3|\.ogg|\.wav|\.flac/i.test(p.image_url) ? (
                   <audio src={p.image_url} controls className="mt-3 w-full" />
                 ) : (
-                  <div className="mt-3 rounded-lg overflow-hidden bg-[#121214] relative aspect-[16/9]"><Image src={p.image_url} alt="" fill unoptimized className="object-cover" sizes="600px" /></div>
+                  <div onClick={() => { setViewerUrl(p.image_url!); setViewerScale(1); }} className="mt-3 rounded-lg overflow-hidden bg-[#121214] relative aspect-[16/9] cursor-zoom-in"><Image src={p.image_url} alt="" fill unoptimized className="object-cover" sizes="600px" /></div>
                 )
               )}
               <div className="flex gap-2 mt-3 flex-wrap">
@@ -466,6 +468,21 @@ export default function FeedPage() {
           );
         })}
       </div>
+      {viewerUrl && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex flex-col" onClick={() => setViewerUrl(null)}>
+          <div className="flex justify-between items-center p-4">
+            <button onClick={() => setViewerUrl(null)} className="text-white hover:text-gray-300"><i className="fa-solid fa-xmark text-xl"></i></button>
+            <div className="flex gap-2">
+              <button onClick={(e) => { e.stopPropagation(); setViewerScale((s) => Math.min(3, s + 0.25)); }} className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center"><i className="fa-solid fa-magnifying-glass-plus"></i></button>
+              <button onClick={(e) => { e.stopPropagation(); setViewerScale((s) => Math.max(0.5, s - 0.25)); }} className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center"><i className="fa-solid fa-magnifying-glass-minus"></i></button>
+              <a href={viewerUrl} download onClick={(e) => e.stopPropagation()} className="w-9 h-9 rounded-full bg-sky-500 hover:bg-sky-600 text-white flex items-center justify-center"><i className="fa-solid fa-download"></i></a>
+            </div>
+          </div>
+          <div className="flex-1 flex items-center justify-center p-4 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <img src={viewerUrl} alt="" className="max-w-full max-h-full object-contain transition-transform" style={{ transform: `scale(${viewerScale})` }} onWheel={(e) => setViewerScale((s) => Math.min(3, Math.max(0.5, s - e.deltaY * 0.001)))} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
