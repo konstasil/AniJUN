@@ -169,6 +169,15 @@ export default function ReviewsSection({ animeId, isAuthed, userId }: { animeId:
     await load();
   }
 
+  async function handleReport(commentId: number) {
+    if (!userId) return;
+    const reason = prompt("Причина жалобы:");
+    if (!reason || !reason.trim()) return;
+    const { error } = await supabase.from("comment_reports").insert({ comment_id: commentId, reporter_id: userId, reason: reason.trim() });
+    if (error) alert(error.message);
+    else alert("Жалоба отправлена");
+  }
+
   function voteCount(id: number, dir: number) { return votes.filter((x) => x.comment_id === id && x.vote === dir).length; }
   function myVote(id: number) { return votes.find((x) => x.comment_id === id && x.user_id === userId)?.vote || 0; }
   const visibleComments = comments.filter((c) => c.status !== "rejected");
@@ -225,6 +234,7 @@ export default function ReviewsSection({ animeId, isAuthed, userId }: { animeId:
               {c.status === "pending" && <span className="text-[9px] font-bold text-amber-400 border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 rounded">на проверке</span>}
               <span className="text-[10px] text-gray-600">{new Date(c.created_at).toLocaleDateString("ru-RU")}</span>
               {(c.user_id === userId || isAdmin) && <button onClick={() => handleDelete(c.id, c.user_id)} className="text-[10px] text-red-400 hover:text-red-300"><i className="fa-solid fa-trash-can"></i></button>}
+              {isAuthed && c.user_id !== userId && <button onClick={() => handleReport(c.id)} className="text-[10px] text-gray-500 hover:text-amber-400" title="Пожаловаться"><i className="fa-solid fa-flag"></i></button>}
             </div>
             <div className="text-xs text-gray-300 whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: formatToHtml(c.text) }} />
             <div className="flex items-center gap-2 mt-2">
@@ -257,6 +267,7 @@ export default function ReviewsSection({ animeId, isAuthed, userId }: { animeId:
                     {ch.status === "pending" && <span className="text-[8px] font-bold text-amber-400 border border-amber-400/30 bg-amber-400/10 px-1 py-0.5 rounded">на проверке</span>}
                     <span className="text-[10px] text-gray-600">{new Date(ch.created_at).toLocaleDateString("ru-RU")}</span>
                     {(ch.user_id === userId || isAdmin) && <button onClick={() => handleDelete(ch.id, ch.user_id)} className="text-[10px] text-red-400"><i className="fa-solid fa-trash-can"></i></button>}
+                    {isAuthed && ch.user_id !== userId && <button onClick={() => handleReport(ch.id)} className="text-[10px] text-gray-500 hover:text-amber-400" title="Пожаловаться"><i className="fa-solid fa-flag"></i></button>}
                   </div>
                   <div className="text-xs text-gray-300 whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: formatToHtml(ch.text) }} />
                   <div className="flex items-center gap-2 mt-1.5">

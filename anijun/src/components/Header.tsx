@@ -95,6 +95,71 @@ export default function Header() {
 
   const isAnimeSection = pathname.startsWith("/catalog") || pathname.startsWith("/anime");
 
+function NotifBadge() {
+  const [count, setCount] = useState(0);
+  const supabase = useMemo(() => createClient(), []);
+  useEffect(() => {
+    async function load() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return;
+      const { count: c } = await supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", session.user.id).eq("is_read", false);
+      setCount(c || 0);
+    }
+    load();
+    const id = setInterval(load, 15000);
+    return () => clearInterval(id);
+  }, [supabase]);
+  if (count === 0) return null;
+  return <span className="absolute -top-1 -right-1 min-w-[16px] h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">{count > 99 ? "99+" : count}</span>;
+}
+
+function NotifDropdown({ onClose }: { onClose: () => void }) {
+  const supabase = useMemo(() => createClient(), []);
+  const router = useRouter();
+  const [items, setItems] = useState<{ id: number; actor_id: string; type: string; target_id: number | null; is_read: boolean; created_at: string; actor?: { username: string } }[]>([]);
+  useEffect(() => {
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return;
+      const { data } = await supabase.from("notifications").select("id, actor_id, type, target_id, is_read, created_at").eq("user_id", session.user.id).order("created_at", { ascending: false }).limit(20);
+      if (!data) return;
+      const aids = [...new Set(data.map((d) => d.actor_id))];
+      const { data: profs } = await supabase.from("profiles").select("id, username").in("id", aids);
+      const map = new Map<string, string>();
+      profs?.forEach((p) => map.set(p.id, p.username));
+      setItems(data.map((d) => ({ ...d, actor: { username: map.get(d.actor_id) || "Кто-то" } })));
+    })();
+  }, [supabase]);
+  async function openNotif(n: typeof items[0]) {
+    if (!n.is_read) await supabase.from("notifications").update({ is_read: true }).eq("id", n.id);
+    onClose();
+    router.push(`/profile/${n.actor_id}`);
+  }
+  return (
+    <>
+      <div className="fixed inset-0 z-40" onClick={onClose} />
+      <div className="absolute right-0 top-full mt-2 bg-[#1a1a1e] border border-[#222226] rounded-xl shadow-2xl w-80 z-50 overflow-hidden">
+        <div className="px-4 py-3 border-b border-[#222226] flex items-center justify-between">
+          <span className="text-xs font-bold text-white">Уведомления</span>
+          <button onClick={onClose} className="text-gray-500 hover:text-white"><i className="fa-solid fa-xmark text-xs"></i></button>
+        </div>
+        <div className="max-h-96 overflow-y-auto">
+          {items.length === 0 ? (
+            <p className="px-4 py-8 text-center text-xs text-gray-600">Пока ничего нет</p>
+          ) : (
+            items.map((n) => (
+              <button key={n.id} onClick={() => openNotif(n)} className={`w-full text-left px-4 py-3 hover:bg-[#222226] transition-colors border-b border-[#222226]/50 ${!n.is_read ? "bg-sky-500/5" : ""}`}>
+                <p className="text-xs text-gray-200"><span className="font-bold text-white">{n.actor?.username}</span> {n.type === "mention" ? "упомянул Вас" : n.type === "reply" ? "ответил Вам" : "опубликовал пост"}</p>
+                <p className="text-[11px] text-gray-500">{new Date(n.created_at).toLocaleString("ru-RU")}</p>
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
 
   return (
     <header className="border-b border-[#222226] bg-[#1a1a1e] px-4 md:px-8 py-3 md:py-4 sticky top-0 z-40">
@@ -196,27 +261,9 @@ export default function Header() {
             <div className="relative">
               <button onClick={() => setNotifOpen(!notifOpen)} title="Уведомления" className="w-9 h-9 flex items-center justify-center rounded-lg bg-[#121214] border border-[#222226] text-gray-400 hover:text-white transition-all relative">
                 <i className="fa-solid fa-bell text-sm"></i>
+                <NotifBadge />
               </button>
-              {notifOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setNotifOpen(false)} />
-                  <div className="absolute right-0 top-full mt-2 bg-[#1a1a1e] border border-[#222226] rounded-xl shadow-2xl w-80 z-50 overflow-hidden">
-                    <div className="px-4 py-3 border-b border-[#222226] flex items-center justify-between">
-                      <span className="text-xs font-bold text-white">Уведомления</span>
-                      <button onClick={() => setNotifOpen(false)} className="text-gray-500 hover:text-white"><i className="fa-solid fa-xmark text-xs"></i></button>
-                    </div>
-                    <div className="max-h-96 overflow-y-auto">
-                      <div className="px-4 py-2 text-[11px] font-bold text-gray-500 uppercase">Ответы</div>
-                      <p className="px-4 py-3 text-xs text-gray-600">Пока нет</p>
-                      <div className="px-4 py-2 text-[11px] font-bold text-gray-500 uppercase">Упоминания</div>
-                      <p className="px-4 py-3 text-xs text-gray-600">Пока нет</p>
-                      <div className="px-4 py-2 text-[11px] font-bold text-gray-500 uppercase">Подписки</div>
-                      <p className="px-4 py-3 text-xs text-gray-600">Пока нет постов</p>
-                    </div>
-                    <Link href="/feed" onClick={() => setNotifOpen(false)} className="block text-center text-xs text-sky-400 hover:text-sky-300 py-2.5 border-t border-[#222226]">Перейти в ленту</Link>
-                  </div>
-                </>
-              )}
+              {notifOpen && <NotifDropdown onClose={() => setNotifOpen(false)} />}
             </div>
           <div className="relative">
             <button

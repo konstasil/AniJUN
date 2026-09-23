@@ -56,7 +56,7 @@ interface RatingRow {
   anime?: { title: string }[];
 }
 
-type Tab = "add-anime" | "anime-list" | "suggestions" | "users" | "ratings" | "bans" | "tools" | "genres" | "comments";
+type Tab = "add-anime" | "anime-list" | "suggestions" | "users" | "ratings" | "bans" | "tools" | "genres" | "comments" | "reports";
 
 export default function AdminPage() {
   const router = useRouter();
