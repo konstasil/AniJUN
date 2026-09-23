@@ -334,7 +334,7 @@ export default function FeedPage() {
                     </div>
                   ))}
                   <div className="flex gap-2">
-                    <input value={replyText.get(p.id) || ""} onChange={(e) => setReplyText((prev) => new Map(prev).set(p.id, e.target.value))} placeholder="Ответить... @ник" className="flex-1 bg-[#121214] border border-[#222226] rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-sky-500/50" />
+                    <input value={replyText.get(p.id) || ""} onChange={(e) => setReplyText((prev) => new Map(prev).set(p.id, e.target.value))} placeholder="Ответить..." className="flex-1 bg-[#121214] border border-[#222226] rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-sky-500/50" />
                     <button onClick={() => handleReply(p.id)} className="bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">Отправить</button>
                   </div>
                 </div>
