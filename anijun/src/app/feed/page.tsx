@@ -347,6 +347,8 @@ export default function FeedPage() {
       </div>
       {showComposer && (
         <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-4 flex flex-col gap-3">
+          <ImageUpload bucket="posts" currentUrl={imageUrl || undefined} onUploaded={setImageUrl} size={120} label="Добавить изображение" />
+          {imageUrl && <div className="relative w-full h-40 rounded-lg overflow-hidden bg-[#121214]"><Image src={imageUrl} alt="" fill unoptimized className="object-cover" /></div>}
           <div className="relative">
             {toolbar.show && (
               <div className="absolute -top-10 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 p-1 bg-[#1a1a1e] border border-[#222226] rounded-lg shadow-xl">
@@ -361,8 +363,6 @@ export default function FeedPage() {
             )}
             <textarea ref={mainRef} value={text} onChange={(e) => setText(e.target.value)} onSelect={checkSelection} onMouseUp={checkSelection} onKeyUp={checkSelection} onBlur={() => setTimeout(() => setToolbar({ show: false }), 150)} rows={3} placeholder="Что нового?" className="w-full bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-sky-500/50 resize-none" />
           </div>
-          <ImageUpload bucket="posts" currentUrl={imageUrl || undefined} onUploaded={setImageUrl} size={120} label="Добавить изображение" />
-          {imageUrl && <div className="relative w-full h-40 rounded-lg overflow-hidden bg-[#121214]"><Image src={imageUrl} alt="" fill unoptimized className="object-cover" /></div>}
           <button onClick={handlePost} disabled={sending || !text.trim()} className="self-end bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-xs font-bold px-5 py-2 rounded-lg transition-all">Опубликовать</button>
         </div>
       )}
