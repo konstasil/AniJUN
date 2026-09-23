@@ -347,7 +347,7 @@ export default function FeedPage() {
       </div>
       {showComposer && (
         <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-4 flex flex-col gap-3">
-          <ImageUpload bucket="posts" currentUrl={imageUrl || undefined} onUploaded={setImageUrl} size={120} label="Добавить изображение" />
+          <ImageUpload bucket="posts" currentUrl={imageUrl || undefined} onUploaded={setImageUrl} size={120} label="Добавить медиа" />
           {imageUrl && <div className="relative w-full h-40 rounded-lg overflow-hidden bg-[#121214]"><Image src={imageUrl} alt="" fill unoptimized className="object-cover" /></div>}
           <div className="relative">
             {toolbar.show && (

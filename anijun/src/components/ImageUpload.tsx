@@ -32,37 +32,63 @@ export default function ImageUpload({
     fileRef.current?.click();
   }
 
+  async function compressImage(file: File): Promise<File> {
+    if (!file.type.startsWith("image/") || file.size <= 1024 * 1024) return file;
+    const bitmap = await createImageBitmap(file);
+    const canvas = document.createElement("canvas");
+    let w = bitmap.width;
+    let h = bitmap.height;
+    const scale = Math.sqrt((1024 * 1024) / file.size);
+    if (scale < 1) { w = Math.round(w * scale); h = Math.round(h * scale); }
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d")!;
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    let quality = 0.85;
+    let blob: Blob | null = null;
+    for (let i = 0; i < 4; i++) {
+      blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, "image/jpeg", quality));
+      if (blob && blob.size <= 1024 * 1024) break;
+      quality -= 0.15;
+    }
+    if (!blob) return file;
+    return new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" });
+  }
+
   async function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+    let file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      setError("Максимум 5 МБ");
-      return;
-    }
+    if (!file.type) file = new File([file], file.name, { type: "application/octet-stream" });
 
     setError(null);
     setUploading(true);
 
+    if (file.type.startsWith("image/")) {
+      try { file = await compressImage(file); } catch {}
+    }
+    if (file.size > 1024 * 1024) {
+      setError("Максимум 1 МБ после сжатия");
+      setUploading(false);
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => setPreview(reader.result as string);
     reader.readAsDataURL(file);
 
     const ext = file.name.split(".").pop() || "jpg";
-    // Для bucket 'users' используем timestamp в имени файла, чтобы каждый новый аватар имел уникальный URL
-    // Это решает проблему кеширования Next.js Image Optimization
     const timestamp = Date.now();
-    const path = bucket === "users" && userId ? `${userId}/avatar_${timestamp}.${ext}` : `${timestamp}.${ext}`;
+    const safeBucket = bucket === "posts" ? "Anime" : bucket;
+    const path = safeBucket === "users" && userId ? `${userId}/avatar_${timestamp}.${ext}` : `${timestamp}.${ext}`;
 
-    // Auto-create bucket if it doesn't exist
     const { data: buckets } = await supabase.storage.listBuckets();
-    const bucketExists = (buckets || []).some(b => b.name === bucket);
+    const bucketExists = (buckets || []).some(b => b.name === safeBucket);
     if (!bucketExists) {
-      await supabase.storage.createBucket(bucket, { public: true });
+      await supabase.storage.createBucket(safeBucket, { public: true });
     }
 
     const { error: uploadError } = await supabase.storage
-      .from(bucket)
+      .from(safeBucket)
       .upload(path, file, { upsert: false, contentType: file.type });
 
     if (uploadError) {
@@ -71,11 +97,11 @@ export default function ImageUpload({
       return;
     }
 
-    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-    if (currentUrl && currentUrl.includes(`/storage/v1/object/public/${bucket}/`)) {
-      const oldPath = currentUrl.split(`/storage/v1/object/public/${bucket}/`)[1]?.split("?")[0];
+    const { data } = supabase.storage.from(safeBucket).getPublicUrl(path);
+    if (currentUrl && currentUrl.includes(`/storage/v1/object/public/${safeBucket}/`)) {
+      const oldPath = currentUrl.split(`/storage/v1/object/public/${safeBucket}/`)[1]?.split("?")[0];
       if (oldPath && oldPath !== path) {
-        try { await supabase.storage.from(bucket).remove([oldPath]); } catch {}
+        try { await supabase.storage.from(safeBucket).remove([oldPath]); } catch {}
       }
     }
     setUploading(false);
@@ -126,7 +152,7 @@ export default function ImageUpload({
       <input
         ref={fileRef}
         type="file"
-        accept="image/*"
+        accept="image/*,video/*,audio/*,.gif,.mp3,.mov,.mp4,.webm,.ogg,.wav,.flac,.mkv,.avi"
         onChange={handleChange}
         className="hidden"
       />
