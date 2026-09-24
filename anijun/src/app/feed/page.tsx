@@ -12,6 +12,7 @@ interface Post {
   text: string;
   image_url?: string | null;
   created_at: string;
+  updated_at?: string | null;
   profiles?: { username: string; avatar_url: string; is_verified?: boolean }[];
 }
 
@@ -74,6 +75,10 @@ export default function FeedPage() {
   const [pcLikes, setPcLikes] = useState<Map<number, number>>(new Map());
   const [myPcLikes, setMyPcLikes] = useState<Set<number>>(new Set());
   const [isAdminUser, setIsAdminUser] = useState(false);
+  const [editingPost, setEditingPost] = useState<number | null>(null);
+  const [editPostText, setEditPostText] = useState("");
+  const [reportModal, setReportModal] = useState<{ type: "post" | "pc"; id: number } | null>(null);
+  const [reportReason, setReportReason] = useState("");
   const mainRef = useRef<HTMLTextAreaElement>(null);
   const [toolbar, setToolbar] = useState<{ show: boolean }>({ show: false });
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
@@ -100,7 +105,7 @@ export default function FeedPage() {
   }, [supabase]);
 
   const load = useCallback(async () => {
-    const { data } = await supabase.from("posts").select("id, user_id, text, image_url, created_at").order("created_at", { ascending: false }).limit(100);
+    const { data } = await supabase.from("posts").select("id, user_id, text, image_url, created_at, updated_at").order("created_at", { ascending: false }).limit(100);
     if (!data) { setPosts([]); return; }
     const ids = [...new Set(data.map((p) => p.user_id))];
     const { data: profs } = await supabase.from("profiles").select("id, username, avatar_url, is_verified").in("id", ids);
@@ -139,6 +144,7 @@ export default function FeedPage() {
   }, [supabase]);
 
   useEffect(() => { if (isAdmin) load(); }, [isAdmin, load]);
+  useEffect(() => { if (!isAdmin) return; const id = setInterval(() => load(), 30000); return () => clearInterval(id); }, [isAdmin, load]);
 
   function checkSelection() {
     const el = mainRef.current;
@@ -219,14 +225,30 @@ export default function FeedPage() {
     await supabase.from("posts").delete().eq("id", postId);
     await load();
   }
+  async function handleEditPost(postId: number) {
+    if (!editPostText.trim()) return;
+    await supabase.from("posts").update({ text: editPostText.trim() }).eq("id", postId);
+    setEditingPost(null);
+    setEditPostText("");
+    await load();
+  }
   async function handleReport(postId: number) {
+    setReportModal({ type: "post", id: postId });
+  }
+  async function submitReport() {
+    if (!reportReason.trim() || !reportModal) return;
     const { data: { session } } = await supabase.auth.getSession();
     const uid = session?.user.id;
     if (!uid) return;
-    const reason = prompt("Причина жалобы:");
-    if (!reason || !reason.trim()) return;
-    const { error } = await supabase.from("post_reports").insert({ post_id: postId, reporter_id: uid, reason: reason.trim() });
-    if (error) alert(error.message); else alert("Жалоба отправлена");
+    let error = null;
+    if (reportModal.type === "post") {
+      const res = await supabase.from("post_reports").insert({ post_id: reportModal.id, reporter_id: uid, reason: reportReason.trim() });
+      error = res.error;
+    } else {
+      const res = await supabase.from("post_comment_reports").insert({ comment_id: reportModal.id, reporter_id: uid, reason: reportReason.trim() });
+      error = res.error;
+    }
+    if (error) alert(error.message); else { alert("Жалоба отправлена"); setReportModal(null); setReportReason(""); }
   }
   async function loadComments(postId: number) {
     const { data } = await supabase.from("post_comments").select("id, post_id, user_id, text, created_at, parent_id").eq("post_id", postId).order("created_at", { ascending: true });
@@ -293,13 +315,7 @@ export default function FeedPage() {
     await load();
   }
   async function handlePcReport(commentId: number) {
-    const { data: { session } } = await supabase.auth.getSession();
-    const uid = session?.user.id;
-    if (!uid) return;
-    const reason = prompt("Причина жалобы:");
-    if (!reason || !reason.trim()) return;
-    const { error } = await supabase.from("post_comment_reports").insert({ comment_id: commentId, reporter_id: uid, reason: reason.trim() });
-    if (error) alert(error.message); else alert("Жалоба отправлена");
+    setReportModal({ type: "pc", id: commentId });
   }
   function toggleExpand(postId: number) {
     setExpanded((prev) => {
@@ -349,7 +365,44 @@ export default function FeedPage() {
       </div>
       {showComposer && (
         <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-4 flex flex-col gap-3">
-          <ImageUpload bucket="posts" currentUrl={imageUrl || undefined} onUploaded={setImageUrl} size={120} label="Добавить медиа" />
+          <div className="flex items-center gap-2">
+            <label className="w-8 h-8 rounded-full bg-[#121214] border border-[#222226] flex items-center justify-center text-gray-400 hover:text-white cursor-pointer">
+              <i className="fa-solid fa-paperclip text-xs"></i>
+              <input type="file" accept="image/*,video/*,audio/*,.gif,.mp3,.mov,.mp4,.webm,.ogg,.wav,.flac,.mkv,.avi" className="hidden" onChange={async (e) => {
+                const file = (e.target as HTMLInputElement).files?.[0];
+                if (!file) return;
+                if (file.size > 1024*1024 && !file.type.startsWith("image/")) { alert("Максимум 1 МБ"); return; }
+                const { createClient: cc } = await import("@/lib/supabase/client");
+                const sb = cc();
+                const ext = file.name.split(".").pop() || "jpg";
+                const path = `${Date.now()}.${ext}`;
+                const { error } = await sb.storage.from("Anime").upload(path, file, { contentType: file.type });
+                if (!error) { const { data } = sb.storage.from("Anime").getPublicUrl(path); setImageUrl(data.publicUrl); }
+              }} />
+            </label>
+            <button onClick={async () => {
+              try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const rec = new MediaRecorder(stream);
+                const chunks: BlobPart[] = [];
+                rec.ondataavailable = (e) => chunks.push(e.data);
+                rec.onstop = async () => {
+                  const blob = new Blob(chunks, { type: "audio/webm" });
+                  if (blob.size > 1024*1024) { alert("Голосовое >1 МБ"); return; }
+                  const { createClient: cc } = await import("@/lib/supabase/client");
+                  const sb = cc();
+                  const path = `${Date.now()}.webm`;
+                  const { error } = await sb.storage.from("Anime").upload(path, blob, { contentType: "audio/webm" });
+                  if (!error) { const { data } = sb.storage.from("Anime").getPublicUrl(path); setImageUrl(data.publicUrl); }
+                  stream.getTracks().forEach((t) => t.stop());
+                };
+                rec.start();
+                setTimeout(() => rec.stop(), 15000);
+                alert("Запись 15с началась");
+              } catch { alert("Нет доступа к микрофону"); }
+            }} className="w-8 h-8 rounded-full bg-[#121214] border border-[#222226] flex items-center justify-center text-gray-400 hover:text-red-400" title="Голосовое"><i className="fa-solid fa-microphone text-xs"></i></button>
+            {imageUrl && <span className="text-[11px] text-green-400">медиа прикреплено <button onClick={() => setImageUrl("")} className="text-red-400 ml-1">×</button></span>}
+          </div>
           <div className="relative">
             {toolbar.show && (
               <div className="absolute -top-10 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 p-1 bg-[#1a1a1e] border border-[#222226] rounded-lg shadow-xl">
@@ -362,7 +415,7 @@ export default function FeedPage() {
                 <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={handleLink} className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#222226] text-sky-400 hover:text-white"><i className="fa-solid fa-link text-[10px]"></i></button>
               </div>
             )}
-            <textarea ref={mainRef} value={text} onChange={(e) => setText(e.target.value)} onSelect={checkSelection} onMouseUp={checkSelection} onKeyUp={checkSelection} onBlur={() => setTimeout(() => setToolbar({ show: false }), 150)} rows={3} placeholder="Что нового?" className="w-full bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-sky-500/50 resize-none" />
+            <textarea ref={mainRef} value={text} onChange={(e) => { setText(e.target.value); e.target.style.height="auto"; e.target.style.height = Math.min(e.target.scrollHeight, 200) + "px"; }} onSelect={checkSelection} onMouseUp={checkSelection} onKeyUp={checkSelection} onBlur={() => setTimeout(() => setToolbar({ show: false }), 150)} rows={3} placeholder="Что нового?" className="w-full bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-sky-500/50 resize-none overflow-hidden" />
           </div>
           <button onClick={handlePost} disabled={sending || !text.trim()} className="self-end bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-xs font-bold px-5 py-2 rounded-lg transition-all">Опубликовать</button>
         </div>
@@ -398,10 +451,22 @@ export default function FeedPage() {
                 </Link>
                 <Link href={`/profile/${p.user_id}`} className="text-xs font-bold text-white hover:text-sky-400 flex items-center gap-1">{p.profiles?.[0]?.username || "Пользователь"} {p.profiles?.[0]?.is_verified && <VerifiedBadge size={12} />}</Link>
                 <span className="text-[10px] text-gray-600 ml-auto">{new Date(p.created_at).toLocaleString("ru-RU")}</span>
+                {p.updated_at && p.updated_at !== p.created_at && <span className="text-[9px] text-gray-500">изменено</span>}
+                {(isOwner || isAdminUser) && <button onClick={() => { if (editingPost === p.id) { setEditingPost(null); } else { setEditingPost(p.id); setEditPostText(p.text); } }} className="text-gray-500 hover:text-sky-400 text-xs" title="Редактировать"><i className="fa-solid fa-pen"></i></button>}
                 {(isOwner || isAdminUser) && <button onClick={() => handleDelete(p.id, p.user_id)} className="text-gray-500 hover:text-red-400 text-xs"><i className="fa-solid fa-trash-can"></i></button>}
                 <button onClick={() => handleReport(p.id)} className="text-gray-500 hover:text-amber-400 text-xs" title="Пожаловаться"><i className="fa-solid fa-flag"></i></button>
               </div>
-              <div className="text-sm text-gray-200 whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: formatToHtml(p.text, usernameToId) }} />
+              {editingPost === p.id ? (
+                <div className="flex flex-col gap-2">
+                  <textarea value={editPostText} onChange={(e) => setEditPostText(e.target.value)} rows={2} className="w-full bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-sky-500/50 resize-none" />
+                  <div className="flex gap-2">
+                    <button onClick={() => handleEditPost(p.id)} className="bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold px-3 py-1.5 rounded">Сохранить</button>
+                    <button onClick={() => setEditingPost(null)} className="bg-[#121214] text-gray-400 border border-[#222226] px-3 py-1.5 rounded text-xs">Отмена</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-gray-200 whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: formatToHtml(p.text, usernameToId) }} />
+              )}
               {p.image_url && (
                 /\.mp4|\.mov|\.webm|\.mkv|\.avi/i.test(p.image_url) ? (
                   <video src={p.image_url} controls className="mt-3 w-full rounded-lg bg-black max-h-80" />
@@ -468,6 +533,18 @@ export default function FeedPage() {
           );
         })}
       </div>
+      {reportModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setReportModal(null)}>
+          <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-4 w-full max-w-sm space-y-3" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-sm font-bold text-white">Жалоба</h3>
+            <textarea value={reportReason} onChange={(e) => setReportReason(e.target.value)} rows={3} placeholder="Причина..." className="w-full bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-sky-500/50 resize-none" />
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setReportModal(null)} className="text-xs text-gray-400 border border-[#222226] px-3 py-1.5 rounded">Отмена</button>
+              <button onClick={submitReport} className="bg-red-500 hover:bg-red-600 text-white text-xs font-bold px-4 py-1.5 rounded">Отправить</button>
+            </div>
+          </div>
+        </div>
+      )}
       {viewerUrl && (
         <div className="fixed inset-0 z-50 bg-black/90 flex flex-col" onClick={() => setViewerUrl(null)}>
           <div className="flex justify-between items-center p-4" onClick={(e) => e.stopPropagation()}>
