@@ -23,6 +23,7 @@ interface PostComment {
   post_id: number;
   user_id: string;
   text: string;
+  image_url?: string | null;
   created_at: string;
   parent_id?: number | null;
   profiles?: { username: string; avatar_url: string; is_verified?: boolean }[];
@@ -71,6 +72,7 @@ export default function FeedPage() {
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [postComments, setPostComments] = useState<Map<number, PostComment[]>>(new Map());
   const [replyText, setReplyText] = useState<Map<number, string>>(new Map());
+  const [replyImage, setReplyImage] = useState<Map<number, string>>(new Map());
   const [replyTo, setReplyTo] = useState<Map<number, number | null>>(new Map());
   const [pcLikes, setPcLikes] = useState<Map<number, number>>(new Map());
   const [myPcLikes, setMyPcLikes] = useState<Set<number>>(new Set());
@@ -258,7 +260,7 @@ export default function FeedPage() {
     if (error) alert(error.message); else { alert("Жалоба отправлена"); setReportModal(null); setReportReason(""); }
   }
   async function loadComments(postId: number) {
-    const { data } = await supabase.from("post_comments").select("id, post_id, user_id, text, created_at, parent_id").eq("post_id", postId).order("created_at", { ascending: true });
+    const { data } = await supabase.from("post_comments").select("id, post_id, user_id, text, image_url, created_at, parent_id").eq("post_id", postId).order("created_at", { ascending: true });
     if (!data) return;
     const ids = [...new Set(data.map((c) => c.user_id))];
     const { data: profs } = await supabase.from("profiles").select("id, username, avatar_url, is_verified").in("id", ids);
@@ -285,9 +287,10 @@ export default function FeedPage() {
     const uid = session?.user.id;
     if (!uid) return;
     const body = (replyText.get(postId) || "").trim();
-    if (!body) return;
+    const img = replyImage.get(postId) || null;
+    if (!body && !img) return;
     const parentId = replyTo.get(postId) || null;
-    await supabase.from("post_comments").insert({ post_id: postId, user_id: uid, text: body, parent_id: parentId });
+    await supabase.from("post_comments").insert({ post_id: postId, user_id: uid, text: body || "", image_url: img, parent_id: parentId });
     const mentions = [...body.matchAll(/@([a-zA-Z0-9_]+)/g)].map((m) => m[1].toLowerCase());
     for (const uname of [...new Set(mentions)]) {
       const targetId = usernameToId.get(uname);
@@ -300,6 +303,7 @@ export default function FeedPage() {
       if (parent && parent.user_id !== uid && parent.user_id !== post?.user_id) await supabase.from("notifications").insert({ user_id: parent.user_id, actor_id: uid, type: "reply", target_id: postId });
     }
     setReplyText((prev) => { const m = new Map(prev); m.set(postId, ""); return m; });
+    setReplyImage((prev) => { const m = new Map(prev); m.delete(postId); return m; });
     setReplyTo((prev) => { const m = new Map(prev); m.set(postId, null); return m; });
     await loadComments(postId);
     await load();
