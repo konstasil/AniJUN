@@ -172,7 +172,10 @@ function NotifDropdown({ onClose }: { onClose: () => void }) {
                   {n.actor?.avatar_url ? <Image src={n.actor.avatar_url} alt="" fill unoptimized className="object-cover" sizes="32px" /> : (n.actor?.username || "?").slice(0, 1).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-gray-200"><span className="font-bold text-white">{n.actor?.username}</span> {n.type === "mention" ? "упомянул(а) Вас" : n.type === "reply" ? "ответил(а) Вам" : n.type === "friend_request" ? "отправил(а) запрос в друзья" : n.type === "friend_accept" ? "принял(а) запрос в друзья" : "опубликовал(а) пост"} <span className="text-gray-500 font-normal">{new Date(n.created_at).toLocaleString("ru-RU")}</span></p>
+                  <div>
+                  <p className="text-xs text-gray-200"><span className="font-bold text-white">{n.actor?.username}</span> {n.type === "mention" ? "упомянул(а) Вас" : n.type === "reply" ? "ответил(а) Вам" : n.type === "friend_request" ? "отправил(а) запрос в друзья" : n.type === "friend_accept" ? "принял(а) запрос в друзья" : "опубликовал(а) пост"}</p>
+                  <p className="text-[11px] text-gray-500">{(() => { const d = new Date(n.created_at); const now = new Date(); const isToday = d.toDateString() === now.toDateString(); const time = d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }); return isToday ? `Сегодня в ${time}` : d.toLocaleString("ru-RU"); })()}</p>
+                </div>
                 </div>
               </button>
             ))

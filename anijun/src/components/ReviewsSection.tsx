@@ -169,13 +169,16 @@ export default function ReviewsSection({ animeId, isAuthed, userId }: { animeId:
     await load();
   }
 
+  const [reportId, setReportId] = useState<number | null>(null);
+  const [reportReason, setReportReason] = useState("");
   async function handleReport(commentId: number) {
-    if (!userId) return;
-    const reason = prompt("Причина жалобы:");
-    if (!reason || !reason.trim()) return;
-    const { error } = await supabase.from("comment_reports").insert({ comment_id: commentId, reporter_id: userId, reason: reason.trim() });
+    setReportId(commentId);
+  }
+  async function submitReport() {
+    if (!userId || reportId === null || !reportReason.trim()) return;
+    const { error } = await supabase.from("comment_reports").insert({ comment_id: reportId, reporter_id: userId, reason: reportReason.trim() });
     if (error) alert(error.message);
-    else alert("Жалоба отправлена");
+    else { alert("Жалоба отправлена"); setReportId(null); setReportReason(""); }
   }
 
   function voteCount(id: number, dir: number) { return votes.filter((x) => x.comment_id === id && x.vote === dir).length; }
@@ -278,8 +281,20 @@ export default function ReviewsSection({ animeId, isAuthed, userId }: { animeId:
               ))}
             </div>
           </div>
-        ))}
+          ))}
       </div>
+      {reportId !== null && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setReportId(null)}>
+          <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-4 w-full max-w-sm space-y-3" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-sm font-bold text-white">Жалоба</h3>
+            <textarea value={reportReason} onChange={(e) => setReportReason(e.target.value)} rows={3} placeholder="Причина..." className="w-full bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-sky-500/50 resize-none" />
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setReportId(null)} className="text-xs text-gray-400 border border-[#222226] px-3 py-1.5 rounded">Отмена</button>
+              <button onClick={submitReport} className="bg-red-500 hover:bg-red-600 text-white text-xs font-bold px-4 py-1.5 rounded">Отправить</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
