@@ -544,17 +544,18 @@ export default function FeedPage() {
                         <div className="space-y-2">{renderTree(null, 0)}</div>
                         {replyTo.get(p.id) == null && (
                           <div className="flex gap-2 items-center">
-                            <input value={replyText.get(p.id) || ""} onChange={(e) => setReplyText((prev) => new Map(prev).set(p.id, e.target.value))} placeholder="Ответить..." className="flex-1 bg-[#121214] border border-[#222226] rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-sky-500/50" />
                             <label className="w-8 h-8 rounded-full bg-[#121214] border border-[#222226] flex items-center justify-center text-gray-400 hover:text-white cursor-pointer shrink-0">
                               <i className="fa-solid fa-paperclip text-[10px]"></i>
                               <input type="file" accept="image/*,video/*,audio/*" className="hidden" onChange={async (e) => {
                                 const file = (e.target as HTMLInputElement).files?.[0]; if (!file) return;
-                                const { createClient: cc } = await import("@/lib/supabase/client"); const sb = cc(); const ext = file.name.split(".").pop() || "jpg"; const path = `${Date.now()}.${ext}`; const { error } = await sb.storage.from("Anime").upload(path, file); if (!error) { const { data } = sb.storage.from("Anime").getPublicUrl(path); setReplyText((prev) => new Map(prev).set(p.id, (prev.get(p.id) || "") + ` ${data.publicUrl} `)); }
+                                const { createClient: cc } = await import("@/lib/supabase/client"); const sb = cc(); const ext = file.name.split(".").pop() || "jpg"; const path = `${Date.now()}.${ext}`; const { error } = await sb.storage.from("Anime").upload(path, file); if (!error) { const { data } = sb.storage.from("Anime").getPublicUrl(path); setReplyImage((prev) => new Map(prev).set(p.id, data.publicUrl)); }
                               }} />
                             </label>
+                            <input value={replyText.get(p.id) || ""} onChange={(e) => setReplyText((prev) => new Map(prev).set(p.id, e.target.value))} placeholder="Ответить..." className="flex-1 bg-[#121214] border border-[#222226] rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-sky-500/50" />
                             <button onClick={() => handleReply(p.id)} className="bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">Отправить</button>
                           </div>
                         )}
+                        {replyImage.get(p.id) && replyTo.get(p.id) == null && <div className="text-[11px] text-green-400">медиа прикреплено <button onClick={() => setReplyImage((prev) => { const m = new Map(prev); m.delete(p.id); return m; })} className="text-red-400 ml-1">×</button></div>}
                       </>
                     );
                   })()}
