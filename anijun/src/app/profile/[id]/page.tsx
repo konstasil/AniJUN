@@ -479,9 +479,13 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
               <span className="hidden group-hover:inline-flex items-center gap-2"><i className="fa-solid fa-user-xmark text-[10px]"></i>Удалить из друзей</span>
             </button>
           ) : relation === "request_sent" ? (
-            <span className="shrink-0 px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 border bg-[#1a1a1e] border-[#222226] text-gray-400">
-              <i className="fa-solid fa-clock text-[10px]"></i>Заявка отправлена
-            </span>
+            <button onClick={async () => {
+              if (!viewerId) return;
+              await supabase.from("friends").delete().eq("user_id", viewerId).eq("friend_id", id).eq("status", "pending");
+              setRelation("none");
+            }} className="shrink-0 px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 border bg-[#1a1a1e] border-[#222226] text-gray-400 hover:text-red-400 hover:border-red-500/30">
+              <i className="fa-solid fa-xmark text-[10px]"></i>Отменить заявку
+            </button>
           ) : relation === "request_received" ? (
             <button onClick={handleAcceptProfileFriend}
               className="shrink-0 px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 border bg-green-500/10 border-green-500/20 text-green-400 hover:bg-green-500/20">

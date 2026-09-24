@@ -628,8 +628,8 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
                       className="w-20 bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-white outline-none focus:border-sky-500/50" />
                     <input type="number" min={1} value={newSeasonEps} onChange={(e) => { const v=Math.max(1,Number(e.target.value)||1); setNewSeasonEps(v); if(newSeasonAired>v) setNewSeasonAired(v); }} placeholder="Всего"
                       className="w-20 bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-white outline-none focus:border-sky-500/50" />
-                    <input type="number" min={0} max={newSeasonEps} value={newSeasonAired} onChange={(e) => setNewSeasonAired(Math.max(0,Math.min(newSeasonEps,Number(e.target.value)||0)))} placeholder="Вышло"
-                      className="w-20 bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-white outline-none focus:border-sky-500/50" />
+                    {anime?.status === "ongoing" && <input type="number" min={0} max={newSeasonEps} value={newSeasonAired} onChange={(e) => setNewSeasonAired(Math.max(0,Math.min(newSeasonEps,Number(e.target.value)||0)))} placeholder="Вышло"
+                      className="w-20 bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-white outline-none focus:border-sky-500/50" />}
                     <input value={newSeasonNote} onChange={(e) => setNewSeasonNote(e.target.value)} placeholder="Название (опционально)"
                       className="flex-1 min-w-[120px] bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-white outline-none focus:border-sky-500/50" />
                     <select value={newSeasonAgeRating} onChange={(e) => setNewSeasonAgeRating(e.target.value)} className="w-24 bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none">
@@ -661,8 +661,8 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
                           <div className="flex gap-2 text-xs flex-wrap">
                             <input type="number" min={1} value={editSeasonEps} onChange={(e) => setEditSeasonEps(String(Math.max(1, Number(e.target.value) || 1)))} placeholder="Всего"
                               className="w-20 bg-[#1a1a1e] border border-[#222226] rounded px-2 py-1 text-white outline-none focus:border-sky-500/50" />
-                            <input type="number" min={0} value={editSeasonAired} onChange={(e) => setEditSeasonAired(String(Math.max(0, Number(e.target.value) || 0)))} placeholder="Вышло"
-                              className="w-20 bg-[#1a1a1e] border border-[#222226] rounded px-2 py-1 text-white outline-none focus:border-sky-500/50" />
+                            {anime?.status === "ongoing" && <input type="number" min={0} value={editSeasonAired} onChange={(e) => setEditSeasonAired(String(Math.max(0, Number(e.target.value) || 0)))} placeholder="Вышло"
+                              className="w-20 bg-[#1a1a1e] border border-[#222226] rounded px-2 py-1 text-white outline-none focus:border-sky-500/50" />}
                             <input value={editSeasonNote} onChange={(e) => setEditSeasonNote(e.target.value)} placeholder="Название"
                               className="flex-1 min-w-[100px] bg-[#1a1a1e] border border-[#222226] rounded px-2 py-1 text-white outline-none focus:border-sky-500/50" />
                             <select value={editSeasonAgeRating} onChange={(e) => setEditSeasonAgeRating(e.target.value)} className="w-24 bg-[#1a1a1e] border border-[#222226] rounded px-2 py-1 text-xs text-white outline-none">

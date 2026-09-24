@@ -12,9 +12,10 @@ export interface SeasonDraft {
 interface SeasonEditorProps {
   seasons: SeasonDraft[];
   onChange: (seasons: SeasonDraft[]) => void;
+  showAired?: boolean;
 }
 
-export default function SeasonEditor({ seasons, onChange }: SeasonEditorProps) {
+export default function SeasonEditor({ seasons, onChange, showAired = true }: SeasonEditorProps) {
   function update(i: number, patch: Partial<SeasonDraft>) {
     const copy = [...seasons];
     const nextEpisodes = patch.episodes !== undefined ? Math.max(1, Math.floor(patch.episodes)) : copy[i].episodes;
@@ -65,10 +66,14 @@ export default function SeasonEditor({ seasons, onChange }: SeasonEditorProps) {
                 onChange={(e) => update(i, { episodes: Math.max(1, Number(e.target.value) || 1) })}
                 className="w-16 shrink-0 bg-[#121214] border border-[#222226] rounded px-2 py-1 text-xs text-white outline-none focus:border-sky-500/50" />
               <span className="text-[10px] text-gray-500 shrink-0">всего</span>
-              <input type="number" min={0} max={s.episodes} value={s.aired_episodes ?? s.episodes}
-                onChange={(e) => update(i, { aired_episodes: Math.max(0, Math.min(s.episodes, Number(e.target.value) || 0)) })}
-                className="w-16 shrink-0 bg-[#121214] border border-[#222226] rounded px-2 py-1 text-xs text-white outline-none focus:border-sky-500/50" />
-              <span className="text-[10px] text-gray-500 shrink-0">вышло</span>
+              {showAired && (
+                <>
+                  <input type="number" min={0} max={s.episodes} value={s.aired_episodes ?? s.episodes}
+                    onChange={(e) => update(i, { aired_episodes: Math.max(0, Math.min(s.episodes, Number(e.target.value) || 0)) })}
+                    className="w-16 shrink-0 bg-[#121214] border border-[#222226] rounded px-2 py-1 text-xs text-white outline-none focus:border-sky-500/50" />
+                  <span className="text-[10px] text-gray-500 shrink-0">вышло</span>
+                </>
+              )}
               <input value={s.note || ""} placeholder="Название (опционально)"
                 onChange={(e) => update(i, { note: e.target.value })}
                 className="basis-full sm:basis-auto sm:flex-1 min-w-0 bg-[#121214] border border-[#222226] rounded px-2 py-1 text-xs text-white outline-none focus:border-sky-500/50 order-5 sm:order-none" />

@@ -186,7 +186,7 @@ export default function AdminAddAnimePage() {
           </div>
         </div>
 
-        <SeasonEditor seasons={seasons} onChange={setSeasons} />
+          <SeasonEditor seasons={seasons} onChange={setSeasons} showAired={status === "ongoing"} />
 
         {error && (
           <div className="text-[10px] text-red-400 bg-red-950/20 border border-red-500/20 rounded-lg px-3 py-2">

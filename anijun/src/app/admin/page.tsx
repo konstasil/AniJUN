@@ -584,6 +584,19 @@ export default function AdminPage() {
         </div>
       </div>
 
+      <div className="flex flex-col lg:flex-row gap-6">
+        <aside className="lg:w-52 shrink-0">
+          <div className="bg-[#121214] p-1.5 rounded-xl border border-[#222226] flex lg:flex-col gap-1 overflow-x-auto lg:overflow-visible">
+            {tabs.map(([key, label, icon]) => (
+              <button key={key} onClick={() => setTab(key)}
+                className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap lg:w-full text-left ${tab === key ? "bg-sky-500/15 text-sky-400 border border-sky-500/20" : "text-gray-500 hover:text-gray-300 hover:bg-[#1a1a1e] border border-transparent"}`}>
+                <i className={`fa-solid ${icon} text-[11px] w-4 text-center`}></i> {label}
+              </button>
+            ))}
+          </div>
+        </aside>
+        <div className="flex-1 min-w-0 space-y-6">
+
       {showSimulation && (
         <div className="bg-[#1a1a1e] border border-amber-500/20 rounded-xl p-4 mb-6 space-y-3">
           <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider">Симуляция входа</h3>
@@ -619,17 +632,6 @@ export default function AdminPage() {
           )}
         </div>
       )}
-
-      <div className="flex gap-1 mb-6 bg-[#121214] p-1 rounded-lg border border-[#222226] overflow-x-auto">
-        {tabs.map(([key, label, icon]) => (
-          <button key={key} onClick={() => setTab(key)}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-xs font-bold transition-all whitespace-nowrap ${
-              tab === key ? "bg-sky-500/20 text-sky-400 border border-sky-500/30" : "text-gray-500 hover:text-gray-300 border border-transparent"
-            }`}>
-            <i className={`fa-solid ${icon} text-[10px]`}></i> {label}
-          </button>
-        ))}
-      </div>
 
       {/* ADD ANIME */}
       {tab === "add-anime" && (
@@ -699,7 +701,7 @@ export default function AdminPage() {
             </div>
           </div>
 
-          <SeasonEditor seasons={seasons} onChange={setSeasons} />
+          <SeasonEditor seasons={seasons} onChange={setSeasons} showAired={newStatus === "ongoing"} />
 
           <button onClick={handleAddAnime} disabled={addingAnime || !newTitle.trim()}
             className="bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs px-5 py-2.5 rounded-lg transition-all disabled:opacity-50 shadow-lg shadow-sky-500/10">
@@ -748,7 +750,7 @@ export default function AdminPage() {
                         }`}>{g}</button>
                     ))}
                   </div>
-                  <SeasonEditor seasons={editSeasons} onChange={setEditSeasons} />
+                  <SeasonEditor seasons={editSeasons} onChange={setEditSeasons} showAired={editStatus === "ongoing"} />
                   <div className="flex gap-2">
                     <button onClick={saveEditAnime} className="bg-sky-500 hover:bg-sky-600 text-white text-[10px] font-bold px-3 py-1.5 rounded transition-all">Сохранить</button>
                     <button onClick={() => setEditingAnime(null)} className="bg-[#121214] text-gray-400 text-[10px] font-bold px-3 py-1.5 rounded border border-[#222226] hover:text-white transition-all">Отмена</button>
@@ -1203,6 +1205,8 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+      </div>
+      </div>
     </div>
   );
 }
