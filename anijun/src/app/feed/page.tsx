@@ -470,7 +470,7 @@ export default function FeedPage() {
       </div>
       {viewerUrl && (
         <div className="fixed inset-0 z-50 bg-black/90 flex flex-col" onClick={() => setViewerUrl(null)}>
-          <div className="flex justify-between items-center p-4">
+          <div className="flex justify-between items-center p-4" onClick={(e) => e.stopPropagation()}>
             <button onClick={() => setViewerUrl(null)} className="text-white hover:text-gray-300"><i className="fa-solid fa-xmark text-xl"></i></button>
             <div className="flex gap-2">
               <button onClick={(e) => { e.stopPropagation(); setViewerScale((s) => Math.min(3, s + 0.25)); }} className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center"><i className="fa-solid fa-magnifying-glass-plus"></i></button>
@@ -478,8 +478,8 @@ export default function FeedPage() {
               <button onClick={async (e) => { e.stopPropagation(); try { const res = await fetch(viewerUrl); const blob = await res.blob(); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = viewerUrl.split("/").pop()?.split("?")[0] || "image.jpg"; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); } catch { window.open(viewerUrl, "_blank"); } }} className="w-9 h-9 rounded-full bg-sky-500 hover:bg-sky-600 text-white flex items-center justify-center"><i className="fa-solid fa-download"></i></button>
             </div>
           </div>
-          <div className="flex-1 flex items-center justify-center p-4 overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <img src={viewerUrl} alt="" className="max-w-full max-h-full object-contain transition-transform" style={{ transform: `scale(${viewerScale})` }} onWheel={(e) => setViewerScale((s) => Math.min(3, Math.max(0.5, s - e.deltaY * 0.001)))} />
+          <div className="flex-1 flex items-center justify-center p-4 overflow-hidden" onClick={() => setViewerUrl(null)}>
+            <img src={viewerUrl} alt="" className="max-w-full max-h-full object-contain transition-transform cursor-zoom-out" style={{ transform: `scale(${viewerScale})` }} onClick={() => setViewerUrl(null)} onWheel={(e) => setViewerScale((s) => Math.min(3, Math.max(0.5, s - e.deltaY * 0.001)))} />
           </div>
         </div>
       )}
