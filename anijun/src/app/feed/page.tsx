@@ -25,6 +25,7 @@ interface PostComment {
   text: string;
   image_url?: string | null;
   created_at: string;
+  updated_at?: string | null;
   parent_id?: number | null;
   profiles?: { username: string; avatar_url: string; is_verified?: boolean }[];
 }
@@ -74,6 +75,8 @@ export default function FeedPage() {
   const [replyText, setReplyText] = useState<Map<number, string>>(new Map());
   const [replyImage, setReplyImage] = useState<Map<number, string>>(new Map());
   const [replyTo, setReplyTo] = useState<Map<number, number | null>>(new Map());
+  const [editingPc, setEditingPc] = useState<number | null>(null);
+  const [editPcText, setEditPcText] = useState("");
   const [pcLikes, setPcLikes] = useState<Map<number, number>>(new Map());
   const [myPcLikes, setMyPcLikes] = useState<Set<number>>(new Set());
   const [isAdminUser, setIsAdminUser] = useState(false);
@@ -260,7 +263,7 @@ export default function FeedPage() {
     if (error) alert(error.message); else { alert("Жалоба отправлена"); setReportModal(null); setReportReason(""); }
   }
   async function loadComments(postId: number) {
-    const { data } = await supabase.from("post_comments").select("id, post_id, user_id, text, image_url, created_at, parent_id").eq("post_id", postId).order("created_at", { ascending: true });
+    const { data } = await supabase.from("post_comments").select("id, post_id, user_id, text, image_url, created_at, updated_at, parent_id").eq("post_id", postId).order("created_at", { ascending: true });
     if (!data) return;
     const ids = [...new Set(data.map((c) => c.user_id))];
     const { data: profs } = await supabase.from("profiles").select("id, username, avatar_url, is_verified").in("id", ids);
@@ -324,6 +327,14 @@ export default function FeedPage() {
     await supabase.from("post_comments").delete().eq("id", commentId);
     await loadComments(postId);
     await load();
+  }
+  async function handlePcEdit(commentId: number) {
+    if (!editPcText.trim()) return;
+    await supabase.from("post_comments").update({ text: editPcText.trim() }).eq("id", commentId);
+    setEditingPc(null);
+    setEditPcText("");
+    const pid = [...postComments.entries()].find(([_, arr]) => arr.some((c) => c.id === commentId))?.[0];
+    if (pid) await loadComments(pid);
   }
   async function handlePcReport(commentId: number) {
     setReportModal({ type: "pc", id: commentId });
@@ -508,6 +519,8 @@ export default function FeedPage() {
                             </Link>
                             <Link href={`/profile/${c.user_id}`} className="text-xs font-bold text-white hover:text-sky-400 flex items-center gap-1">{c.profiles?.[0]?.username || "?"} {c.profiles?.[0]?.is_verified && <VerifiedBadge size={10} />}</Link>
                             <span className="text-[10px] text-gray-600 ml-auto">{new Date(c.created_at).toLocaleString("ru-RU")}</span>
+                            {c.updated_at && Math.abs(new Date(c.updated_at).getTime() - new Date(c.created_at).getTime()) > 2000 && <span className="text-[9px] text-gray-500">изменено</span>}
+                            {c.user_id === userId && <button onClick={() => { if (editingPc === c.id) { setEditingPc(null); } else { setEditingPc(c.id); setEditPcText(c.text); } }} className="text-[10px] text-gray-500 hover:text-sky-400"><i className="fa-solid fa-pen"></i></button>}
                             {(c.user_id === userId || isAdminUser) && <button onClick={() => handlePcDelete(c.id, c.user_id, p.id)} className="text-[10px] text-red-400 hover:text-red-300"><i className="fa-solid fa-trash-can"></i></button>}
                             <button onClick={() => handlePcReport(c.id)} className="text-[10px] text-gray-500 hover:text-amber-400" title="Пожаловаться"><i className="fa-solid fa-flag"></i></button>
                           </div>
