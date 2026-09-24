@@ -525,16 +525,29 @@ export default function FeedPage() {
                             <button onClick={() => handlePcReport(c.id)} className="text-[10px] text-gray-500 hover:text-amber-400" title="Пожаловаться"><i className="fa-solid fa-flag"></i></button>
                           </div>
                           <div className="text-xs text-gray-300 whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: formatToHtml(c.text, usernameToId) }} />
+                          {c.image_url && (
+                            /\.mp4|\.mov|\.webm|\.mkv|\.avi/i.test(c.image_url) ? <video src={c.image_url} controls className="w-full rounded-lg bg-black max-h-60" /> :
+                            /\.mp3|\.ogg|\.wav|\.flac/i.test(c.image_url) ? <audio src={c.image_url} controls className="w-full" /> :
+                            <img src={c.image_url} alt="" className="w-full rounded-lg max-h-60 object-contain bg-black cursor-zoom-in" onClick={() => { setViewerUrl(c.image_url!); setViewerScale(1); }} />
+                          )}
                           <div className="flex gap-2">
                             <button onClick={() => togglePcLike(c.id, p.id)} className={`text-[11px] px-2 py-1 rounded border ${myPcLikes.has(c.id) ? "bg-sky-500/20 text-sky-400 border-sky-500/30" : "text-gray-500 border-[#222226] hover:text-sky-400"}`}><i className="fa-solid fa-heart text-[10px]"></i> {pcLikes.get(c.id) || ""}</button>
                             <button onClick={() => setReplyTo((prev) => { const m = new Map(prev); m.set(p.id, m.get(p.id) === c.id ? null : c.id); return m; })} className="text-[11px] text-sky-400 hover:text-sky-300"><i className="fa-solid fa-reply mr-1"></i>Ответить</button>
                           </div>
                           {replyTo.get(p.id) === c.id && (
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 items-center">
+                              <label className="w-8 h-8 rounded-full bg-[#121214] border border-[#222226] flex items-center justify-center text-gray-400 hover:text-white cursor-pointer shrink-0">
+                                <i className="fa-solid fa-paperclip text-[10px]"></i>
+                                <input type="file" accept="image/*,video/*,audio/*" className="hidden" onChange={async (e) => {
+                                  const file = (e.target as HTMLInputElement).files?.[0]; if (!file) return;
+                                  const { createClient: cc } = await import("@/lib/supabase/client"); const sb = cc(); const ext = file.name.split(".").pop() || "jpg"; const path = `${Date.now()}.${ext}`; const { error } = await sb.storage.from("Anime").upload(path, file); if (!error) { const { data } = sb.storage.from("Anime").getPublicUrl(path); setReplyImage((prev) => new Map(prev).set(p.id, data.publicUrl)); }
+                                }} />
+                              </label>
                               <input value={replyText.get(p.id) || ""} onChange={(e) => setReplyText((prev) => new Map(prev).set(p.id, e.target.value))} placeholder={`Ответ ${c.profiles?.[0]?.username || ""}...`} className="flex-1 bg-[#1a1a1e] border border-[#222226] rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-sky-500/50" />
                               <button onClick={() => handleReply(p.id)} className="bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">Отправить</button>
                             </div>
                           )}
+                          {replyImage.get(p.id) && replyTo.get(p.id) === c.id && <div className="text-[11px] text-green-400">медиа прикреплено <button onClick={() => setReplyImage((prev) => { const m = new Map(prev); m.delete(p.id); return m; })} className="text-red-400 ml-1">×</button></div>}
                           <div className="space-y-2">{renderTree(c.id, depth + 1)}</div>
                         </div>
                       ));
