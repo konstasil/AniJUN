@@ -1,4 +1,5 @@
 alter table public.posts add column if not exists updated_at timestamptz default now() not null;
+update public.posts set updated_at = created_at where updated_at != created_at;
 create or replace function public.handle_posts_updated_at() returns trigger as $$
 begin new.updated_at = now(); return new; end; $$ language plpgsql;
 drop trigger if exists posts_updated_at on public.posts;

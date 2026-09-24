@@ -458,8 +458,8 @@ export default function FeedPage() {
                 </Link>
                 <Link href={`/profile/${p.user_id}`} className="text-xs font-bold text-white hover:text-sky-400 flex items-center gap-1">{p.profiles?.[0]?.username || "Пользователь"} {p.profiles?.[0]?.is_verified && <VerifiedBadge size={12} />}</Link>
                 <span className="text-[10px] text-gray-600 ml-auto">{new Date(p.created_at).toLocaleString("ru-RU")}</span>
-                {p.updated_at && p.updated_at !== p.created_at && <span className="text-[9px] text-gray-500">изменено</span>}
-                {(isOwner || isAdminUser) && <button onClick={() => { if (editingPost === p.id) { setEditingPost(null); } else { setEditingPost(p.id); setEditPostText(p.text); } }} className="text-gray-500 hover:text-sky-400 text-xs" title="Редактировать"><i className="fa-solid fa-pen"></i></button>}
+                {p.updated_at && Math.abs(new Date(p.updated_at).getTime() - new Date(p.created_at).getTime()) > 2000 && <span className="text-[9px] text-gray-500">изменено</span>}
+                {isOwner && <button onClick={() => { if (editingPost === p.id) { setEditingPost(null); } else { setEditingPost(p.id); setEditPostText(p.text); } }} className="text-gray-500 hover:text-sky-400 text-xs" title="Редактировать"><i className="fa-solid fa-pen"></i></button>}
                 {(isOwner || isAdminUser) && <button onClick={() => handleDelete(p.id, p.user_id)} className="text-gray-500 hover:text-red-400 text-xs"><i className="fa-solid fa-trash-can"></i></button>}
                 <button onClick={() => handleReport(p.id)} className="text-gray-500 hover:text-amber-400 text-xs" title="Пожаловаться"><i className="fa-solid fa-flag"></i></button>
               </div>
