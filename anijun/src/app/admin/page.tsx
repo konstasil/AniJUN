@@ -132,6 +132,7 @@ export default function AdminPage() {
   const [newFilterWord, setNewFilterWord] = useState("");
   const [reports, setReports] = useState<{ id: number; comment_id: number | null; post_id: number | null; reported_id?: string | null; reporter_id: string; reason: string; created_at: string; status: string; kind: "comment" | "post" | "post_comment" | "user" }[]>([]);
   const [stats, setStats] = useState<{ admin_id: string; username: string; add: number; del: number; dup: number; byTab: Record<string, number> }[]>([]);
+  const [statsPeriod, setStatsPeriod] = useState<"all" | "hour" | "day" | "week" | "month">("all");
   const [checkingLinks, setCheckingLinks] = useState(false);
   const [brokenLinks, setBrokenLinks] = useState<{ id: number; title: string; url: string; slug?: string }[]>([]);
 
@@ -239,7 +240,10 @@ export default function AdminPage() {
     if (sugg) setSuggestions(sugg as unknown as SuggestionRow[]);
 
     try {
-      const { data: acts } = await supabase.from("admin_actions").select("admin_id, action, tab, is_duplicate").limit(1000);
+      let query = supabase.from("admin_actions").select("admin_id, action, tab, is_duplicate");
+      const since = statsPeriod === "hour" ? 3600000 : statsPeriod === "day" ? 86400000 : statsPeriod === "week" ? 604800000 : statsPeriod === "month" ? 2592000000 : null;
+      if (since) query = query.gte("created_at", new Date(Date.now() - since).toISOString());
+      const { data: acts } = await query.limit(10000);
       const { data: profs } = await supabase.from("profiles").select("id, username");
       const pmap = new Map<string, string>();
       profs?.forEach((p) => pmap.set(p.id, p.username));
@@ -257,6 +261,29 @@ export default function AdminPage() {
       setStats(arr);
     } catch {}
   }
+
+  async function reloadStats() {
+    let query = supabase.from("admin_actions").select("admin_id, action, tab, is_duplicate");
+    const since = statsPeriod === "hour" ? 3600000 : statsPeriod === "day" ? 86400000 : statsPeriod === "week" ? 604800000 : statsPeriod === "month" ? 2592000000 : null;
+    if (since) query = query.gte("created_at", new Date(Date.now() - since).toISOString());
+    const { data: acts } = await query.limit(10000);
+    const { data: profs } = await supabase.from("profiles").select("id, username");
+    const pmap = new Map(profs?.map((p) => [p.id, p.username]) || []);
+    const grouped = new Map<string, { add: number; del: number; dup: number; byTab: Record<string, number> }>();
+    acts?.forEach((a) => {
+      const g = grouped.get(a.admin_id) || { add: 0, del: 0, dup: 0, byTab: {} as Record<string, number> };
+      if (a.action === "add" || a.action === "approve") g.add++;
+      if (a.action === "delete" || a.action === "reject") g.del++;
+      if (a.is_duplicate) g.dup++;
+      g.byTab[a.tab || "other"] = (g.byTab[a.tab || "other"] || 0) + 1;
+      grouped.set(a.admin_id, g);
+    });
+    setStats([...grouped.entries()].map(([admin_id, v]) => ({ admin_id, username: pmap.get(admin_id) || admin_id.slice(0, 8), ...v })));
+  }
+
+  useEffect(() => {
+    if (tab === "stats") reloadStats();
+  }, [tab, statsPeriod]);
 
   async function logAction(action: string, entity_type: string, entity_id: string | number | null, tab: string, is_duplicate = false) {
     try {
@@ -1241,7 +1268,16 @@ export default function AdminPage() {
       {tab === "stats" && (
         <div className="space-y-4">
           <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-4">
-            <h4 className="text-[10px] font-bold text-sky-400 uppercase tracking-wider mb-3"><i className="fa-solid fa-chart-bar mr-1"></i> Статистика админов</h4>
+            <div className="flex items-center gap-2 mb-3">
+              <h4 className="text-[10px] font-bold text-sky-400 uppercase tracking-wider"><i className="fa-solid fa-chart-bar mr-1"></i> Статистика админов</h4>
+              <select value={statsPeriod} onChange={(e) => setStatsPeriod(e.target.value as typeof statsPeriod)} className="ml-auto bg-[#121214] border border-[#222226] rounded px-2 py-1 text-[10px] text-gray-300 outline-none">
+                <option value="all">За всё время</option>
+                <option value="hour">За час</option>
+                <option value="day">За день</option>
+                <option value="week">За неделю</option>
+                <option value="month">За месяц</option>
+              </select>
+            </div>
             {stats.length === 0 ? <p className="text-xs text-gray-600 text-center py-8">Пока нет действий</p> : (
               <>
                 <div className="space-y-2 mb-6">
