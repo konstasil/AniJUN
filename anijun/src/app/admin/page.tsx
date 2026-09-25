@@ -1256,8 +1256,8 @@ export default function AdminPage() {
                           <span className="text-[10px] text-gray-500 ml-auto">{s.admin_id.slice(0, 8)}</span>
                         </div>
                         <div className="grid grid-cols-3 gap-2 text-xs">
-                          <div className="text-center bg-[#1a1a1e] rounded p-2"><div className="text-[10px] text-gray-500">Добавил</div><div className="font-bold text-green-400">{s.add}</div></div>
-                          <div className="text-center bg-[#1a1a1e] rounded p-2"><div className="text-[10px] text-gray-500">Удалил</div><div className="font-bold text-red-400">{s.del}</div></div>
+                          <div className="text-center bg-[#1a1a1e] rounded p-2"><div className="text-[10px] text-gray-500">Добавил(а)</div><div className="font-bold text-green-400">{s.add}</div></div>
+                          <div className="text-center bg-[#1a1a1e] rounded p-2"><div className="text-[10px] text-gray-500">Удалил(а)</div><div className="font-bold text-red-400">{s.del}</div></div>
                           <div className="text-center bg-[#1a1a1e] rounded p-2"><div className="text-[10px] text-gray-500">Спизжено</div><div className="font-bold text-amber-400">{s.dup}</div></div>
                         </div>
                         <div className="mt-2 flex flex-wrap gap-1">
