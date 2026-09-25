@@ -56,7 +56,7 @@ interface RatingRow {
   anime?: { title: string }[];
 }
 
-type Tab = "add-anime" | "anime-list" | "suggestions" | "users" | "ratings" | "bans" | "tools" | "genres" | "comments" | "reports";
+type Tab = "add-anime" | "anime-list" | "suggestions" | "users" | "ratings" | "bans" | "tools" | "genres" | "comments" | "reports" | "stats";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -131,6 +131,7 @@ export default function AdminPage() {
   const [filterWords, setFilterWords] = useState<{ id: number; word: string }[]>([]);
   const [newFilterWord, setNewFilterWord] = useState("");
   const [reports, setReports] = useState<{ id: number; comment_id: number | null; post_id: number | null; reported_id?: string | null; reporter_id: string; reason: string; created_at: string; status: string; kind: "comment" | "post" | "post_comment" | "user" }[]>([]);
+  const [stats, setStats] = useState<{ admin_id: string; username: string; add: number; del: number; dup: number; byTab: Record<string, number> }[]>([]);
   const [checkingLinks, setCheckingLinks] = useState(false);
   const [brokenLinks, setBrokenLinks] = useState<{ id: number; title: string; url: string; slug?: string }[]>([]);
 
@@ -236,6 +237,34 @@ export default function AdminPage() {
       .order("created_at", { ascending: false })
       .limit(100);
     if (sugg) setSuggestions(sugg as unknown as SuggestionRow[]);
+
+    try {
+      const { data: acts } = await supabase.from("admin_actions").select("admin_id, action, tab, is_duplicate").limit(1000);
+      const { data: profs } = await supabase.from("profiles").select("id, username");
+      const pmap = new Map<string, string>();
+      profs?.forEach((p) => pmap.set(p.id, p.username));
+      const grouped = new Map<string, { add: number; del: number; dup: number; byTab: Record<string, number> }>();
+      acts?.forEach((a) => {
+        const g = grouped.get(a.admin_id) || { add: 0, del: 0, dup: 0, byTab: {} as Record<string, number> };
+        if (a.action === "add" || a.action === "approve") g.add++;
+        if (a.action === "delete" || a.action === "reject") g.del++;
+        if (a.is_duplicate) g.dup++;
+        const t = a.tab || "other";
+        g.byTab[t] = (g.byTab[t] || 0) + 1;
+        grouped.set(a.admin_id, g);
+      });
+      const arr = [...grouped.entries()].map(([admin_id, v]) => ({ admin_id, username: pmap.get(admin_id) || admin_id.slice(0, 8), ...v }));
+      setStats(arr);
+    } catch {}
+  }
+
+  async function logAction(action: string, entity_type: string, entity_id: string | number | null, tab: string, is_duplicate = false) {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const uid = session?.user.id;
+      if (!uid) return;
+      await supabase.from("admin_actions").insert({ admin_id: uid, action, entity_type, entity_id: entity_id ? String(entity_id) : null, tab, is_duplicate });
+    } catch {}
   }
 
   // Функция для генерации slug из названия
@@ -270,6 +299,8 @@ export default function AdminPage() {
           age_rating: s.age_rating || "",
         });
       }
+      const isDup = animeList.some((a) => a.title.toLowerCase() === newTitle.trim().toLowerCase() || a.image_url === newPosterUrl);
+      await logAction("add", "anime", anime.id, "add-anime", isDup);
     }
     setNewTitle(""); setNewSlug(""); setNewGenres([]); setNewPosterUrl(""); setNewStatus("finished"); setSeasons([{ number: 1, episodes: 12, note: "" }]);
     setAddingAnime(false);
@@ -288,6 +319,7 @@ export default function AdminPage() {
     await supabase.from("ratings").delete().eq("anime_id", id);
     await supabase.from("user_anime_list").delete().eq("anime_id", id);
     await supabase.from("anime").delete().eq("id", id);
+    await logAction("delete", "anime", id, "anime-list");
     await loadAll();
   }
 
@@ -569,6 +601,7 @@ export default function AdminPage() {
     ["genres", "Жанры", "fa-tags"],
     ["comments", "Комментарии", "fa-comments"],
     ["reports", "Жалобы", "fa-flag"],
+    ["stats", "Статистика", "fa-chart-bar"],
   ];
 
   return (
@@ -1202,6 +1235,58 @@ export default function AdminPage() {
               ))}
             </div>
             <p className="text-[10px] text-gray-600 mt-3">Всего: {allGenresAdmin.length}</p>
+          </div>
+        </div>
+      )}
+      {tab === "stats" && (
+        <div className="space-y-4">
+          <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-4">
+            <h4 className="text-[10px] font-bold text-sky-400 uppercase tracking-wider mb-3"><i className="fa-solid fa-chart-bar mr-1"></i> Статистика админов</h4>
+            {stats.length === 0 ? <p className="text-xs text-gray-600 text-center py-8">Пока нет действий</p> : (
+              <>
+                <div className="space-y-2 mb-6">
+                  {stats.map((s, idx) => {
+                    const colors = ["bg-sky-500","bg-amber-500","bg-emerald-500","bg-purple-500","bg-red-500","bg-pink-500"];
+                    const col = colors[idx % colors.length];
+                    return (
+                      <div key={s.admin_id} className="bg-[#121214] border border-[#222226] rounded-lg p-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className={`w-3 h-3 rounded-full ${col}`}></span>
+                          <span className="text-xs font-bold text-white">{s.username}</span>
+                          <span className="text-[10px] text-gray-500 ml-auto">{s.admin_id.slice(0, 8)}</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-xs">
+                          <div className="text-center bg-[#1a1a1e] rounded p-2"><div className="text-[10px] text-gray-500">Добавил</div><div className="font-bold text-green-400">{s.add}</div></div>
+                          <div className="text-center bg-[#1a1a1e] rounded p-2"><div className="text-[10px] text-gray-500">Удалил</div><div className="font-bold text-red-400">{s.del}</div></div>
+                          <div className="text-center bg-[#1a1a1e] rounded p-2"><div className="text-[10px] text-gray-500">Спизжено</div><div className="font-bold text-amber-400">{s.dup}</div></div>
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {Object.entries(s.byTab).map(([k,v]) => <span key={k} className="text-[10px] bg-[#1a1a1e] border border-[#222226] px-2 py-0.5 rounded text-gray-400">{k}: {v}</span>)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <h5 className="text-[10px] font-bold text-gray-400 uppercase mb-2">Диаграмма добавлений</h5>
+                {(() => {
+                  const max = Math.max(...stats.map((s) => s.add), 1);
+                  const colors = ["bg-sky-500","bg-amber-500","bg-emerald-500","bg-purple-500","bg-red-500","bg-pink-500"];
+                  return (
+                    <div className="space-y-2">
+                      {stats.map((s, idx) => (
+                        <div key={s.admin_id} className="flex items-center gap-2">
+                          <span className="text-[11px] text-gray-400 w-24 truncate">{s.username}</span>
+                          <div className="flex-1 bg-[#121214] rounded-full h-4 overflow-hidden border border-[#222226]">
+                            <div className={`h-full ${colors[idx % colors.length]} transition-all`} style={{ width: `${(s.add / max) * 100}%` }}></div>
+                          </div>
+                          <span className="text-xs font-bold text-white w-6 text-right">{s.add}</span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </>
+            )}
           </div>
         </div>
       )}
