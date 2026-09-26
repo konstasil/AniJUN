@@ -29,6 +29,12 @@ export default function CollectionsSection({ animeId, animeTitle, userId }: Coll
   const [saving, setSaving] = useState(false);
   const [myCollections, setMyCollections] = useState<Collection[]>([]);
   const [friendIds, setFriendIds] = useState<Set<string>>(new Set());
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDesc, setEditDesc] = useState("");
+  const [editPublic, setEditPublic] = useState(true);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState("");
 
   const loadCollections = useCallback(async () => {
 
@@ -118,6 +124,36 @@ export default function CollectionsSection({ animeId, animeTitle, userId }: Coll
     await Promise.all([loadCollections(), loadMyCollections()]);
   }
 
+  function startEdit(col: Collection) {
+    setEditingId(col.id);
+    setEditName(col.name);
+    setEditDesc(col.description || "");
+    setEditPublic(col.is_public);
+    setEditError("");
+  }
+
+  async function handleSaveEdit(id: number) {
+    if (!editName.trim()) return;
+    setEditSaving(true);
+    setEditError("");
+    const { error } = await supabase
+      .from("collections")
+      .update({ name: editName.trim(), description: editDesc.trim(), is_public: editPublic })
+      .eq("id", id);
+    setEditSaving(false);
+    if (error) { setEditError(error.message); return; }
+    setEditingId(null);
+    await Promise.all([loadCollections(), loadMyCollections()]);
+  }
+
+  async function handleDeleteCollection(col: Collection) {
+    if (!confirm(`Удалить коллекцию «${col.name}»? Аниме останутся на сайте.`)) return;
+    const { error } = await supabase.from("collections").delete().eq("id", col.id);
+    if (error) { setEditError(error.message); return; }
+    setEditingId(null);
+    await Promise.all([loadCollections(), loadMyCollections()]);
+  }
+
   async function toggleInCollection(col: Collection) {
     if (!userId) return;
     if (col.contains) {
@@ -165,11 +201,42 @@ export default function CollectionsSection({ animeId, animeTitle, userId }: Coll
           <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Мои коллекции</p>
           <div className="flex flex-col gap-1.5">
             {myCollections.map((c) => (
-              <label key={c.id} className="flex items-center gap-2.5 p-2 bg-[#121214] border border-[#222226] rounded-lg cursor-pointer hover:border-sky-500/30 transition-all">
-                <input type="checkbox" checked={c.contains} onChange={() => toggleInCollection(c)} className="accent-sky-500" />
-                <span className="text-xs text-gray-300 font-semibold flex-1 truncate">{c.name}</span>
-                {!c.is_public && <span className="text-[9px] text-gray-600"><i className="fa-solid fa-lock mr-0.5"></i>приватная</span>}
-              </label>
+              <div key={c.id} className="bg-[#121214] border border-[#222226] rounded-lg">
+                {editingId === c.id ? (
+                  <div className="p-2.5 flex flex-col gap-2">
+                    <input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Название"
+                      className="w-full bg-[#1a1a1e] border border-[#222226] rounded px-2.5 py-1.5 text-xs text-white outline-none focus:border-sky-500/50" />
+                    <textarea value={editDesc} onChange={(e) => setEditDesc(e.target.value)} rows={2} placeholder="Описание (опционально)"
+                      className="w-full bg-[#1a1a1e] border border-[#222226] rounded px-2.5 py-1.5 text-xs text-white outline-none focus:border-sky-500/50 resize-none" />
+                    <label className="flex items-center gap-2 text-[11px] text-gray-400 cursor-pointer">
+                      <input type="checkbox" checked={editPublic} onChange={(e) => setEditPublic(e.target.checked)} className="accent-sky-500" />
+                      Публичная коллекция
+                    </label>
+                    {editError && <p className="text-[10px] text-red-400">{editError}</p>}
+                    <div className="flex gap-2">
+                      <button onClick={() => handleSaveEdit(c.id)} disabled={editSaving || !editName.trim()}
+                        className="bg-sky-500 hover:bg-sky-600 text-white text-[10px] font-bold px-3 py-1.5 rounded transition-all disabled:opacity-50">
+                        {editSaving ? "Сохранение..." : "Сохранить"}
+                      </button>
+                      <button onClick={() => setEditingId(null)}
+                        className="text-gray-400 text-[10px] font-bold px-3 py-1.5 rounded border border-[#222226] hover:text-white transition-all">Отмена</button>
+                      <button onClick={() => handleDeleteCollection(c)}
+                        className="text-red-400 text-[10px] font-bold px-3 py-1.5 rounded border border-red-500/20 hover:bg-red-500/10 ml-auto" title="Удалить коллекцию">
+                        <i className="fa-solid fa-trash-can"></i>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2.5 p-2">
+                    <input type="checkbox" checked={c.contains} onChange={() => toggleInCollection(c)} className="accent-sky-500 shrink-0 cursor-pointer" />
+                    <span className="text-xs text-gray-300 font-semibold flex-1 truncate">{c.name}</span>
+                    {c.description && <span className="text-[10px] text-gray-600 truncate max-w-[120px] hidden sm:block">{c.description}</span>}
+                    {!c.is_public && <span className="text-[9px] text-gray-600 shrink-0"><i className="fa-solid fa-lock mr-0.5"></i>приватная</span>}
+                    <button onClick={() => startEdit(c)} title="Изменить"
+                      className="text-gray-500 hover:text-sky-400 transition-colors shrink-0"><i className="fa-solid fa-pen text-[10px]"></i></button>
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         </div>
