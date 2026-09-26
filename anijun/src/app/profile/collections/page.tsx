@@ -11,6 +11,7 @@ interface OwnCollection {
   name: string;
   description: string;
   is_public: boolean;
+  slug?: string;
   items: { id: number; anime_id: number; slug?: string; title: string; image_url: string }[];
 }
 
@@ -60,7 +61,7 @@ export default function CollectionsPage() {
   const loadCollections = useCallback(async (uid: string) => {
     const { data: cols } = await supabase
       .from("collections")
-      .select("id, name, description, is_public")
+      .select("id, name, description, is_public, slug")
       .eq("user_id", uid)
       .order("created_at", { ascending: false });
     if (!cols) return;
@@ -93,6 +94,7 @@ export default function CollectionsPage() {
       name: c.name,
       description: c.description || "",
       is_public: c.is_public,
+      slug: (c as unknown as { slug?: string }).slug,
       items: itemsByCollection.get(c.id) || [],
     }));
     setCollections(result);
@@ -162,7 +164,7 @@ export default function CollectionsPage() {
       if (error) { alert(error.message); return; }
       await loadCollections(userId);
     }
-    const url = `${window.location.origin}/profile/${userId}#collections`;
+    const url = `${window.location.origin}/collection/${col.slug || col.id}`;
     const title = `Коллекция «${col.name}»`;
     if (navigator.share) {
       try { await navigator.share({ title, url }); return; } catch {}

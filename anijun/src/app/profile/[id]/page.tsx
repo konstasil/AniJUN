@@ -684,6 +684,10 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="text-[10px] text-gray-500">{c.count} тайтл.</span>
+                    <a href={`/collection/${c.id}`} onClick={(e) => e.stopPropagation()} title="Открыть коллекцию"
+                      className="text-gray-500 hover:text-sky-400 transition-colors text-[10px]">
+                      <i className="fa-solid fa-arrow-up-right-from-square"></i>
+                    </a>
                     <i className={`fa-solid ${expandedCol === c.id ? "fa-chevron-up" : "fa-chevron-down"} text-gray-600 text-[9px]`}></i>
                   </div>
                 </div>
