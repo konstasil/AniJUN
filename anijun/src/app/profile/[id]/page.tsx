@@ -104,6 +104,27 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
   const [reviewsLoaded, setReviewsLoaded] = useState(false);
   const [expandedCol, setExpandedCol] = useState<number | null>(null);
   const [colItems, setColItems] = useState<Map<number, { anime_id: number; title: string; image_url: string; slug?: string }[]>>(new Map());
+  const [scrolledToHash, setScrolledToHash] = useState(false);
+
+  useEffect(() => {
+    if (scrolledToHash || !loading) return;
+    const target = window.location.hash.replace("#", "");
+    if (!target) { setScrolledToHash(true); return; }
+    let tries = 0;
+    const timer = setInterval(() => {
+      tries++;
+      const el = document.getElementById(target);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        clearInterval(timer);
+        setScrolledToHash(true);
+      } else if (tries > 20) {
+        clearInterval(timer);
+        setScrolledToHash(true);
+      }
+    }, 150);
+    return () => clearInterval(timer);
+  }, [loading, scrolledToHash]);
 
   useEffect(() => {
     let cancelled = false;
