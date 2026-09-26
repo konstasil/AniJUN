@@ -26,6 +26,8 @@ export default function CollectionPage({ params }: { params: Promise<{ id: strin
   const [ownerId, setOwnerId] = useState<string | null>(null);
   const [ownerName, setOwnerName] = useState("");
   const [isPublic, setIsPublic] = useState(false);
+  const [slug, setSlug] = useState("");
+  const [colId, setColId] = useState<number | null>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "denied" | "missing">("loading");
   const [copied, setCopied] = useState(false);
@@ -37,13 +39,14 @@ export default function CollectionPage({ params }: { params: Promise<{ id: strin
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      const key = decodeURIComponent(id);
       const { data: { session } } = await supabase.auth.getSession();
       const uid = session?.user.id ?? null;
 
-      const { data: bySlug } = await supabase.from("collections").select("id, name, description, user_id, is_public, slug").eq("slug", id).maybeSingle();
+      const { data: bySlug } = await supabase.from("collections").select("id, name, description, user_id, is_public, slug").eq("slug", key).maybeSingle();
       let col = bySlug as { id: number; name: string; description: string; user_id: string; is_public: boolean; slug: string } | null;
       if (!col) {
-        const num = parseInt(id);
+        const num = parseInt(key);
         if (!isNaN(num)) {
           const { data } = await supabase.from("collections").select("id, name, description, user_id, is_public, slug").eq("id", num).maybeSingle();
           col = data as typeof col;
@@ -59,6 +62,8 @@ export default function CollectionPage({ params }: { params: Promise<{ id: strin
       setDescription(col.description || "");
       setOwnerId(col.user_id);
       setIsPublic(col.is_public);
+      setSlug(col.slug || String(col.id));
+      setColId(col.id);
       setIsOwner(uid === col.user_id);
       document.title = `${col.name} | AniJUN`;
 
@@ -94,7 +99,7 @@ export default function CollectionPage({ params }: { params: Promise<{ id: strin
   }, [id, supabase]);
 
   async function handleShare() {
-    const url = `${window.location.origin}/collection/${id}`;
+    const url = `${window.location.origin}/collection/${encodeURIComponent(slug || String(colId))}`;
     if (navigator.share) {
       try { await navigator.share({ title: name, url }); return; } catch {}
     }

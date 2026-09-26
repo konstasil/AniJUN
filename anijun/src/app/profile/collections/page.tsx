@@ -145,14 +145,30 @@ export default function CollectionsPage() {
     if (!editName.trim() || !userId) return;
     setEditSaving(true);
     setEditError("");
-    const { error } = await supabase
-      .from("collections")
-      .update({ name: editName.trim(), description: editDesc.trim(), is_public: editPublic })
-      .eq("id", id);
+    const col = collections.find((c) => c.id === id);
+    const nameChanged = col ? col.name !== editName.trim() : false;
+    const patch: Record<string, unknown> = {
+      name: editName.trim(),
+      description: editDesc.trim(),
+      is_public: editPublic,
+    };
+    if (nameChanged) patch.slug = makeSlug(editName.trim(), id);
+    const { error } = await supabase.from("collections").update(patch).eq("id", id);
     setEditSaving(false);
     if (error) { setEditError(error.message); return; }
     setEditingId(null);
     await loadCollections(userId);
+  }
+
+  function makeSlug(name: string, id: number) {
+    const base = name
+      .toLowerCase()
+      .replace(/[^a-zа-я0-9\s-]/gi, "")
+      .trim()
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "");
+    return base || `collection-${id}`;
   }
 
   async function handleShare(col: OwnCollection) {
@@ -164,7 +180,7 @@ export default function CollectionsPage() {
       if (error) { alert(error.message); return; }
       await loadCollections(userId);
     }
-    const url = `${window.location.origin}/collection/${col.slug || col.id}`;
+    const url = `${window.location.origin}/collection/${encodeURIComponent(col.slug || col.id)}`;
     const title = `Коллекция «${col.name}»`;
     if (navigator.share) {
       try { await navigator.share({ title, url }); return; } catch {}
