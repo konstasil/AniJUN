@@ -34,21 +34,44 @@ export async function uploadMedia(file: File, prefix = "media"): Promise<{ url: 
   const supabase = createClient();
   const { data: buckets } = await supabase.storage.listBuckets();
   const names = buckets?.map((b) => b.name) || [];
-  const target = CANDIDATES.find((c) => names.includes(c));
+  const existing = CANDIDATES.filter((c) => names.includes(c));
+  const list = existing.length ? existing : CANDIDATES;
 
   const ext = payload.name.split(".").pop() || "bin";
   const safeExt = /^[a-z0-9]+$/i.test(ext) ? ext : "bin";
-  const path = `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${safeExt}`;
+  const base = `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
-  const list = target ? [target, ...CANDIDATES.filter((c) => c !== target)] : CANDIDATES;
   let lastError = "Bucket not found";
   for (const bucket of list) {
+    const path = `${base}.${safeExt}`;
     const { error } = await supabase.storage.from(bucket).upload(path, payload, { upsert: false, contentType: payload.type });
-    if (!error) {
-      const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+    if (error) { lastError = error.message; continue; }
+    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+    if (await isPubliclyReadable(data.publicUrl)) {
       return { url: data.publicUrl, bucket };
     }
-    lastError = error.message;
+    await supabase.storage.from(bucket).remove([path]).catch(() => {});
+    lastError = "Бакет не публичный";
   }
   throw new Error(lastError);
+}
+
+async function isPubliclyReadable(url: string) {
+  try {
+    const res = await fetch(url, { method: "HEAD", cache: "no-store" });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function removeMedia(url: string | null | undefined) {
+  if (!url) return;
+  const m = url.match(/\/storage\/v1\/object\/(?:public\/)?([^/]+)\/(.+?)(?:\?|$)/);
+  if (!m) return;
+  const [, bucket, rawPath] = m;
+  try {
+    const supabase = createClient();
+    await supabase.storage.from(bucket).remove([decodeURIComponent(rawPath)]);
+  } catch {}
 }

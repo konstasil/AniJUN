@@ -283,7 +283,12 @@ export default function FeedPage() {
     const uid = session?.user.id;
     if (!uid || (ownerId !== uid && !isAdminUser)) return;
     if (!confirm("Удалить пост?")) return;
+    const { removeMedia } = await import("@/lib/storage");
+    const { data: full } = await supabase.from("posts").select("image_url, voice_url").eq("id", postId).single();
+    const { data: kids } = await supabase.from("post_comments").select("image_url").eq("post_id", postId);
     await supabase.from("posts").delete().eq("id", postId);
+    if (full) { await removeMedia(full.image_url); await removeMedia(full.voice_url); }
+    if (kids) for (const k of kids) await removeMedia(k.image_url);
     await load();
   }
   async function handleEditPost(postId: number) {
@@ -374,7 +379,10 @@ export default function FeedPage() {
     const uid = session?.user.id;
     if (!uid || (ownerId !== uid && !isAdminUser)) return;
     if (!confirm("Удалить?")) return;
+    const { removeMedia } = await import("@/lib/storage");
+    const { data: full } = await supabase.from("post_comments").select("image_url").eq("id", commentId).single();
     await supabase.from("post_comments").delete().eq("id", commentId);
+    await removeMedia(full?.image_url);
     await loadComments(postId);
     await load();
   }
