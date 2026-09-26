@@ -40,6 +40,13 @@ export default function CollectionsPage() {
   const [addingTo, setAddingTo] = useState<number | null>(null);
   const [selectedAnime, setSelectedAnime] = useState("");
   const [shown, setShown] = useState<Record<number, number>>({});
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDesc, setEditDesc] = useState("");
+  const [editPublic, setEditPublic] = useState(true);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState("");
+  const [copiedId, setCopiedId] = useState<number | null>(null);
 
   const firstByLetter = useMemo(() => {
     const map = new Map<string, AnimeOption>();
@@ -124,6 +131,56 @@ export default function CollectionsPage() {
     await loadCollections(userId);
   }
 
+  function startEdit(col: OwnCollection) {
+    setEditingId(col.id);
+    setEditName(col.name);
+    setEditDesc(col.description || "");
+    setEditPublic(col.is_public);
+    setEditError("");
+  }
+
+  async function handleSaveEdit(id: number) {
+    if (!editName.trim() || !userId) return;
+    setEditSaving(true);
+    setEditError("");
+    const { error } = await supabase
+      .from("collections")
+      .update({ name: editName.trim(), description: editDesc.trim(), is_public: editPublic })
+      .eq("id", id);
+    setEditSaving(false);
+    if (error) { setEditError(error.message); return; }
+    setEditingId(null);
+    await loadCollections(userId);
+  }
+
+  async function handleShare(col: OwnCollection) {
+    if (!userId) return;
+    if (!col.is_public) {
+      const makePublic = confirm("Коллекция приватная — её не увидят другие. Сделать публичной и поделиться?");
+      if (!makePublic) return;
+      const { error } = await supabase.from("collections").update({ is_public: true }).eq("id", col.id);
+      if (error) { alert(error.message); return; }
+      await loadCollections(userId);
+    }
+    const url = `${window.location.origin}/profile/${userId}#collections`;
+    const title = `Коллекция «${col.name}»`;
+    if (navigator.share) {
+      try { await navigator.share({ title, url }); return; } catch {}
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = url;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
+    setCopiedId(col.id);
+    setTimeout(() => setCopiedId(null), 2000);
+  }
+
   async function handleDeleteCollection(col: OwnCollection) {
     if (!confirm(`Удалить коллекцию «${col.name}»?`)) return;
     await supabase.from("collections").delete().eq("id", col.id);
@@ -197,12 +254,41 @@ export default function CollectionsPage() {
 
       {collections.map((col) => (
         <div key={col.id} className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-5">
-          <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center gap-3 mb-4 flex-wrap">
             <i className="fa-solid fa-folder-open text-amber-400/80 text-sm"></i>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-bold text-white truncate">{col.name}</h3>
-              {col.description && <p className="text-[11px] text-gray-500 truncate">{col.description}</p>}
-            </div>
+            {editingId === col.id ? (
+              <div className="flex-1 min-w-[200px]">
+                <input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Название"
+                  className="w-full bg-[#121214] border border-[#222226] rounded px-2.5 py-1.5 text-xs text-white outline-none focus:border-sky-500/50" />
+              </div>
+            ) : (
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-bold text-white truncate">{col.name}</h3>
+                {col.description && <p className="text-[11px] text-gray-500 truncate">{col.description}</p>}
+              </div>
+            )}
+            {editingId === col.id ? (
+              <>
+                <button onClick={() => handleSaveEdit(col.id)} disabled={editSaving || !editName.trim()}
+                  className="bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-[10px] font-bold px-3 py-1.5 rounded">
+                  {editSaving ? "..." : "Сохранить"}
+                </button>
+                <button onClick={() => { setEditingId(null); setEditError(""); }}
+                  className="text-gray-400 text-[10px] font-bold px-2.5 py-1 rounded border border-[#222226] hover:text-white">Отмена</button>
+              </>
+            ) : (
+              <>
+                <button onClick={() => startEdit(col)} title="Изменить"
+                  className="text-[10px] text-gray-500 hover:text-sky-400 transition-colors px-2 py-1">
+                  <i className="fa-solid fa-pen"></i>
+                </button>
+                <button onClick={() => handleShare(col)} title="Поделиться"
+                  className="text-[10px] text-gray-500 hover:text-sky-400 transition-colors px-2 py-1">
+                  <i className={`fa-solid ${copiedId === col.id ? "fa-check" : "fa-share-nodes"}`}></i>
+                </button>
+                {copiedId === col.id && <span className="text-[10px] text-green-400">ссылка скопирована</span>}
+              </>
+            )}
             <span className="text-[10px] text-gray-500">{col.items.length} тайтл.</span>
             <button onClick={() => togglePublic(col)}
               className={`text-[10px] font-bold px-2.5 py-1 rounded border transition-all ${
@@ -216,6 +302,18 @@ export default function CollectionsPage() {
               <i className="fa-solid fa-trash-can"></i>
             </button>
           </div>
+
+          {editingId === col.id && (
+            <div className="mb-4 flex flex-col gap-2">
+              <textarea value={editDesc} onChange={(e) => setEditDesc(e.target.value)} rows={2} placeholder="Описание (опционально)"
+                className="w-full bg-[#121214] border border-[#222226] rounded px-2.5 py-1.5 text-xs text-white outline-none focus:border-sky-500/50 resize-none" />
+              <label className="flex items-center gap-2 text-[11px] text-gray-400 cursor-pointer">
+                <input type="checkbox" checked={editPublic} onChange={(e) => setEditPublic(e.target.checked)} className="accent-sky-500" />
+                Публичная коллекция
+              </label>
+              {editError && <p className="text-[10px] text-red-400">{editError}</p>}
+            </div>
+          )}
 
           {col.items.length === 0 ? (
             <p className="text-center text-gray-600 text-xs py-4">Коллекция пуста</p>

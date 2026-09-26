@@ -643,7 +643,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
         </div>
       </div>
 
-      <div className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-5">
+      <div id="collections" className="bg-[#1a1a1e] border border-[#222226] rounded-xl p-5">
         <span className="text-gray-500 text-[10px] font-bold uppercase tracking-wider block mb-4">
           Публичные коллекции <i className="fa-solid fa-folder text-amber-400 ml-1"></i>
         </span>
