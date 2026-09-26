@@ -481,22 +481,33 @@ export default function FeedPage() {
                   </div>
                 </div>
               ) : (
-                <div className="text-sm text-gray-200 whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: formatToHtml(p.text, usernameToId) }} />
+                <div className="text-sm text-gray-200 whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: formatToHtml(p.text.replace(/https?:\/\/\S+\.(mp3|ogg|wav|flac|m4a|aac|oga|opus|weba|webm|mp4|mov|mkv|avi)\S*/gi, "").trim(), usernameToId) }} />
               )}
-              {p.image_url && (
-                /\.mp4|\.mov|\.webm|\.mkv|\.avi/i.test(p.image_url) ? (
-                  <video src={p.image_url} controls className="mt-3 w-full rounded-lg bg-black max-h-80" />
-                ) : /\.mp3|\.ogg|\.wav|\.flac/i.test(p.image_url) ? (
-                  <audio src={p.image_url} controls className="mt-3 w-full" />
-                ) : (
-                  <div onClick={() => { setViewerUrl(p.image_url!); setViewerScale(1); }} className="mt-3 rounded-lg overflow-hidden bg-[#121214] relative aspect-[16/9] cursor-zoom-in"><Image src={p.image_url} alt="" fill unoptimized className="object-cover" sizes="600px" /></div>
-                )
-              )}
-              {p.voice_url && (
-                <div className="mt-3">
-                  <VoiceMessage src={p.voice_url} duration={p.voice_duration} peaks={p.voice_peaks} />
-                </div>
-              )}
+              {(() => {
+                const AUDIO_RE = /\.(mp3|ogg|wav|flac|m4a|aac|oga|opus|weba)(\?|#|$)/i;
+                const VIDEO_RE = /\.(mp4|mov|mkv|avi|webm)(\?|#|$)/i;
+                const media = p.voice_url || p.image_url;
+                const textUrlMatch = !media ? p.text.match(/https?:\/\/\S+/) : null;
+                const url = media || (textUrlMatch ? textUrlMatch[0] : null);
+                if (!url) return null;
+                const isAudio = p.voice_url ? true : AUDIO_RE.test(url) || (VIDEO_RE.test(url) && /\.webm(\?|#|$)/i.test(url));
+                const isVideo = !isAudio && VIDEO_RE.test(url);
+                if (isAudio) {
+                  return (
+                    <div className="mt-3">
+                      <VoiceMessage src={url} duration={p.voice_duration} peaks={p.voice_peaks} />
+                    </div>
+                  );
+                }
+                if (isVideo) {
+                  return <video src={url} controls className="mt-3 w-full rounded-lg bg-black max-h-80" />;
+                }
+                return (
+                  <div onClick={() => { setViewerUrl(url); setViewerScale(1); }} className="mt-3 rounded-lg overflow-hidden bg-[#121214] relative aspect-[16/9] cursor-zoom-in">
+                    <Image src={url} alt="" fill unoptimized className="object-cover" sizes="600px" />
+                  </div>
+                );
+              })()}
               <div className="flex gap-2 mt-3 flex-wrap">
                 <button onClick={() => toggleLike(p.id)} className={`text-[11px] px-3 py-1 rounded-lg border ${myLikes.has(p.id) ? "bg-sky-500/20 text-sky-400 border-sky-500/30" : "text-gray-400 border-[#222226] hover:text-white"}`}>
                   <i className="fa-solid fa-heart mr-1"></i> {likes.get(p.id) || 0}
@@ -523,12 +534,20 @@ export default function FeedPage() {
                             {(c.user_id === userId || isAdminUser) && <button onClick={() => handlePcDelete(c.id, c.user_id, p.id)} className="text-[10px] text-red-400 hover:text-red-300"><i className="fa-solid fa-trash-can"></i></button>}
                             <button onClick={() => handlePcReport(c.id)} className="text-[10px] text-gray-500 hover:text-amber-400" title="Пожаловаться"><i className="fa-solid fa-flag"></i></button>
                           </div>
-                          <div className="text-xs text-gray-300 whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: formatToHtml(c.text, usernameToId) }} />
-                          {c.image_url && (
-                            /\.mp4|\.mov|\.webm|\.mkv|\.avi/i.test(c.image_url) ? <video src={c.image_url} controls className="w-full rounded-lg bg-black max-h-60" /> :
-                            /\.mp3|\.ogg|\.wav|\.flac/i.test(c.image_url) ? <audio src={c.image_url} controls className="w-full" /> :
-                            <img src={c.image_url} alt="" className="w-full rounded-lg max-h-60 object-contain bg-black cursor-zoom-in" onClick={() => { setViewerUrl(c.image_url!); setViewerScale(1); }} />
-                          )}
+                          <div className="text-xs text-gray-300 whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: formatToHtml(c.text.replace(/https?:\/\/\S+\.(mp3|ogg|wav|flac|m4a|aac|oga|opus|weba|webm|mp4|mov|mkv|avi)\S*/gi, "").trim(), usernameToId) }} />
+                          {(() => {
+                            const AUDIO_RE = /\.(mp3|ogg|wav|flac|m4a|aac|oga|opus|weba)(\?|#|$)/i;
+                            const VIDEO_RE = /\.(mp4|mov|mkv|avi|webm)(\?|#|$)/i;
+                            const match = c.image_url || c.text.match(/https?:\/\/\S+/)?.[0];
+                            if (!match) return null;
+                            if (AUDIO_RE.test(match) || /\.webm(\?|#|$)/i.test(match)) {
+                              return <div className="mt-1"><VoiceMessage src={match} compact /></div>;
+                            }
+                            if (VIDEO_RE.test(match)) {
+                              return <video src={match} controls className="w-full rounded-lg bg-black max-h-60" />;
+                            }
+                            return <img src={match} alt="" className="w-full rounded-lg max-h-60 object-contain bg-black cursor-zoom-in" onClick={() => { setViewerUrl(match); setViewerScale(1); }} />;
+                          })()}
                           <div className="flex gap-2">
                             <button onClick={() => togglePcLike(c.id, p.id)} className={`text-[11px] px-2 py-1 rounded border ${myPcLikes.has(c.id) ? "bg-sky-500/20 text-sky-400 border-sky-500/30" : "text-gray-500 border-[#222226] hover:text-sky-400"}`}><i className="fa-solid fa-heart text-[10px]"></i> {pcLikes.get(c.id) || ""}</button>
                             <button onClick={() => setReplyTo((prev) => { const m = new Map(prev); m.set(p.id, m.get(p.id) === c.id ? null : c.id); return m; })} className="text-[11px] text-sky-400 hover:text-sky-300"><i className="fa-solid fa-reply mr-1"></i>Ответить</button>
