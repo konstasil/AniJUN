@@ -5,12 +5,17 @@ import Link from "next/link";
 import Image from "next/image";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import ImageUpload from "@/components/ImageUpload";
+import VoiceMessage from "@/components/VoiceMessage";
+import VoiceRecorder from "@/components/VoiceRecorder";
 
 interface Post {
   id: number;
   user_id: string;
   text: string;
   image_url?: string | null;
+  voice_url?: string | null;
+  voice_duration?: number | null;
+  voice_peaks?: number[] | null;
   created_at: string;
   updated_at?: string | null;
   profiles?: { username: string; avatar_url: string; is_verified?: boolean }[];
@@ -61,6 +66,7 @@ export default function FeedPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [text, setText] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [voice, setVoice] = useState<{ url: string; duration: number; peaks: number[] } | null>(null);
   const [showComposer, setShowComposer] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
@@ -110,7 +116,7 @@ export default function FeedPage() {
   }, [supabase]);
 
   const load = useCallback(async () => {
-    const { data } = await supabase.from("posts").select("id, user_id, text, image_url, created_at, updated_at").order("created_at", { ascending: false }).limit(100);
+    const { data } = await supabase.from("posts").select("id, user_id, text, image_url, voice_url, voice_duration, voice_peaks, created_at, updated_at").order("created_at", { ascending: false }).limit(100);
     if (!data) { setPosts([]); return; }
     const ids = [...new Set(data.map((p) => p.user_id))];
     const { data: profs } = await supabase.from("profiles").select("id, username, avatar_url, is_verified").in("id", ids);
@@ -195,9 +201,16 @@ export default function FeedPage() {
   }
 
   async function handlePost() {
-    if (!userId || !text.trim()) return;
+    if (!userId || (!text.trim() && !voice)) return;
     setSending(true);
-    const { data: inserted, error } = await supabase.from("posts").insert({ user_id: userId, text: text.trim(), image_url: imageUrl || null }).select("id").single();
+    const { data: inserted, error } = await supabase.from("posts").insert({
+      user_id: userId,
+      text: text.trim(),
+      image_url: imageUrl || null,
+      voice_url: voice?.url || null,
+      voice_duration: voice?.duration || null,
+      voice_peaks: voice?.peaks || null,
+    }).select("id").single();
     if (!error && inserted) {
       const mentions = [...text.matchAll(/@([a-zA-Z0-9_]+)/g)].map((m) => m[1].toLowerCase());
       for (const uname of [...new Set(mentions)]) {
@@ -211,6 +224,7 @@ export default function FeedPage() {
     if (error) return;
     setText("");
     setImageUrl("");
+    setVoice(null);
     setShowComposer(false);
     await load();
   }
@@ -402,27 +416,7 @@ export default function FeedPage() {
                 if (!error) { const { data } = sb.storage.from("Anime").getPublicUrl(path); setImageUrl(data.publicUrl); }
               }} />
             </label>
-            <button onClick={async () => {
-              try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                const rec = new MediaRecorder(stream);
-                const chunks: BlobPart[] = [];
-                rec.ondataavailable = (e) => chunks.push(e.data);
-                rec.onstop = async () => {
-                  const blob = new Blob(chunks, { type: "audio/webm" });
-                  if (blob.size > 1024*1024) { alert("Голосовое >1 МБ"); return; }
-                  const { createClient: cc } = await import("@/lib/supabase/client");
-                  const sb = cc();
-                  const path = `${Date.now()}.webm`;
-                  const { error } = await sb.storage.from("Anime").upload(path, blob, { contentType: "audio/webm" });
-                  if (!error) { const { data } = sb.storage.from("Anime").getPublicUrl(path); setImageUrl(data.publicUrl); }
-                  stream.getTracks().forEach((t) => t.stop());
-                };
-                rec.start();
-                setTimeout(() => rec.stop(), 15000);
-                alert("Запись 15с началась");
-              } catch { alert("Нет доступа к микрофону"); }
-            }} className="w-8 h-8 rounded-full bg-[#121214] border border-[#222226] flex items-center justify-center text-gray-400 hover:text-red-400" title="Голосовое"><i className="fa-solid fa-microphone text-xs"></i></button>
+            <VoiceRecorder onChange={setVoice} />
             {imageUrl && <span className="text-[11px] text-green-400">медиа прикреплено <button onClick={() => setImageUrl("")} className="text-red-400 ml-1">×</button></span>}
           </div>
           <div className="relative">
@@ -439,7 +433,7 @@ export default function FeedPage() {
             )}
             <textarea ref={mainRef} value={text} onChange={(e) => { setText(e.target.value); e.target.style.height="auto"; e.target.style.height = Math.min(e.target.scrollHeight, 200) + "px"; }} onSelect={checkSelection} onMouseUp={checkSelection} onKeyUp={checkSelection} onBlur={() => setTimeout(() => setToolbar({ show: false }), 150)} rows={3} placeholder="Что нового?" className="w-full bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-sky-500/50 resize-none overflow-hidden" />
           </div>
-          <button onClick={handlePost} disabled={sending || !text.trim()} className="self-end bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-xs font-bold px-5 py-2 rounded-lg transition-all">Опубликовать</button>
+          <button onClick={handlePost} disabled={sending || (!text.trim() && !voice)} className="self-end bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-xs font-bold px-5 py-2 rounded-lg transition-all">Опубликовать</button>
         </div>
       )}
       <div className="space-y-3">
@@ -497,6 +491,11 @@ export default function FeedPage() {
                 ) : (
                   <div onClick={() => { setViewerUrl(p.image_url!); setViewerScale(1); }} className="mt-3 rounded-lg overflow-hidden bg-[#121214] relative aspect-[16/9] cursor-zoom-in"><Image src={p.image_url} alt="" fill unoptimized className="object-cover" sizes="600px" /></div>
                 )
+              )}
+              {p.voice_url && (
+                <div className="mt-3">
+                  <VoiceMessage src={p.voice_url} duration={p.voice_duration} peaks={p.voice_peaks} />
+                </div>
               )}
               <div className="flex gap-2 mt-3 flex-wrap">
                 <button onClick={() => toggleLike(p.id)} className={`text-[11px] px-3 py-1 rounded-lg border ${myLikes.has(p.id) ? "bg-sky-500/20 text-sky-400 border-sky-500/30" : "text-gray-400 border-[#222226] hover:text-white"}`}>
