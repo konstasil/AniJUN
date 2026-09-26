@@ -6,9 +6,10 @@
 -- а в каталоге 0/N серий.
 -- Что делает: пересчитывает статус watching/completed по фактическим отметкам.
 -- Не трогает planned / on_hold / dropped.
+-- ВАЖНО: пустой статус недопустим (CHECK), поэтому вместо '' удаляем строку.
 -- ==========================================
 
--- 1. completed -> watching, если хотя бы одна серия отмечена, но не все
+-- 1. completed -> watching, если отмечена часть серий, но не все
 update public.user_anime_list l
 set status = 'watching'
 where l.status = 'completed'
@@ -29,9 +30,8 @@ where l.status = 'completed'
     where s.anime_id = l.anime_id
   );
 
--- 2. completed -> без статуса, если прогресса нет вообще
-update public.user_anime_list l
-set status = ''
+-- 2. completed без прогресса -> удалить строку
+delete from public.user_anime_list l
 where l.status = 'completed'
   and not exists (
     select 1 from public.episode_progress p
@@ -40,9 +40,8 @@ where l.status = 'completed'
       and p.season_id in (select s.id from public.anime_seasons s where s.anime_id = l.anime_id)
   );
 
--- 3. watching -> без статуса, если прогресса нет вообще
-update public.user_anime_list l
-set status = ''
+-- 3. watching без прогресса -> удалить строку
+delete from public.user_anime_list l
 where l.status = 'watching'
   and not exists (
     select 1 from public.episode_progress p
