@@ -32,25 +32,26 @@ export async function uploadMedia(file: File, prefix = "media"): Promise<{ url: 
   if (payload.size > MAX_BYTES) throw new Error("Максимум 1 МБ");
 
   const supabase = createClient();
-  const { data: buckets } = await supabase.storage.listBuckets();
-  const names = buckets?.map((b) => b.name) || [];
-  const existing = CANDIDATES.filter((c) => names.includes(c));
-  const list = existing.length ? existing : CANDIDATES;
+  let owner = "anon";
+  try {
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.user?.id) owner = data.session.user.id;
+  } catch {}
 
   const ext = payload.name.split(".").pop() || "bin";
   const safeExt = /^[a-z0-9]+$/i.test(ext) ? ext : "bin";
-  const base = `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const base = `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${safeExt}`;
+  const folders = owner === "anon" ? [prefix, "shared", base] : [owner, prefix, base];
 
   let lastError = "Bucket not found";
-  for (const bucket of list) {
-    const path = `${base}.${safeExt}`;
-    const { error } = await supabase.storage.from(bucket).upload(path, payload, { upsert: false, contentType: payload.type });
+  for (const bucket of CANDIDATES) {
+    const { error } = await supabase.storage.from(bucket).upload(folders.join("/"), payload, { upsert: false, contentType: payload.type });
     if (error) { lastError = error.message; continue; }
-    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+    const { data } = supabase.storage.from(bucket).getPublicUrl(folders.join("/"));
     if (await isPubliclyReadable(data.publicUrl)) {
       return { url: data.publicUrl, bucket };
     }
-    await supabase.storage.from(bucket).remove([path]).catch(() => {});
+    await supabase.storage.from(bucket).remove([folders.join("/")]).catch(() => {});
     lastError = "Бакет не публичный";
   }
   throw new Error(lastError);
@@ -58,10 +59,12 @@ export async function uploadMedia(file: File, prefix = "media"): Promise<{ url: 
 
 async function isPubliclyReadable(url: string) {
   try {
-    const res = await fetch(url, { method: "HEAD", cache: "no-store" });
-    return res.ok;
+    const res = await fetch(url, { method: "GET", headers: { Range: "bytes=0-0" }, cache: "no-store" });
+    if (res.status === 200 || res.status === 206) return true;
+    if (res.status >= 400 && res.status < 500) return false;
+    return true;
   } catch {
-    return false;
+    return true;
   }
 }
 
