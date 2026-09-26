@@ -372,8 +372,8 @@ export default function AdminPage() {
 
   async function saveEditAnime() {
     if (editingAnime === null) return;
-    const slug = editSlug.trim() || generateSlug(editTitle.trim());
-    await supabase.from("anime").update({
+    const slug = sanitizeSlugInput(editSlug.trim()) || generateSlug(editTitle.trim());
+    const { error } = await supabase.from("anime").update({
       title: editTitle,
       slug: slug,
       image_url: editPosterUrl,
@@ -383,6 +383,10 @@ export default function AdminPage() {
       status: editStatus,
       release_date: editStatus === "announced" && editReleaseDate ? editReleaseDate : null,
     }).eq("id", editingAnime);
+    if (error) {
+      alert(/slug|unique|duplicate/i.test(error.message) ? "Такой адрес уже занят — поменяй slug" : error.message);
+      return;
+    }
 
     const original = animeList.find((a) => a.id === editingAnime)?.anime_seasons || [];
     const keptIds = editSeasons.filter((s) => s.id).map((s) => s.id as number);

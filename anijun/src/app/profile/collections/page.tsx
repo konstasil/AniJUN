@@ -20,6 +20,9 @@ interface AnimeOption {
   title: string;
 }
 
+const ALPHABET = "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".split("");
+const PAGE_STEP = 12;
+
 export default function CollectionsPage() {
   useEffect(() => { document.title = "Коллекции | AniJUN"; }, []);
 
@@ -36,6 +39,16 @@ export default function CollectionsPage() {
   const [animeOptions, setAnimeOptions] = useState<AnimeOption[]>([]);
   const [addingTo, setAddingTo] = useState<number | null>(null);
   const [selectedAnime, setSelectedAnime] = useState("");
+  const [shown, setShown] = useState<Record<number, number>>({});
+
+  const firstByLetter = useMemo(() => {
+    const map = new Map<string, AnimeOption>();
+    for (const a of animeOptions) {
+      const ch = (a.title || "").trim().charAt(0).toUpperCase();
+      if (ch && !map.has(ch)) map.set(ch, a);
+    }
+    return map;
+  }, [animeOptions]);
 
   const loadCollections = useCallback(async (uid: string) => {
     const { data: cols } = await supabase
@@ -115,6 +128,13 @@ export default function CollectionsPage() {
     if (!confirm(`Удалить коллекцию «${col.name}»?`)) return;
     await supabase.from("collections").delete().eq("id", col.id);
     if (userId) await loadCollections(userId);
+  }
+
+  function handleLetter(ch: string) {
+    const target = firstByLetter.get(ch);
+    if (!target) return;
+    setSelectedAnime(String(target.id));
+    router.push(target.slug ? `/anime/${target.slug}` : `/anime/${target.id}`);
   }
 
   async function handleAddToCollection() {
@@ -200,37 +220,62 @@ export default function CollectionsPage() {
           {col.items.length === 0 ? (
             <p className="text-center text-gray-600 text-xs py-4">Коллекция пуста</p>
           ) : (
-            <div className="flex flex-wrap gap-3">
-              {col.items.map((item) => (
-                <div key={item.id} className="relative group">
-                  <Link href={item.slug ? `/anime/${item.slug}` : `/anime/${item.anime_id}`}
-                    className="block w-16 h-22 aspect-[3/4] rounded-lg overflow-hidden bg-[#121214] relative">
-                    <Image src={item.image_url || "/window.svg"} alt={item.title} fill unoptimized className="object-cover" sizes="64px" />
-                  </Link>
-                  <button onClick={() => handleRemoveItem(col, item.id)}
-                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
-                    <i className="fa-solid fa-xmark"></i>
-                  </button>
-                </div>
-              ))}
-            </div>
+            <>
+              <div className="flex flex-wrap gap-3">
+                {col.items.slice(0, shown[col.id] ?? PAGE_STEP).map((item) => (
+                  <div key={item.id} className="relative group">
+                    <Link href={item.slug ? `/anime/${item.slug}` : `/anime/${item.anime_id}`}
+                      className="block w-16 h-22 aspect-[3/4] rounded-lg overflow-hidden bg-[#121214] relative">
+                      <Image src={item.image_url || "/window.svg"} alt={item.title} fill unoptimized className="object-cover" sizes="64px" />
+                    </Link>
+                    <button onClick={() => handleRemoveItem(col, item.id)}
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
+                      <i className="fa-solid fa-xmark"></i>
+                    </button>
+                  </div>
+                ))}
+              </div>
+              {col.items.length > (shown[col.id] ?? PAGE_STEP) && (
+                <button onClick={() => setShown((prev) => ({ ...prev, [col.id]: (prev[col.id] ?? PAGE_STEP) + PAGE_STEP }))}
+                  className="mt-3 text-[10px] font-bold text-sky-400 hover:text-sky-300 transition-colors">
+                  Показать ещё ({col.items.length - (shown[col.id] ?? PAGE_STEP)})
+                </button>
+              )}
+            </>
           )}
 
           <div className="mt-4 pt-3 border-t border-[#222226]/50">
             {addingTo === col.id ? (
-              <div className="flex gap-2 items-end">
-                <div className="flex-1">
-                  <label className="text-[10px] text-gray-500 block mb-1">Добавить аниме</label>
-                  <select value={selectedAnime} onChange={(e) => setSelectedAnime(e.target.value)}
-                    className="w-full bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-sky-500/50">
-                    <option value="">Выберите аниме...</option>
-                    {animeOptions.map((a) => <option key={a.id} value={a.id}>{a.title}</option>)}
-                  </select>
+              <div className="flex flex-col gap-2">
+                <div className="flex flex-wrap gap-0.5">
+                  {ALPHABET.map((ch) => {
+                    const target = firstByLetter.get(ch);
+                    return (
+                      <button key={ch} onClick={() => handleLetter(ch)} disabled={!target}
+                        className={`w-6 h-6 rounded text-[10px] font-bold transition-colors ${
+                          target
+                            ? "bg-[#1a1a1e] text-gray-300 hover:bg-sky-500/20 hover:text-sky-400 border border-[#222226]"
+                            : "text-gray-700 cursor-not-allowed"
+                        }`}>
+                        {ch}
+                      </button>
+                    );
+                  })}
                 </div>
-                <button onClick={handleAddToCollection} disabled={!selectedAnime}
-                  className="bg-sky-500 hover:bg-sky-600 text-white text-[10px] font-bold px-3 py-1.5 rounded transition-all disabled:opacity-50">Добавить</button>
-                <button onClick={() => { setAddingTo(null); setSelectedAnime(""); }}
-                  className="text-gray-400 text-[10px] font-bold px-3 py-1.5 rounded border border-[#222226] hover:text-white transition-all">Отмена</button>
+                <div className="flex gap-2 items-end">
+                  <div className="flex-1">
+                    <label className="text-[10px] text-gray-500 block mb-1">Добавить аниме</label>
+                    <select value={selectedAnime} onChange={(e) => setSelectedAnime(e.target.value)}
+                      className="w-full bg-[#121214] border border-[#222226] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-sky-500/50">
+                      <option value="">Выберите аниме...</option>
+                      {animeOptions.map((a) => <option key={a.id} value={a.id}>{a.title}</option>)}
+                    </select>
+                  </div>
+                  <button onClick={handleAddToCollection} disabled={!selectedAnime}
+                    className="bg-sky-500 hover:bg-sky-600 text-white text-[10px] font-bold px-3 py-1.5 rounded transition-all disabled:opacity-50">Добавить</button>
+                  <button onClick={() => { setAddingTo(null); setSelectedAnime(""); }}
+                    className="text-gray-400 text-[10px] font-bold px-3 py-1.5 rounded border border-[#222226] hover:text-white transition-all">Отмена</button>
+                </div>
               </div>
             ) : (
               <button onClick={() => setAddingTo(col.id)}

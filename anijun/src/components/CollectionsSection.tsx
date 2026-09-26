@@ -147,7 +147,7 @@ export default function CollectionsSection({ animeId, animeTitle, userId }: Coll
   }
 
   async function handleDeleteCollection(col: Collection) {
-    if (!confirm(`Удалить коллекцию «${col.name}»? Аниме останутся на сайте.`)) return;
+    if (!confirm(`Удалить коллекцию «${col.name}»?`)) return;
     const { error } = await supabase.from("collections").delete().eq("id", col.id);
     if (error) { setEditError(error.message); return; }
     setEditingId(null);

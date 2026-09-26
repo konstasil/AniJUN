@@ -64,6 +64,8 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
   const [isAdmin, setIsAdmin] = useState(false);
   const [editingPoster, setEditingPoster] = useState(false);
   const [editingAnime, setEditingAnime] = useState(false);
+  const [savingAnime, setSavingAnime] = useState(false);
+  const [animeEditError, setAnimeEditError] = useState("");
   const [editTitle, setEditTitle] = useState("");
   const [editSlug, setEditSlug] = useState("");
   const [editGenres, setEditGenres] = useState<string[]>([]);
@@ -494,17 +496,31 @@ export default function AnimeDetailPage({ params }: { params: Promise<{ slug: st
                     className={`text-[9px] font-bold px-2 py-0.5 rounded border transition-all ${editGenres.includes(g) ? "bg-sky-500/20 text-sky-400 border-sky-500/30" : "bg-[#121214] text-gray-500 border-[#222226]"}`}>{g}</button>
                 ))}
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
                 <button onClick={async () => {
-                  if (animeId !== null) {
-                    const newSlug = editSlug.trim() || generateSlug(editTitle.trim());
-                    await supabase.from("anime").update({ title: editTitle, slug: newSlug, genres: editGenres, season_info: editSeason, age_rating: editAgeRating, status: editStatus }).eq("id", animeId);
-                    setAnime((a) => a ? { ...a, title: editTitle, slug: newSlug, genres: editGenres, season_info: editSeason, age_rating: editAgeRating, status: editStatus, release_date: editStatus === "announced" && editReleaseDate ? editReleaseDate : null } : a);
-                    setAnimeTitle(editTitle); setEditingAnime(false);
-                    router.replace(`/anime/${newSlug}`);
+                  if (animeId === null || savingAnime) return;
+                  const title = editTitle.trim();
+                  if (!title) { setAnimeEditError("Название не может быть пустым"); return; }
+                  setSavingAnime(true); setAnimeEditError("");
+                  let newSlug = sanitizeSlugInput(editSlug.trim());
+                  if (!newSlug) newSlug = generateSlug(title);
+                  const { error } = await supabase.from("anime")
+                    .update({ title, slug: newSlug, genres: editGenres, season_info: editSeason, age_rating: editAgeRating, status: editStatus, release_date: editStatus === "announced" && editReleaseDate ? editReleaseDate : null })
+                    .eq("id", animeId);
+                  setSavingAnime(false);
+                  if (error) {
+                    const dup = /slug|unique|duplicate/i.test(error.message);
+                    setAnimeEditError(dup ? "Такой адрес уже занят — поменяй slug" : error.message);
+                    return;
                   }
-                }} className="bg-sky-500 hover:bg-sky-600 text-white text-[10px] font-bold px-3 py-1.5 rounded transition-all">Сохранить</button>
-                <button onClick={() => setEditingAnime(false)} className="bg-[#121214] text-gray-400 text-[10px] font-bold px-3 py-1.5 rounded border border-[#222226] hover:text-white transition-all">Отмена</button>
+                  setAnime((a) => a ? { ...a, title, slug: newSlug, genres: editGenres, season_info: editSeason, age_rating: editAgeRating, status: editStatus, release_date: editStatus === "announced" && editReleaseDate ? editReleaseDate : null } : a);
+                  setAnimeTitle(title);
+                  setEditTitle(title);
+                  setEditingAnime(false);
+                  if (newSlug !== slug) router.replace(`/anime/${newSlug}`);
+                }} disabled={savingAnime} className="bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-[10px] font-bold px-3 py-1.5 rounded transition-all">{savingAnime ? "Сохранение..." : "Сохранить"}</button>
+                <button onClick={() => { setEditingAnime(false); setAnimeEditError(""); }} className="bg-[#121214] text-gray-400 text-[10px] font-bold px-3 py-1.5 rounded border border-[#222226] hover:text-white transition-all">Отмена</button>
+                {animeEditError && <span className="text-[10px] text-red-400">{animeEditError}</span>}
               </div>
             </div>
           ) : (
