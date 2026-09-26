@@ -122,8 +122,9 @@ export default function HomePage() {
 
       const { data: userProgress } = await supabase
         .from("episode_progress")
-        .select("season_id, episode_number, watched, anime_seasons!inner(anime_id)")
-        .eq("user_id", effectiveId);
+        .select("season_id, episode_number, watched")
+        .eq("user_id", effectiveId)
+        .eq("watched", true);
 
       if (cancelled) return;
 
@@ -133,16 +134,24 @@ export default function HomePage() {
       const listMap = new Map<number, string>();
       userList?.forEach((l) => listMap.set(l.anime_id, l.status));
 
-      const progressByAnime = new Map<number, { watched: number; total: number }>();
+      const animeIdBySeason = new Map<number, number>();
+      allAnime.forEach((a) => {
+        a.anime_seasons?.forEach((s: { id: number }) => animeIdBySeason.set(s.id, a.id));
+      });
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      userProgress?.forEach((p: any) => {
-        const aid = p.anime_seasons?.anime_id as number;
+      const progressByAnime = new Map<number, { watched: number; total: number }>();
+      const watchedSetByAnime = new Map<number, Set<number>>();
+
+      userProgress?.forEach((p) => {
+        const aid = animeIdBySeason.get(p.season_id);
         if (!aid) return;
-        const existing = progressByAnime.get(aid) || { watched: 0, total: 0 };
-        if (p.watched) existing.watched++;
-        existing.total++;
-        progressByAnime.set(aid, existing);
+        let set = watchedSetByAnime.get(aid);
+        if (!set) { set = new Set<number>(); watchedSetByAnime.set(aid, set); }
+        set.add(p.season_id * 100000 + p.episode_number);
+      });
+
+      watchedSetByAnime.forEach((set, aid) => {
+        progressByAnime.set(aid, { watched: set.size, total: set.size });
       });
 
 
