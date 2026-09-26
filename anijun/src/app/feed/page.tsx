@@ -88,6 +88,8 @@ export default function FeedPage() {
   const [isAdminUser, setIsAdminUser] = useState(false);
   const [editingPost, setEditingPost] = useState<number | null>(null);
   const [editPostText, setEditPostText] = useState("");
+  const editRef = useRef<HTMLTextAreaElement>(null);
+  const [editToolbar, setEditToolbar] = useState(false);
   const [reportModal, setReportModal] = useState<{ type: "post" | "pc"; id: number } | null>(null);
   const [reportReason, setReportReason] = useState("");
   const mainRef = useRef<HTMLTextAreaElement>(null);
@@ -200,6 +202,39 @@ export default function FeedPage() {
     setText(next);
   }
 
+  function checkEditSelection() {
+    const el = editRef.current;
+    if (!el) { setEditToolbar(false); return; }
+    setEditToolbar((el.selectionStart ?? 0) < (el.selectionEnd ?? 0));
+  }
+
+  function wrapEdit(before: string, after: string) {
+    const el = editRef.current;
+    if (!el) return;
+    const start = el.selectionStart ?? 0;
+    const end = el.selectionEnd ?? 0;
+    const selected = editPostText.substring(start, end);
+    if (!selected) return;
+    setEditPostText(editPostText.substring(0, start) + before + selected + after + editPostText.substring(end));
+    setTimeout(() => {
+      el.focus();
+      el.setSelectionRange(start + before.length, end + before.length);
+      checkEditSelection();
+    }, 0);
+  }
+
+  function editLink() {
+    const el = editRef.current;
+    if (!el) return;
+    const start = el.selectionStart ?? 0;
+    const end = el.selectionEnd ?? 0;
+    const selected = editPostText.substring(start, end);
+    if (!selected) return;
+    const url = prompt("Введите ссылку:");
+    if (!url) return;
+    setEditPostText(editPostText.substring(0, start) + `[${selected}](${url})` + editPostText.substring(end));
+  }
+
   async function handlePost() {
     if (!userId || (!text.trim() && !voice)) return;
     setSending(true);
@@ -256,6 +291,7 @@ export default function FeedPage() {
     await supabase.from("posts").update({ text: editPostText.trim() }).eq("id", postId);
     setEditingPost(null);
     setEditPostText("");
+    setEditToolbar(false);
     await load();
   }
   async function handleReport(postId: number) {
@@ -468,16 +504,43 @@ export default function FeedPage() {
                 <Link href={`/profile/${p.user_id}`} className="text-xs font-bold text-white hover:text-sky-400 flex items-center gap-1">{p.profiles?.[0]?.username || "Пользователь"} {p.profiles?.[0]?.is_verified && <VerifiedBadge size={12} />}</Link>
                 <span className="text-[10px] text-gray-600 ml-auto">{new Date(p.created_at).toLocaleString("ru-RU")}</span>
                 {p.updated_at && Math.abs(new Date(p.updated_at).getTime() - new Date(p.created_at).getTime()) > 2000 && <span className="text-[9px] text-gray-500">изменено</span>}
-                {isOwner && <button onClick={() => { if (editingPost === p.id) { setEditingPost(null); } else { setEditingPost(p.id); setEditPostText(p.text); } }} className="text-gray-500 hover:text-sky-400 text-xs" title="Редактировать"><i className="fa-solid fa-pen"></i></button>}
+                {isOwner && <button onClick={() => {     if (editingPost === p.id) { setEditingPost(null); setEditToolbar(false); } else { setEditingPost(p.id); setEditPostText(p.text); setEditToolbar(false); } }} className="text-gray-500 hover:text-sky-400 text-xs" title="Редактировать"><i className="fa-solid fa-pen"></i></button>}
                 {(isOwner || isAdminUser) && <button onClick={() => handleDelete(p.id, p.user_id)} className="text-gray-500 hover:text-red-400 text-xs"><i className="fa-solid fa-trash-can"></i></button>}
                 <button onClick={() => handleReport(p.id)} className="text-gray-500 hover:text-amber-400 text-xs" title="Пожаловаться"><i className="fa-solid fa-flag"></i></button>
               </div>
               {editingPost === p.id ? (
                 <div className="flex flex-col gap-2">
-                  <textarea value={editPostText} onChange={(e) => setEditPostText(e.target.value)} rows={2} className="w-full bg-[#121214] border border-[#222226] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-sky-500/50 resize-none" />
-                  <div className="flex gap-2">
-                    <button onClick={() => handleEditPost(p.id)} className="bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold px-3 py-1.5 rounded">Сохранить</button>
-                    <button onClick={() => setEditingPost(null)} className="bg-[#121214] text-gray-400 border border-[#222226] px-3 py-1.5 rounded text-xs">Отмена</button>
+                  <div className="relative">
+                    {editToolbar && (
+                      <div className="absolute -top-10 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 p-1 bg-[#1a1a1e] border border-[#222226] rounded-lg shadow-xl">
+                        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => wrapEdit("**", "**")} className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#222226] text-gray-300 hover:text-white text-xs font-black">B</button>
+                        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => wrapEdit("__", "__")} className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#222226] text-gray-300 hover:text-white text-xs italic">I</button>
+                        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => wrapEdit("~~", "~~")} className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#222226] text-gray-300 hover:text-white text-xs line-through">S</button>
+                        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => wrapEdit("`", "`")} className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#222226] text-gray-300 hover:text-white text-[10px] font-mono">{"</>"}</button>
+                        <div className="w-px h-5 bg-[#222226]" />
+                        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => wrapEdit("||", "||")} className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#222226] text-gray-300 hover:text-white"><i className="fa-solid fa-eye-slash text-[10px]"></i></button>
+                        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={editLink} className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#222226] text-sky-400 hover:text-white"><i className="fa-solid fa-link text-[10px]"></i></button>
+                      </div>
+                    )}
+                    <textarea
+                      ref={editRef}
+                      value={editPostText}
+                      onChange={(e) => {
+                        setEditPostText(e.target.value);
+                        e.target.style.height = "auto";
+                        e.target.style.height = Math.min(e.target.scrollHeight, 320) + "px";
+                      }}
+                      onSelect={checkEditSelection}
+                      onMouseUp={checkEditSelection}
+                      onKeyUp={checkEditSelection}
+                      onBlur={() => setTimeout(() => setEditToolbar(false), 150)}
+                      rows={2}
+                      className="w-full bg-[#121214] border border-sky-500/40 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-sky-500/50 resize-none overflow-hidden"
+                    />
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={() => { setEditingPost(null); setEditToolbar(false); }} className="text-gray-400 border border-[#222226] px-3 py-1.5 rounded text-xs">Отмена</button>
+                    <button onClick={() => handleEditPost(p.id)} disabled={!editPostText.trim()} className="bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-xs font-bold px-4 py-1.5 rounded">Сохранить</button>
                   </div>
                 </div>
               ) : (
