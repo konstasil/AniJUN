@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { useRef, useState } from "react";
+import { uploadMedia } from "@/lib/storage";
 
 interface ImageUploadProps {
   bucket: "users" | "Anime" | "posts";
@@ -64,49 +65,47 @@ export default function ImageUpload({
     setError(null);
     setUploading(true);
 
-    if (file.type.startsWith("image/")) {
-      try { file = await compressImage(file); } catch {}
-    }
-    if (file.size > 1024 * 1024) {
-      setError("Максимум 1 МБ после сжатия");
-      setUploading(false);
-      return;
-    }
     const reader = new FileReader();
     reader.onload = () => setPreview(reader.result as string);
     reader.readAsDataURL(file);
 
-    const ext = file.name.split(".").pop() || "jpg";
-    const timestamp = Date.now();
-    const safeBucket = bucket === "posts" ? "Anime" : bucket;
-    const path = safeBucket === "users" && userId ? `${userId}/avatar_${timestamp}.${ext}` : `${timestamp}.${ext}`;
-
-    const { data: buckets } = await supabase.storage.listBuckets();
-    const bucketExists = (buckets || []).some(b => b.name === safeBucket);
-    if (!bucketExists) {
-      await supabase.storage.createBucket(safeBucket, { public: true });
-    }
-
-    const { error: uploadError } = await supabase.storage
-      .from(safeBucket)
-      .upload(path, file, { upsert: false, contentType: file.type });
-
-    if (uploadError) {
-      setError("Ошибка загрузки: " + uploadError.message);
-      setUploading(false);
-      return;
-    }
-
-    const { data } = supabase.storage.from(safeBucket).getPublicUrl(path);
-    if (currentUrl && currentUrl.includes(`/storage/v1/object/public/${safeBucket}/`)) {
-      const oldPath = currentUrl.split(`/storage/v1/object/public/${safeBucket}/`)[1]?.split("?")[0];
-      if (oldPath && oldPath !== path) {
-        try { await supabase.storage.from(safeBucket).remove([oldPath]); } catch {}
+    try {
+      if (bucket === "users") {
+        const compressed = file.type.startsWith("image/") ? await compressImage(file) : file;
+        if (compressed.size > 1024 * 1024) throw new Error("Максимум 1 МБ после сжатия");
+        const ext = compressed.name.split(".").pop() || "jpg";
+        const path = userId ? `${userId}/avatar_${Date.now()}.${ext}` : `${Date.now()}.${ext}`;
+        const { error } = await supabase.storage.from("users").upload(path, compressed, { upsert: false, contentType: compressed.type });
+        if (error) throw new Error(error.message);
+        if (currentUrl && currentUrl.includes("/storage/v1/object/public/users/")) {
+          const oldPath = currentUrl.split("/storage/v1/object/public/users/")[1]?.split("?")[0];
+          if (oldPath && oldPath !== path) {
+            try { await supabase.storage.from("users").remove([oldPath]); } catch {}
+          }
+        }
+        const { data } = supabase.storage.from("users").getPublicUrl(path);
+        setUploading(false);
+        setPreview(null);
+        onUploaded(data.publicUrl);
+        return;
       }
+
+      const { url } = await uploadMedia(file, "img");
+      if (currentUrl && currentUrl.includes("/storage/v1/object/public/")) {
+        const parts = currentUrl.split("/storage/v1/object/public/")[1]?.split("/");
+        const oldBucket = parts?.[0];
+        const oldPath = parts?.slice(1).join("/").split("?")[0];
+        if (oldBucket && oldPath) {
+          try { await supabase.storage.from(oldBucket).remove([oldPath]); } catch {}
+        }
+      }
+      setUploading(false);
+      setPreview(null);
+      onUploaded(url);
+    } catch (err) {
+      setError("Ошибка загрузки: " + (err instanceof Error ? err.message : "неизвестно"));
+      setUploading(false);
     }
-    setUploading(false);
-    setPreview(null);
-    onUploaded(data.publicUrl);
   }
 
   const displayUrl = preview || currentUrl;

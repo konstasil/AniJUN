@@ -443,13 +443,13 @@ export default function FeedPage() {
               <input type="file" accept="image/*,video/*,audio/*,.gif,.mp3,.mov,.mp4,.webm,.ogg,.wav,.flac,.mkv,.avi" className="hidden" onChange={async (e) => {
                 const file = (e.target as HTMLInputElement).files?.[0];
                 if (!file) return;
-                if (file.size > 1024*1024 && !file.type.startsWith("image/")) { alert("Максимум 1 МБ"); return; }
-                const { createClient: cc } = await import("@/lib/supabase/client");
-                const sb = cc();
-                const ext = file.name.split(".").pop() || "jpg";
-                const path = `${Date.now()}.${ext}`;
-                const { error } = await sb.storage.from("Anime").upload(path, file, { contentType: file.type });
-                if (!error) { const { data } = sb.storage.from("Anime").getPublicUrl(path); setImageUrl(data.publicUrl); }
+                const { uploadMedia } = await import("@/lib/storage");
+                try {
+                  const { url } = await uploadMedia(file, "post");
+                  setImageUrl(url);
+                } catch (err) {
+                  alert(err instanceof Error ? err.message : "Ошибка загрузки");
+                }
               }} />
             </label>
             <VoiceRecorder onChange={setVoice} />
@@ -621,7 +621,7 @@ export default function FeedPage() {
                                 <i className="fa-solid fa-paperclip text-[10px]"></i>
                                 <input type="file" accept="image/*,video/*,audio/*" className="hidden" onChange={async (e) => {
                                   const file = (e.target as HTMLInputElement).files?.[0]; if (!file) return;
-                                  const { createClient: cc } = await import("@/lib/supabase/client"); const sb = cc(); const ext = file.name.split(".").pop() || "jpg"; const path = `${Date.now()}.${ext}`; const { error } = await sb.storage.from("Anime").upload(path, file); if (!error) { const { data } = sb.storage.from("Anime").getPublicUrl(path); setReplyImage((prev) => new Map(prev).set(p.id, data.publicUrl)); }
+                                  const { uploadMedia } = await import("@/lib/storage"); try { const { url } = await uploadMedia(file, "comment"); setReplyImage((prev) => new Map(prev).set(p.id, url)); } catch { setReplyImage((prev) => { const m = new Map(prev); m.delete(p.id); return m; }); }
                                 }} />
                               </label>
                               <input value={replyText.get(p.id) || ""} onChange={(e) => setReplyText((prev) => new Map(prev).set(p.id, e.target.value))} placeholder={`Ответ ${c.profiles?.[0]?.username || ""}...`} className="flex-1 bg-[#1a1a1e] border border-[#222226] rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-sky-500/50" />
@@ -642,7 +642,7 @@ export default function FeedPage() {
                               <i className="fa-solid fa-paperclip text-[10px]"></i>
                               <input type="file" accept="image/*,video/*,audio/*" className="hidden" onChange={async (e) => {
                                 const file = (e.target as HTMLInputElement).files?.[0]; if (!file) return;
-                                const { createClient: cc } = await import("@/lib/supabase/client"); const sb = cc(); const ext = file.name.split(".").pop() || "jpg"; const path = `${Date.now()}.${ext}`; const { error } = await sb.storage.from("Anime").upload(path, file); if (!error) { const { data } = sb.storage.from("Anime").getPublicUrl(path); setReplyImage((prev) => new Map(prev).set(p.id, data.publicUrl)); }
+                                const { uploadMedia } = await import("@/lib/storage"); try { const { url } = await uploadMedia(file, "comment"); setReplyImage((prev) => new Map(prev).set(p.id, url)); } catch { setReplyImage((prev) => { const m = new Map(prev); m.delete(p.id); return m; }); }
                               }} />
                             </label>
                             <input value={replyText.get(p.id) || ""} onChange={(e) => setReplyText((prev) => new Map(prev).set(p.id, e.target.value))} placeholder="Ответить..." className="flex-1 bg-[#121214] border border-[#222226] rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-sky-500/50" />

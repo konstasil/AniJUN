@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import VoiceMessage from "@/components/VoiceMessage";
+import { uploadMedia } from "@/lib/storage";
 
 const MAX_SEC = 60;
 const MAX_BYTES = 1024 * 1024;
@@ -17,7 +17,6 @@ function fmt(sec: number) {
 }
 
 export default function VoiceRecorder({ onChange }: Props) {
-  const supabaseRef = useRef(createClient());
   const [recording, setRecording] = useState(false);
   const [time, setTime] = useState(0);
   const [live, setLive] = useState<number[]>([]);
@@ -105,15 +104,21 @@ export default function VoiceRecorder({ onChange }: Props) {
   }
 
   async function upload(chunks: BlobPart[]) {
-    const blob = new Blob(chunks, { type: recRef.current?.mimeType || "audio/webm" });
-    if (blob.size > MAX_BYTES) { setError("Голосовое больше 1 МБ"); return; }
-    const path = `voice_${Date.now()}.webm`;
-    const { error } = await supabaseRef.current.storage.from("Anime").upload(path, blob, { contentType: "audio/webm" });
-    if (error) { setError("Ошибка загрузки"); return; }
-    const { data } = supabaseRef.current.storage.from("Anime").getPublicUrl(path);
+    const mime = recRef.current?.mimeType || "audio/webm";
+    const ext = mime.includes("ogg") ? "ogg" : mime.includes("mp4") ? "m4a" : "webm";
+    const blob = new Blob(chunks, { type: mime });
+    const named = new File([blob], `voice.${ext}`, { type: mime });
+    let url: string;
+    try {
+      const res = await uploadMedia(named, "voice");
+      url = res.url;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Ошибка загрузки");
+      return;
+    }
     const dur = (Date.now() - startRef.current) / 1000;
     const peaks = downsample(peaksRef.current, 42);
-    const v = { url: data.publicUrl, duration: dur, peaks };
+    const v = { url, duration: dur, peaks };
     setResult(v);
     onChange(v);
   }
